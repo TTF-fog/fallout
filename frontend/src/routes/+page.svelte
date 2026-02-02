@@ -58,43 +58,43 @@
   />
 
   <!-- Content wrapper -->
-  <div class="absolute top-[12%] md:top-[5%] lg:top-[8%] left-1/2 -translate-x-1/2 z-10 flex flex-col items-center w-full px-2 md:px-0">
+  <div class="absolute top-[8%] md:top-[5%] lg:top-[8%] left-1/2 -translate-x-1/2 z-10 flex flex-col items-center w-full px-2 md:px-0">
     <!-- Date -->
-    <div class="text-white text-base md:text-xl lg:text-[36px] tracking-[0.05em] drop-shadow-[0_2px_4px_rgba(0,0,0,0.3)]">
+    <div class="text-white text-lg md:text-xl lg:text-[36px] tracking-[0.05em] drop-shadow-[0_2px_4px_rgba(0,0,0,0.3)]">
       LATE APRIL 2026
     </div>
 
     <!-- Logo with shadow for contrast -->
     <img
-      class="w-[220px] md:w-[320px] lg:w-[500px] h-auto drop-shadow-[0_4px_8px_rgba(0,0,0,0.25)]"
+      class="w-[280px] md:w-[320px] lg:w-[500px] h-auto drop-shadow-[0_4px_8px_rgba(0,0,0,0.25)]"
       src="/landing/logo.svg"
       alt="Fallout"
     />
 
     <!-- Tagline -->
-    <div class="-rotate-[1.4deg] bg-[#FF27AB] text-white text-center px-2 py-1 md:px-3 md:py-1.5 lg:px-4 lg:py-2 text-[11px] md:text-base lg:text-2xl -mt-2 md:-mt-3 lg:-mt-4 whitespace-nowrap">
+    <div class="-rotate-[1.4deg] bg-[#FF27AB] text-white text-center px-3 py-1.5 md:px-3 md:py-1.5 lg:px-4 lg:py-2 text-xs md:text-base lg:text-2xl -mt-3 md:-mt-3 lg:-mt-4 whitespace-nowrap">
       go to a Hack Club <strong>hardware hackathon</strong> in ShenZhen
     </div>
 
     <!-- Signup form -->
     {#if submitted}
-      <div class="bg-[#36BA77] text-white px-2 py-1 md:px-6 md:py-4 text-sm md:text-lg text-center mt-3 md:mt-4 animate-[popUp_0.4s_ease-out]">
+      <div class="bg-[#36BA77] text-white px-4 py-2 md:px-6 md:py-4 text-base md:text-lg text-center mt-4 md:mt-4 animate-[popUp_0.4s_ease-out]">
         Cheers! An email will be coming in the next weeks...
       </div>
     {:else}
       <form
-        class="-rotate-[0.5deg] flex flex-row items-center gap-0 mt-3 md:mt-4"
+        class="-rotate-[0.5deg] flex flex-row items-center gap-0 mt-4 md:mt-4"
         onsubmit={(e) => { e.preventDefault(); submit(); }}
       >
         <input
-          class="w-[200px] md:w-[280px] lg:w-[320px] px-2 md:px-6 py-1 md:py-3 text-sm md:text-xl border border-white bg-[#00c261] text-white placeholder-white outline-none"
+          class="w-[220px] md:w-[280px] lg:w-[320px] px-4 md:px-6 py-2.5 md:py-3 text-base md:text-xl border border-white bg-[#00c261] text-white placeholder-white outline-none"
           type="email"
           bind:value={email}
           placeholder="enter your email..."
           required
         />
         <button
-          class="px-2 md:px-6 py-0 md:py-3 text-lg md:text-2xl border border-white border-l-0 bg-[#00c261] text-white cursor-pointer transition-transform hover:scale-105 hover:bg-[#00de89] disabled:opacity-50"
+          class="px-4 md:px-6 py-2.5 md:py-3 text-xl md:text-2xl border border-white border-l-0 bg-[#00c261] text-white cursor-pointer transition-transform hover:scale-105 hover:bg-[#00de89] disabled:opacity-50"
           aria-label="Submit"
           disabled={submitting}
         >
