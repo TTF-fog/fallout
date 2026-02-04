@@ -61,7 +61,7 @@
   <div class="absolute top-[8%] md:top-[5%] lg:top-[8%] left-1/2 -translate-x-1/2 z-10 flex flex-col items-center w-full px-2 md:px-0">
     <!-- Date -->
     <div class="text-white text-lg md:text-xl lg:text-[36px] tracking-[0.05em] drop-shadow-[0_2px_4px_rgba(0,0,0,0.3)]">
-      DATE TBD, 2026
+      July 1-7, 2026
     </div>
 
     <!-- Logo with shadow for contrast -->
