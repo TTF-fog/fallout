@@ -30,6 +30,13 @@
   @apply font-outfit bg-light-blue text-dark-brown overscroll-none;
 }
 
+.im-modal-positioner {
+  @apply h-full!;
+}
+.im-modal-wrapper {
+  @apply h-full! min-w-full!;
+}
+
 img {
   @apply select-none;
 }
