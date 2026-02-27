@@ -1,4 +1,6 @@
 import { useForm, usePage } from '@inertiajs/react'
+import { Modal } from '@inertiaui/modal-react'
+import Frame from '@/components/shared/Frame'
 import type { ProjectForm, SharedProps } from '@/types'
 
 export default function ProjectsForm({
@@ -6,11 +8,13 @@ export default function ProjectsForm({
   title,
   submit_url,
   method,
+  is_modal,
 }: {
   project: ProjectForm
   title: string
   submit_url: string
   method: string
+  is_modal: boolean
 }) {
   const { errors } = usePage<SharedProps>().props
 
@@ -32,7 +36,7 @@ export default function ProjectsForm({
     }
   }
 
-  return (
+  const content = (
     <div className="max-w-2xl mx-auto py-8">
       <h1 className="font-bold text-4xl mb-6">{title}</h1>
 
@@ -130,4 +134,14 @@ export default function ProjectsForm({
       </form>
     </div>
   )
+
+  if (is_modal) {
+    return (
+      <Modal panelClasses="h-full" paddingClasses="max-w-5xl mx-auto" closeButton={false}>
+        <Frame className="h-full">{content}</Frame>
+      </Modal>
+    )
+  }
+
+  return content
 }

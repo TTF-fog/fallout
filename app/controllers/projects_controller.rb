@@ -35,7 +35,8 @@ class ProjectsController < ApplicationController
       project: { name: "", description: "", demo_link: "", repo_link: "", is_unlisted: false, tags: [] },
       title: "New Project",
       submit_url: projects_path,
-      method: "post"
+      method: "post",
+      is_modal: request.headers["X-InertiaUI-Modal"].present?
     }
   end
 

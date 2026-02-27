@@ -34,7 +34,7 @@
   @apply h-full!;
 }
 .im-modal-wrapper {
-  @apply h-full! min-w-full!;
+  @apply h-full! min-w-full! p-8;
 }
 
 img {
