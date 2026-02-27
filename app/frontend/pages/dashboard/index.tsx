@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react'
 import type { ReactNode } from 'react'
-import Frame from '@/components/Frame'
 import Shop from '@/components/Shop'
 import Projects from '@/components/Projects'
-import Path from '@/components/Path'
+import Path from '@/components/dashboard/Path'
+import SignUpCta from '@/components/dashboard/SignUpCta'
+import Leaderboard from '@/components/dashboard/Leaderboard'
+import Header from '@/components/dashboard/Header'
 
 type User = {
   user: string
@@ -45,23 +47,12 @@ export default function DashboardIndex() {
         <img src="/clouds/2.png" alt="" className="absolute bottom-0 right-0 -translate-x-5/6 h-30 z-0" />
         <img src="/clouds/3.png" alt="" className="absolute bottom-0 right-0 h-30 md:h-50 w-auto translate-x-1/3 z-0" />
       </div>
-      <main className="min-h-screen w-full bg-light-green pt-8">
-        <Path />
-      </main>
+
+      <main className="min-h-screen w-full bg-light-green pt-8">{/* <Path /> */}</main>
+
       <div className="w-screen min-h-screen fixed p-2 lg:p-8 flex flex-col">
-        <header className="flex justify-between z-1 relative">
-          <img src="" alt="" className="rounded-full aspect-[1/1] h-10 h-16 bg-brown w-fit" />
-          <div className="flex h-10 xl:h-14 gap-2 items-center">
-            <img src="/koifish.png" alt="koi" className="w-auto h-full" />
-            <span className="text-coral text-4xl xl:text-5xl font-bold">{koiBalance}</span>
-            <div className="relative h-full ml-4">
-              <img src="/envelope.png" alt="mail" className="w-auto h-full" />
-              {mail && (
-                <span className="absolute top-1 right-0 rounded-full w-3 md:w-4 aspect-1/1 bg-blue border-1 border-dark-brown" />
-              )}
-            </div>
-          </div>
-        </header>
+        <Header koiBalance={koiBalance} mail={mail} />
+
         <section className="flex justify-between w-full items-end mt-auto">
           <nav className="flex flex-row-reverse md:flex-col gap-y-4">
             <button className="relative hover:scale-110">
@@ -88,32 +79,9 @@ export default function DashboardIndex() {
               />
             </button>
           </nav>
-          <aside className="gap-4 hidden md:flex md:flex-col items-center">
-            <Frame>
-              <div className="flex flex-col items-center text-center gap-y-3 py-6 w-60 mx-8">
-                <h3 className="font-bold">Connect your account!</h3>
-                <p>& get stickers shipped to you!</p>
-                <button
-                  onClick={() => setLoggedIn(true)}
-                  className="py-2 px-12 bg-brown text-light-brown w-fit border-2 border-dark-brown text-3xl xl:text-4xl font-bold whitespace-nowrap"
-                >
-                  SIGN UP
-                </button>
-              </div>
-            </Frame>
-            <Frame>
-              <div className="flex flex-col gap-y-4 w-60 mx-8 py-6">
-                <h3 className="font-bold text-center">LEADERBOARD</h3>
-                <ul className="space-y-4">
-                  {users.map((user) => (
-                    <li key={user.user} className="flex justify-between font-light">
-                      <span className="text-2xl">@{user.user}</span>
-                      <span className="text-2xl">{user.hours}h</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </Frame>
+          <aside className="gap-4 hidden md:flex md:flex-col">
+            <SignUpCta onSignUp={() => setLoggedIn(true)} />
+            <Leaderboard users={users} />
           </aside>
         </section>
       </div>

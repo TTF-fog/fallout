@@ -6,7 +6,7 @@ class ProjectsController < ApplicationController
     scope = scope.search(params[:query]) if params[:query].present?
     @pagy, @projects = pagy(scope.order(created_at: :desc))
 
-    render inertia: "Projects/Index", props: {
+    render inertia: {
       projects: @projects.map { |p| serialize_project_card(p) },
       pagy: pagy_props(@pagy),
       query: params[:query].to_s
@@ -16,7 +16,7 @@ class ProjectsController < ApplicationController
   def show
     authorize @project
 
-    render inertia: "Projects/Show", props: {
+    render inertia: {
       project: serialize_project_detail(@project),
       can: {
         update: policy(@project).update?,
@@ -29,7 +29,7 @@ class ProjectsController < ApplicationController
     @project = current_user.projects.build
     authorize @project
 
-    render inertia: "Projects/Form", props: {
+    render inertia: "projects/form", props: {
       project: { name: "", description: "", demo_link: "", repo_link: "", is_unlisted: false, tags: [] },
       title: "New Project",
       submit_url: projects_path,
@@ -51,7 +51,7 @@ class ProjectsController < ApplicationController
   def edit
     authorize @project
 
-    render inertia: "Projects/Form", props: {
+    render inertia: "projects/form", props: {
       project: {
         id: @project.id,
         name: @project.name,

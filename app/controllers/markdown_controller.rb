@@ -21,7 +21,7 @@ class MarkdownController < ApplicationController
     meta = helpers.docs_meta_for_url("/docs#{slug == 'index' ? '' : "/#{slug}"}")
     page_title = meta&.dig(:title).presence || slug.tr("-_/", " ").split.map(&:capitalize).join(" ")
 
-    render inertia: "Markdown/Show", props: {
+    render inertia: {
       content_html: content_html,
       page_title: page_title
     }

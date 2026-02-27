@@ -12,7 +12,7 @@ export default defineConfig({
   ],
   resolve: {
     alias: {
-      '@': resolve(__dirname, 'app/javascript'),
+      '@': resolve(__dirname, 'app/frontend'),
     },
   },
 })

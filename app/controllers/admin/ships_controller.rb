@@ -4,7 +4,7 @@ class Admin::ShipsController < Admin::ApplicationController
   def index
     @pagy, @ships = pagy(policy_scope(Ship).includes(:project, :reviewer, project: :user).order(created_at: :desc))
 
-    render inertia: "Admin/Ships/Index", props: {
+    render inertia: {
       ships: @ships.map { |s| serialize_ship_row(s) },
       pagy: pagy_props(@pagy)
     }
@@ -13,7 +13,7 @@ class Admin::ShipsController < Admin::ApplicationController
   def show
     authorize @ship
 
-    render inertia: "Admin/Ships/Show", props: {
+    render inertia: {
       ship: serialize_ship_detail(@ship),
       can: { update: policy(@ship).update? }
     }
@@ -22,7 +22,7 @@ class Admin::ShipsController < Admin::ApplicationController
   def edit
     authorize @ship
 
-    render inertia: "Admin/Ships/Edit", props: {
+    render inertia: {
       ship: {
         id: @ship.id,
         status: @ship.status,

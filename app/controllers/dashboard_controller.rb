@@ -1,6 +1,6 @@
 class DashboardController < ApplicationController
   def index
-    render inertia: "Dashboard/Index", props: {
+    render inertia: {
       user: {
         display_name: current_user.display_name,
         email: current_user.email

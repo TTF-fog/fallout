@@ -6,6 +6,7 @@ InertiaRails.configure do |config|
   config.always_include_errors_hash = true
   config.use_script_element_for_initial_page = true
   config.use_data_inertia_head_attribute = true
-  config.default_render = false
+  config.default_render = true
+  config.component_path_resolver = ->(path:, action:) { "#{path.underscore}/#{action.underscore}" }
   config.layout = "inertia"
 end

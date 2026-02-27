@@ -5,6 +5,6 @@ class BansController < ApplicationController
   def show
     return redirect_to root_path unless current_user&.is_banned?
 
-    render inertia: "Bans/Show"
+
   end
 end

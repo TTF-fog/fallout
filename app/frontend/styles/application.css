@@ -1,52 +1,32 @@
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@100..900&display=swap');
 @import 'tailwindcss';
 
-@plugin '@tailwindcss/typography';
-@plugin '@tailwindcss/forms';
+/* @plugin '@tailwindcss/typography'; */
+/* @plugin '@tailwindcss/forms'; */
 
 @theme {
-  --font-outfit: "Outfit", sans-serif;
+  --font-outfit: 'Outfit', sans-serif;
 
-  --color-blue: #38C9FF;
-  --color-dark-brown: #61453A;
-  --color-brown: #9F715D;
-  --color-light-brown: #EDD1B0;
+  --color-blue: #38c9ff;
+  --color-dark-brown: #61453a;
+  --color-brown: #9f715d;
+  --color-light-brown: #edd1b0;
 
-  --color-light-green: #C8E6D8;
-  --color-green: #37B576;
-  --color-light-blue: #C3EFFF;
-  --color-yellow: #FFEBAD;
-  --color-pink: #FC90D2;
-  --color-coral: #FF7D70;
+  --color-light-green: #c8e6d8;
+  --color-green: #37b576;
+  --color-light-blue: #c3efff;
+  --color-yellow: #ffebad;
+  --color-pink: #fc90d2;
+  --color-coral: #ff7d70;
 
   --color-gray: #777777;
-  --color-black: #4B4B4B;
+  --color-black: #4b4b4b;
 
   --color-background: rgba(65, 88, 97, 0.5);
 }
 
 body {
   @apply font-outfit bg-light-blue text-dark-brown;
-}
-
-h1 {
-  @apply text-6xl font-bold;
-}
-
-h2 {
-  @apply text-4xl xl:text-5xl font-bold;
-}
-
-h3 {
-  @apply text-3xl leading-8;
-}
-
-h4 {
-  @apply text-2xl;
-}
-
-p {
-  @apply text-lg;
 }
 
 img {
@@ -192,7 +172,7 @@ img {
   border-radius: 0.5rem;
 }
 
-.markdown-content input[type="checkbox"] {
+.markdown-content input[type='checkbox'] {
   margin-right: 0.5rem;
 }
 

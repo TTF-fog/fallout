@@ -10,6 +10,7 @@
 #  hca_token           :text
 #  is_adult            :boolean          default(FALSE), not null
 #  is_banned           :boolean          default(FALSE), not null
+#  lapse_token         :text
 #  roles               :string           default([]), not null, is an Array
 #  timezone            :string           not null
 #  verification_status :string

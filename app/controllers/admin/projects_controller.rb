@@ -6,7 +6,7 @@ class Admin::ProjectsController < Admin::ApplicationController
     scope = scope.search(params[:query]) if params[:query].present?
     @pagy, @projects = pagy(scope.order(created_at: :desc))
 
-    render inertia: "Admin/Projects/Index", props: {
+    render inertia: {
       projects: @projects.map { |p| serialize_project_row(p) },
       pagy: pagy_props(@pagy),
       query: params[:query].to_s
@@ -18,7 +18,7 @@ class Admin::ProjectsController < Admin::ApplicationController
     authorize @project
     @ships = @project.ships.includes(:reviewer).order(created_at: :desc)
 
-    render inertia: "Admin/Projects/Show", props: {
+    render inertia: {
       project: serialize_project_detail(@project),
       ships: @ships.map { |s| serialize_ship_row(s) }
     }

@@ -16,9 +16,9 @@
     "skipLibCheck": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["app/javascript/*"],
-      "~/*": ["app/javascript/*"]
+      "@/*": ["app/frontend/*"],
+      "~/*": ["app/frontend/*"]
     }
   },
-  "include": ["app/javascript/**/*.ts", "app/javascript/**/*.tsx", "app/javascript/**/*.js"]
+  "include": ["app/frontend/**/*.ts", "app/frontend/**/*.tsx", "app/frontend/**/*.js"]
 }
