@@ -1,7 +1,57 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@100..900&display=swap');
 @import 'tailwindcss';
 
 @plugin '@tailwindcss/typography';
 @plugin '@tailwindcss/forms';
+
+@theme {
+  --font-outfit: "Outfit", sans-serif;
+
+  --color-blue: #38C9FF;
+  --color-dark-brown: #61453A;
+  --color-brown: #9F715D;
+  --color-light-brown: #EDD1B0;
+
+  --color-light-green: #C8E6D8;
+  --color-green: #37B576;
+  --color-light-blue: #C3EFFF;
+  --color-yellow: #FFEBAD;
+  --color-pink: #FC90D2;
+  --color-coral: #FF7D70;
+
+  --color-gray: #777777;
+  --color-black: #4B4B4B;
+
+  --color-background: rgba(65, 88, 97, 0.5);
+}
+
+body {
+  @apply font-outfit bg-light-blue text-dark-brown;
+}
+
+h1 {
+  @apply text-6xl font-bold;
+}
+
+h2 {
+  @apply text-4xl xl:text-5xl font-bold;
+}
+
+h3 {
+  @apply text-3xl leading-8;
+}
+
+h4 {
+  @apply text-2xl;
+}
+
+p {
+  @apply text-lg;
+}
+
+img {
+  @apply select-none;
+}
 
 .markdown-content {
   max-width: 48rem;

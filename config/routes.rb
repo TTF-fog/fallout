@@ -123,7 +123,7 @@ Rails.application.routes.draw do
 
   get "sorry" => "bans#show", as: :sorry
 
-  get "home" => "home#index", as: :home
+  get "dashboard" => "dashboard#index", as: :dashboard
 
   resources :projects
 
