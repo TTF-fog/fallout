@@ -29,7 +29,7 @@ class AuthController < ApplicationController
         cookies.delete(:trial_device_token)
       end
 
-      TrialUser.kept.where(email: user.email).discard_all
+      TrialUser.kept.where(email: user.email).update_all(discarded_at: Time.current)
 
       terminate_session
       session[:user_id] = user.id

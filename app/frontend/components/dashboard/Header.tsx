@@ -1,6 +1,7 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState } from 'react'
 import { usePage, router } from '@inertiajs/react'
 import type { SharedProps } from '@/types'
+import { useClickOutside } from '@/hooks/useClickOutside'
 
 type Props = {
   koiBalance: number
@@ -12,25 +13,7 @@ type Props = {
 export default function Header({ koiBalance, mail, avatar, displayName }: Props) {
   const shared = usePage<SharedProps>().props
   const [isOpen, setIsOpen] = useState(false)
-  const containerRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setIsOpen(false)
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [])
-
-  useEffect(() => {
-    function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape') setIsOpen(false)
-    }
-    document.addEventListener('keydown', handleKeyDown)
-    return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [])
+  const containerRef = useClickOutside<HTMLDivElement>(() => setIsOpen(false))
 
   function signOut(e: React.MouseEvent) {
     e.preventDefault()
@@ -39,11 +22,11 @@ export default function Header({ koiBalance, mail, avatar, displayName }: Props)
 
   return (
     <header className="flex justify-between relative items-start">
-      <div ref={containerRef} className="flex items-center">
+      <div ref={containerRef} className="flex items-start">
         <img
           src={avatar}
           alt={displayName}
-          className="rounded-full aspect-square size-16 bg-brown border-4 border-brown w-fit z-11"
+          className="top-0 left-0 rounded-full aspect-square size-16 bg-brown border-4 border-brown w-fit z-12"
         />
         <div className="flex flex-col -ml-8">
           <button
@@ -51,23 +34,22 @@ export default function Header({ koiBalance, mail, avatar, displayName }: Props)
             aria-expanded={isOpen}
             aria-haspopup="menu"
             onClick={() => setIsOpen(!isOpen)}
-            className={`h-16 bg-brown pl-10 pr-5 min-w-40 text-light-brown text-xl flex items-center transition-all duration-200 ${
-              isOpen ? 'rounded-tr-2xl' : 'rounded-r-full'
-            }`}
+            className="h-16 bg-brown pl-10 pr-5 min-w-40 text-light-brown text-xl flex items-center rounded-r-full z-11"
           >
-            <span className="-mt-0.5">{displayName}</span>
+            <span className="-mt-0.5">samliu</span>
           </button>
+
           <div
             aria-hidden={!isOpen}
-            className={`bg-brown overflow-hidden transition-all duration-200 rounded-bl-[2rem] rounded-br-2xl ${
-              isOpen ? 'max-h-24' : 'max-h-0'
+            className={`bg-light-brown overflow-hidden transition-all duration-200 rounded-bl-2xl -mt-8 pt-8 ${
+              isOpen ? 'max-h-24 rounded-br-4xl' : 'max-h-0 rounded-br-4xl'
             }`}
           >
             <button
               type="button"
               tabIndex={isOpen ? 0 : -1}
               onClick={signOut}
-              className="w-full pl-10 pr-5 py-3 text-left text-light-brown text-lg hover:brightness-110 transition-all"
+              className="w-full pl-10 pr-5 py-3 text-left text-lg hover:brightness-150 transition-all cursor-pointer"
             >
               Sign out
             </button>
