@@ -40,54 +40,48 @@ export default function DashboardIndex() {
   }, [loggedIn])
 
   return (
-    <div className="relative w-screen min-h-screen flex flex-col">
-      <div className="relative w-full h-50 bg-light-blue overflow-x-hidden">
-        <img src="/clouds/4.png" alt="" className="absolute bottom-0 left-0 h-30 md:h-50 -translate-x-1/3 z-0" />
-        <img src="/clouds/1.png" alt="" className="absolute bottom-0 left-40 h-30 translate-x-1/3 z-0" />
-        <img src="/clouds/2.png" alt="" className="absolute bottom-0 right-0 -translate-x-5/6 h-30 z-0" />
-        <img src="/clouds/3.png" alt="" className="absolute bottom-0 right-0 h-30 md:h-50 w-auto translate-x-1/3 z-0" />
-      </div>
-
-      <main className="min-h-screen w-full bg-light-green pt-8">{/* <Path /> */}</main>
-
-      <div className="w-screen min-h-screen fixed p-2 lg:p-8 flex flex-col">
+    <>
+      <div className="fixed top-6 left-6 right-6 z-20">
         <Header koiBalance={koiBalance} mail={mail} />
-
-        <section className="flex justify-between w-full items-end mt-auto">
-          <nav className="flex flex-row-reverse md:flex-col gap-y-4">
-            <button className="relative hover:scale-110">
-              <img src="/icon/guide.png" alt="guide" className="h-20 md:h-30 w-auto cursor-pointer" />
-              {notPressed && (
-                <span className="absolute top-4 left-4 rounded-full w-4 aspect-1/1 bg-pink border-1 border-dark-brown" />
-              )}
-            </button>
-            <button onClick={() => setShopOpen(true)}>
-              <img src="/icon/shop.png" alt="Shop" className="h-20 md:h-36 w-auto hover:scale-110 cursor-pointer" />
-            </button>
-            <button onClick={() => setProjectsOpen(true)}>
-              <img
-                src="/icon/project.png"
-                alt="Projects"
-                className="h-20 md:h-30 w-auto hover:scale-110 cursor-pointer"
-              />
-            </button>
-            <button>
-              <img
-                src="/icon/clearing.png"
-                alt="Clearing"
-                className="h-20 md:h-60 w-auto hover:scale-110 cursor-pointer"
-              />
-            </button>
-          </nav>
-          <aside className="gap-4 hidden md:flex md:flex-col">
-            <SignUpCta onSignUp={() => setLoggedIn(true)} />
-            <Leaderboard users={users} />
-          </aside>
-        </section>
       </div>
-      {shopOpen && <Shop onClose={() => setShopOpen(false)} />}
-      {projectsOpen && <Projects onClose={() => setProjectsOpen(false)} />}
-    </div>
+
+      <div className="fixed top-6 bottom-6 right-6 z-10 flex items-center pt-[10%]">
+        <div className="flex flex-col items-end space-y-6">
+          <SignUpCta onSignUp={() => setLoggedIn(true)} />
+          <Leaderboard users={users} />
+        </div>
+      </div>
+
+      <div className="fixed bottom-6 left-6 flex flex-col items-start space-y-4 z-10">
+        <button>
+          <img src="/icon/guide.png" alt="Guide" className="w-25 cursor-pointer" />
+        </button>
+        <button>
+          <img src="/icon/project.png" alt="Projects" className="w-25 cursor-pointer" />
+        </button>
+        <button>
+          <img src="/icon/shop.png" alt="Shop" className="w-25 cursor-pointer" />
+        </button>
+        <button className="col-span-2 -mt-4">
+          <img src="/icon/clearing.png" alt="Clearing" className="w-50 cursor-pointer" />
+        </button>
+      </div>
+
+      <div className="relative w-screen min-h-screen flex flex-col">
+        <div className="relative w-full h-50 bg-light-blue overflow-x-hidden">
+          <img src="/clouds/4.png" alt="" className="absolute bottom-0 left-0 h-30 md:h-50 -translate-x-1/3 z-0" />
+          <img src="/clouds/1.png" alt="" className="absolute bottom-0 left-40 h-30 translate-x-1/3 z-0" />
+          <img src="/clouds/2.png" alt="" className="absolute bottom-0 right-0 -translate-x-5/6 h-30 z-0" />
+          <img
+            src="/clouds/3.png"
+            alt=""
+            className="absolute bottom-0 right-0 h-30 md:h-50 w-auto translate-x-1/3 z-0"
+          />
+        </div>
+
+        <main className="min-h-screen w-full bg-light-green pt-8">{/* <Path /> */}</main>
+      </div>
+    </>
   )
 }
 

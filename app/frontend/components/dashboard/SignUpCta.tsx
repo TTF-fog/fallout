@@ -9,7 +9,11 @@ export default function SignUpCta({ onSignUp }: Props) {
     <Frame>
       <div className="flex flex-col items-center text-center space-y-4 py-4 mx-4">
         <div className="space-y-1">
-          <h3 className="font-bold text-xl">Connect your account!</h3>
+          <h3 className="font-bold text-xl">
+            Connect your account
+            <br />
+            to save progress!
+          </h3>
           <p className="text-sm">& get stickers shipped to you!</p>
         </div>
         <button

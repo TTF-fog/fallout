@@ -282,4 +282,8 @@ class User < ApplicationRecord
 
     slack_id.delete_suffix("_DEV")
   end
+
+  def koi
+    0
+  end
 end
