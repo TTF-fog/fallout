@@ -129,6 +129,8 @@ Rails.application.routes.draw do
 
   resources :projects
 
+  get "test" => "test#index", as: :test
+
   get "docs" => "markdown#show", as: :docs
   get "docs/*slug" => "markdown#show", as: :doc
 
