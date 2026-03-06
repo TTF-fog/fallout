@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import type { ReactNode } from 'react'
-import { usePage } from '@inertiajs/react'
+import { Link, usePage } from '@inertiajs/react'
 import type { SharedProps } from '@/types'
 import { ModalLink } from '@inertiaui/modal-react'
 import Shop from '@/components/Shop'
@@ -64,11 +64,11 @@ export default function DashboardIndex() {
       <div className="fixed bottom-6 left-6 flex flex-col items-start space-y-4 z-10">
         <Tooltip>
           <TooltipTrigger>
-            <button onClick={() => notify('alert', "The guide isn't open yet. Check back later!")}>
+            <Link href="/docs">
               <img src="/icon/guide.png" alt="Guide" className="w-25 cursor-pointer" />
-            </button>
+            </Link>
           </TooltipTrigger>
-          <TooltipContent>Guide</TooltipContent>
+          <TooltipContent>Docs & Resources</TooltipContent>
         </Tooltip>
         <Tooltip>
           <TooltipTrigger>

@@ -27,7 +27,7 @@
 }
 
 :root {
-  @apply font-outfit bg-light-blue text-dark-brown overscroll-none;
+  @apply font-outfit bg-light-brown text-dark-brown overscroll-none;
 }
 
 .im-modal-positioner {
@@ -39,6 +39,31 @@
 
 img {
   @apply select-none;
+}
+
+button:focus,
+input:focus,
+textarea:focus {
+  outline: none;
+}
+
+.custom-checkbox {
+  @apply appearance-none w-5 h-5 border-2 border-dark-brown rounded bg-white cursor-pointer grid place-content-center;
+}
+
+.custom-checkbox::after {
+  content: '';
+  @apply w-2.5 h-2.5 bg-light-brown;
+  clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%);
+  transform: scale(0);
+}
+
+.custom-checkbox:checked {
+  @apply bg-brown border-dark-brown;
+}
+
+.custom-checkbox:checked::after {
+  transform: scale(1);
 }
 
 .markdown-content {
