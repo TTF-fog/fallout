@@ -173,6 +173,40 @@ module MarkdownHelper
       .map { |i| { title: i[:title], path: i[:path], description: i[:description] } }
   end
 
+  def docs_grouped_menu_items
+    items = docs_section_metadata.reject { |i| i[:slug].blank? || i[:unlisted] }
+    sort = ->(list) { list.sort_by { |h| [ h[:priority].nil? ? Float::INFINITY : h[:priority].to_i, h[:title].downcase ] } }
+
+    top_level = []
+    sections = {}
+
+    items.each do |item|
+      slug = item[:slug].to_s
+      parts = slug.split("/")
+
+      if parts.length <= 1
+        top_level << item
+      else
+        section_key = parts.first
+        sections[section_key] ||= []
+        sections[section_key] << item
+      end
+    end
+
+    result = sort.call(top_level).map { |i| { type: "link", title: i[:title], path: i[:path] } }
+
+    sections.each do |key, section_items|
+      sorted = sort.call(section_items)
+      result << {
+        type: "section",
+        title: key.tr("-_", " ").split.map(&:capitalize).join(" "),
+        items: sorted.map { |i| { title: i[:title], path: i[:path] } }
+      }
+    end
+
+    result
+  end
+
   def docs_meta_for_url(url)
     docs_section_metadata.find { |i| i[:path] == url }
   end

@@ -27,7 +27,7 @@ class MarkdownController < ApplicationController
     render inertia: {
       content_html: content_html,
       page_title: page_title,
-      menu_items: helpers.docs_menu_items
+      menu_items: helpers.docs_grouped_menu_items
     }
   end
 

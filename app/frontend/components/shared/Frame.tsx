@@ -3,7 +3,7 @@ import { twMerge } from 'tailwind-merge'
 
 const Frame = ({ children, className }: { children: ReactNode; className?: string }) => (
   <div className={twMerge('relative pl-4.25 pt-3.75 pr-6.25 pb-5.5', className)}>
-    <div className="bg-light-brown h-full w-full p-3">{children}</div>
+    <div className="bg-light-brown h-full w-full p-3 overflow-hidden">{children}</div>
     <img className="absolute top-0 left-0 w-22.5 h-20 pointer-events-none" src="/border/top_left.png" alt="" />
     <img className="absolute top-0 right-0 w-22.5 h-20 pointer-events-none" src="/border/top_right.png" alt="" />
     <img className="absolute bottom-0 left-0 w-22.5 h-20 pointer-events-none" src="/border/bottom_left.png" alt="" />

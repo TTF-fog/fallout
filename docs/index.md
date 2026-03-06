@@ -1,7 +1,8 @@
-| title | Docs |
-| description | Documentation |
+| title | Overview |
+| description | Welcome to the Fallout docs |
+| priority | 0 |
 | --- | --- |
 
-# Documentation
+# Welcome to Fallout Docs
 
-Welcome to the docs.
+Everything you need to know about building your hardware project, tracking your progress, and shipping your work.

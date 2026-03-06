@@ -30,6 +30,36 @@
   @apply font-outfit bg-light-brown text-dark-brown overscroll-none;
 }
 
+/* macOS-style thin translucent scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
+}
+
+/* WebKit fallback for older Chrome/Safari/Edge */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0);
+  border-radius: 4px;
+  transition: background 0.2s;
+}
+
+*:hover::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.4);
+}
+
 .im-modal-positioner {
   @apply h-full!;
 }
@@ -67,7 +97,6 @@ textarea:focus {
 }
 
 .markdown-content {
-  max-width: 48rem;
   margin: 2rem auto;
   padding: 0 1rem;
   line-height: 1.75;
