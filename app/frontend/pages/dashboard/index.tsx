@@ -2,7 +2,8 @@ import { useState, useEffect, useMemo } from 'react'
 import type { ReactNode } from 'react'
 import { Link, usePage } from '@inertiajs/react'
 import type { SharedProps } from '@/types'
-import { ModalLink } from '@inertiaui/modal-react'
+// @ts-expect-error useModalStack lacks type declarations in this beta package
+import { ModalLink, useModalStack } from '@inertiaui/modal-react'
 import Shop from '@/components/Shop'
 import Projects from '@/components/Projects'
 import Path from '@/components/dashboard/Path'
@@ -35,6 +36,8 @@ export default function DashboardIndex() {
   const [notPressed] = useState<boolean>(true)
   const [loggedIn] = useState(false)
 
+  const { visitModal } = useModalStack()
+
   const pathNodes = useMemo(() => Array.from({ length: 60 }, (_, i) => <PathNode key={i} index={i} hasProjects={has_projects} />), [has_projects])
 
   useEffect(() => {
@@ -48,6 +51,19 @@ export default function DashboardIndex() {
       document.body.style.overflow = ''
     }
   }, [loggedIn])
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('open') === 'journal') {
+      const projectId = params.get('project_id')
+      params.delete('open')
+      params.delete('project_id')
+      const newUrl = params.toString() ? `${window.location.pathname}?${params}` : window.location.pathname
+      window.history.replaceState({}, '', newUrl)
+      const modalUrl = projectId ? `/projects/${projectId}/journals/new` : '/journals/new'
+      visitModal(modalUrl)
+    }
+  }, [])
 
   return (
     <>

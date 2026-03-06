@@ -9,10 +9,10 @@ const BILLBOARD_CULL_H = 600 // estimated max height for culling buffer
 const BILLBOARD_Y_OFFSET = 60 // vertical offset for billboard content (px)
 const BILLBOARD_SPACING = 400 // px between rows on the ground plane
 const INFLECTION_PCT = 20 // % from top of screen where sky ends and ground begins
-const TOP_PCT = 60 // % from top of ground area where billboard bottoms peak
+const TOP_PCT = 50 // % from top of ground area where billboard bottoms peak
 const BOTTOM_PCT = 30 // % from bottom of ground area where closest billboard appears
 const SCROLL_SPEED = 1.5
-const SCROLL_TO_BOTTOM_PCT = 25 // clicked node's bottom lands this % from screen bottom
+const SCROLL_TO_BOTTOM_PCT = 40 // clicked node's bottom lands this % from screen bottom
 
 const GRASS_DENSITY = 7 // blades per 1000px of ground depth
 const GRASS_X_MIN = -150 // % of ground plane width
@@ -433,7 +433,9 @@ export default function Path({ nodes }: PathProps) {
                   {(() => {
                     const node = nodes[billboards.length - 1 - i]
                     return React.isValidElement(node)
-                      ? React.cloneElement(node as React.ReactElement<{ interactive?: boolean }>, { interactive: false })
+                      ? React.cloneElement(node as React.ReactElement<{ interactive?: boolean }>, {
+                          interactive: false,
+                        })
                       : node
                   })()}
                 </div>

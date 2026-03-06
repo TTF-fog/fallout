@@ -7,6 +7,10 @@ class LapseAuthController < ApplicationController
   def start
     state = SecureRandom.hex(24)
     session[:lapse_state] = state
+    if params[:return_to].present?
+      session[:lapse_return_to] = params[:return_to]
+      session[:lapse_return_project_id] = params[:project_id] if params[:project_id].present?
+    end
 
     redirect_to LapseService.authorize_url(lapse_callback_url, state), allow_other_host: true
   end
@@ -30,7 +34,14 @@ class LapseAuthController < ApplicationController
     end
 
     current_user.update!(lapse_token: token_data["access_token"])
-    redirect_to root_path, notice: "Lapse account connected successfully!"
+    return_to = session.delete(:lapse_return_to)
+    return_project_id = session.delete(:lapse_return_project_id)
+    redirect_path = if return_to == "journal"
+      dashboard_path(open: "journal", project_id: return_project_id)
+    else
+      root_path
+    end
+    redirect_to redirect_path, notice: "Lapse account connected successfully!"
   rescue StandardError => e
     ErrorReporter.capture_exception(e)
     redirect_to root_path, alert: "Failed to connect Lapse account"
