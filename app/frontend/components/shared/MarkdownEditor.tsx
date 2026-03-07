@@ -142,15 +142,12 @@ function prefixLines(
 
   const lines = value.slice(lineStart, sliceEnd).split('\n')
 
-  let anyToggled = false
-  const prefixed = lines.map((line, i) => {
+  const allWereNumbered = ordered && lines.every(line => /^\d+\. /.test(line))
+  const prefixed = lines.map((line) => {
     if (ordered) {
       const olMatch = line.match(/^(\d+)\. /)
-      if (olMatch) {
-        anyToggled = true
-        return line.slice(olMatch[0].length)
-      }
-      return `${i + 1}. ${line}`
+      if (olMatch) return line.slice(olMatch[0].length)
+      return line
     }
     if (line.startsWith(prefixStr)) {
       return line.slice(prefixStr.length)
@@ -158,14 +155,10 @@ function prefixLines(
     return prefixStr + line
   })
 
-  // Renumber ordered list items within selection
   if (ordered) {
-    let num = 1
-    for (let i = 0; i < prefixed.length; i++) {
-      const match = prefixed[i].match(/^(\d+)\. /)
-      if (match) {
-        prefixed[i] = `${num}. ${prefixed[i].slice(match[0].length)}`
-        num++
+    if (!allWereNumbered) {
+      for (let i = 0; i < prefixed.length; i++) {
+        prefixed[i] = `${i + 1}. ${prefixed[i].replace(/^\d+\. /, '')}`
       }
     }
   }
@@ -174,7 +167,7 @@ function prefixLines(
   let newValue = value.slice(0, lineStart) + joined + value.slice(sliceEnd)
 
   // Renumber subsequent ordered list items after a toggle-off
-  if (ordered && anyToggled) {
+  if (ordered && allWereNumbered) {
     const afterPos = lineStart + joined.length
     const afterText = newValue.slice(afterPos)
     const afterLines = afterText.split('\n')
@@ -499,7 +492,7 @@ export default function MarkdownEditor({
   const charCount = value.length
 
   return (
-    <div className="border-2 border-dark-brown rounded-lg overflow-hidden bg-white">
+    <div className="border-2 border-dark-brown rounded overflow-hidden bg-white">
       {/* Header: Tabs + Toolbar */}
       <div className="flex items-center justify-between border-b-2 border-dark-brown bg-light-brown/30 px-3 py-1.5">
         <div className="flex items-center gap-1">
