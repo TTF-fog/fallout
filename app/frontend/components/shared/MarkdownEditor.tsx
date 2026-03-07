@@ -404,7 +404,8 @@ export default function MarkdownEditor({
           request.upload.addEventListener('progress', (event: ProgressEvent) => {
             if (!event.lengthComputable) return
             const percent = Math.round((event.loaded / event.total) * 100)
-            replaceInValue(placeholderPrefix, `${placeholderPrefix} ${percent}% -->`)
+            const status = percent >= 100 ? 'Processing...' : `${percent}%`
+            replaceInValue(placeholderPrefix, `${placeholderPrefix} ${status} -->`)
           })
         },
       })
@@ -414,7 +415,7 @@ export default function MarkdownEditor({
           replaceInValue(placeholderPrefix, `<!-- Upload failed: ${file.name} -->`)
           return
         }
-        const imgMarkdown = `![${blob.filename}](/rails/active_storage/blobs/redirect/${blob.signed_id}/${blob.filename})`
+        const imgMarkdown = `![${blob.filename}](/user-attachments/blobs/redirect/${blob.signed_id}/${blob.filename})`
         replaceInValue(placeholderPrefix, imgMarkdown)
         updateBlobs(blob.signed_id)
       })

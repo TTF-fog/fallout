@@ -19,6 +19,9 @@ module Fallout
     # Enable Rack::Attack middleware
     config.middleware.use Rack::Attack
 
+    # Serve Active Storage under /user-attachments instead of /rails/active_storage
+    config.active_storage.routes_prefix = "/user-attachments"
+
     # Configuration for the application, engines, and railties goes here.
     #
     # These settings can be overridden in specific environments using the files
