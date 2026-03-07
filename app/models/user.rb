@@ -253,6 +253,18 @@ class User < ApplicationRecord
     update!(onboarded: false)
   end
 
+  def get_timelapses
+    return [] if lapse_token.blank?
+
+    projects = LapseService.hackatime_projects(lapse_token) || []
+    projects.flat_map do |project|
+      LapseService.timelapses_for_project(lapse_token, project["name"]) || []
+    end
+  rescue LapseService::Unauthorized
+    update!(lapse_token: nil)
+    []
+  end
+
   private
 
   def self.determine_is_adult(identity)

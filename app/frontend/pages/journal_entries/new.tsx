@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useState, useEffect, useRef, type ReactNode } from 'react'
 import { Deferred as InertiaDeferred, router } from '@inertiajs/react'
 import { Deferred as ModalDeferred, Modal } from '@inertiaui/modal-react'
 import Frame from '@/components/shared/Frame'
@@ -15,19 +15,13 @@ type Timelapse = {
   createdAt: number
 }
 
-type HackatimeProject = {
-  name: string
-  time: number
-  timelapses: Timelapse[]
-}
-
-function NewJournal({ projects, selected_project_id, lapse_connected, is_modal, direct_upload_url, hackatime_projects }: {
+function NewJournal({ projects, selected_project_id, lapse_connected, is_modal, direct_upload_url, timelapses }: {
   projects: Project[]
   selected_project_id: number | null
   lapse_connected: boolean
   is_modal: boolean
   direct_upload_url: string
-  hackatime_projects: HackatimeProject[] | null
+  timelapses: Timelapse[] | null
 }) {
   const initialProject = selected_project_id
     ? projects.find((p) => p.id === selected_project_id) ?? null
@@ -35,9 +29,40 @@ function NewJournal({ projects, selected_project_id, lapse_connected, is_modal, 
 
   const [selectedProject, setSelectedProject] = useState<Project | null>(initialProject)
   const [selectedTimelapses, setSelectedTimelapses] = useState<Set<string>>(new Set())
-  const [markdown, setMarkdown] = useState('')
   const [blobSignedIds, setBlobSignedIds] = useState<string[]>([])
   const [submitting, setSubmitting] = useState(false)
+  const [draftStatus, setDraftStatus] = useState<string | null>(null)
+
+  const draftKey = selectedProject ? `journal-draft-${selectedProject.id}` : null
+  const [markdown, setMarkdown] = useState(() => {
+    if (!draftKey) return ''
+    try { return localStorage.getItem(draftKey) ?? '' } catch { return '' }
+  })
+
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const prevDraftKey = useRef(draftKey)
+
+  useEffect(() => {
+    if (draftKey && draftKey !== prevDraftKey.current) {
+      try { setMarkdown(localStorage.getItem(draftKey) ?? '') } catch {}
+      setDraftStatus(null)
+    }
+    prevDraftKey.current = draftKey
+  }, [draftKey])
+
+  useEffect(() => {
+    if (!draftKey || !markdown) {
+      setDraftStatus(null)
+      return
+    }
+    setDraftStatus('Saving draft...')
+    if (saveTimer.current) clearTimeout(saveTimer.current)
+    saveTimer.current = setTimeout(() => {
+      try { localStorage.setItem(draftKey, markdown) } catch {}
+      setDraftStatus('Draft saved locally.')
+    }, 500)
+    return () => { if (saveTimer.current) clearTimeout(saveTimer.current) }
+  }, [markdown, draftKey])
 
   const Deferred = is_modal ? ModalDeferred : InertiaDeferred
 
@@ -58,6 +83,9 @@ function NewJournal({ projects, selected_project_id, lapse_connected, is_modal, 
       content: markdown,
       images: blobSignedIds,
     }, {
+      onSuccess: () => {
+        if (draftKey) try { localStorage.removeItem(draftKey) } catch {}
+      },
       onFinish: () => setSubmitting(false),
     })
   }
@@ -76,9 +104,9 @@ function NewJournal({ projects, selected_project_id, lapse_connected, is_modal, 
         </div>
       )}
       {lapse_connected && (
-        <Deferred data="hackatime_projects" fallback={<TimelapseSkeleton />}>
+        <Deferred data="timelapses" fallback={<TimelapseSkeleton />}>
           <TimelapseBrowser
-            hackatimeProjects={hackatime_projects ?? []}
+            timelapses={timelapses ?? []}
             selectedTimelapses={selectedTimelapses}
             onToggle={toggleTimelapse}
           />
@@ -92,6 +120,7 @@ function NewJournal({ projects, selected_project_id, lapse_connected, is_modal, 
           onBlobsChange={setBlobSignedIds}
           directUploadUrl={direct_upload_url}
           previewUrl="/journal_entries/preview"
+          draftStatus={draftStatus}
         />
       </div>
       {selectedTimelapses.size > 0 && (
@@ -158,18 +187,15 @@ function formatDuration(seconds: number): string {
   return secs > 0 ? `${mins}m ${secs}s` : `${mins}m`
 }
 
-function TimelapseBrowser({ hackatimeProjects, selectedTimelapses, onToggle }: {
-  hackatimeProjects: HackatimeProject[]
+function TimelapseBrowser({ timelapses, selectedTimelapses, onToggle }: {
+  timelapses: Timelapse[]
   selectedTimelapses: Set<string>
   onToggle: (id: string) => void
 }) {
-  const projectsWithTimelapses = hackatimeProjects.filter((p) => p.timelapses.length > 0)
-  const emptyProjects = hackatimeProjects.filter((p) => p.timelapses.length === 0)
-
-  if (hackatimeProjects.length === 0) {
+  if (timelapses.length === 0) {
     return (
       <div className="mt-6 p-4 border border-gray-200 rounded-lg text-gray-500">
-        No Hackatime projects found. Start coding to generate timelapses!
+        No timelapses found. Start coding to generate timelapses!
       </div>
     )
   }
@@ -177,48 +203,38 @@ function TimelapseBrowser({ hackatimeProjects, selectedTimelapses, onToggle }: {
   return (
     <div className="mt-6 space-y-6">
       <h2 className="font-bold text-xl">Select timelapses for your journal</h2>
-      {projectsWithTimelapses.map((project) => (
-        <div key={project.name}>
-          <h3 className="font-bold text-lg mb-3">{project.name}</h3>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-            {project.timelapses.map((timelapse) => {
-              const selected = selectedTimelapses.has(timelapse.id)
-              return (
-                <button
-                  key={timelapse.id}
-                  type="button"
-                  onClick={() => onToggle(timelapse.id)}
-                  className={`group relative aspect-video rounded-lg overflow-hidden bg-gray-100 border-2 cursor-pointer transition-all ${
-                    selected ? 'border-blue-500 ring-2 ring-blue-500/30' : 'border-gray-200 hover:border-gray-300'
-                  }`}
-                >
-                  <img
-                    src={timelapse.thumbnailUrl}
-                    alt={timelapse.name}
-                    className="w-full h-full object-cover"
-                  />
-                  {selected && (
-                    <div className="absolute top-2 right-2 w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center">
-                      <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                      </svg>
-                    </div>
-                  )}
-                  <div className="absolute inset-x-0 bottom-0 bg-linear-to-t from-black/70 to-transparent p-2 pt-6">
-                    <p className="text-white text-sm font-medium truncate text-left">{timelapse.name}</p>
-                    <p className="text-white/70 text-xs text-left">{formatDuration(timelapse.duration)}</p>
-                  </div>
-                </button>
-              )
-            })}
-          </div>
-        </div>
-      ))}
-      {emptyProjects.length > 0 && (
-        <div className="text-sm text-gray-400">
-          {emptyProjects.length} project{emptyProjects.length !== 1 && 's'} with no timelapses: {emptyProjects.map((p) => p.name).join(', ')}
-        </div>
-      )}
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+        {timelapses.map((timelapse) => {
+          const selected = selectedTimelapses.has(timelapse.id)
+          return (
+            <button
+              key={timelapse.id}
+              type="button"
+              onClick={() => onToggle(timelapse.id)}
+              className={`group relative aspect-video rounded-lg overflow-hidden bg-gray-100 border-2 cursor-pointer transition-all ${
+                selected ? 'border-blue-500 ring-2 ring-blue-500/30' : 'border-gray-200 hover:border-gray-300'
+              }`}
+            >
+              <img
+                src={timelapse.thumbnailUrl}
+                alt={timelapse.name}
+                className="w-full h-full object-cover"
+              />
+              {selected && (
+                <div className="absolute top-2 right-2 w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center">
+                  <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+              )}
+              <div className="absolute inset-x-0 bottom-0 bg-linear-to-t from-black/70 to-transparent p-2 pt-6">
+                <p className="text-white text-sm font-medium truncate text-left">{timelapse.name}</p>
+                <p className="text-white/70 text-xs text-left">{formatDuration(timelapse.duration)}</p>
+              </div>
+            </button>
+          )
+        })}
+      </div>
     </div>
   )
 }

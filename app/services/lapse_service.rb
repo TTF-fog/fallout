@@ -3,6 +3,7 @@ require "json"
 
 module LapseService
   class Error < StandardError; end
+  class Unauthorized < Error; end
 
   module_function
 
@@ -55,6 +56,8 @@ module LapseService
       req.headers["Accept"] = "application/json"
     end
 
+    raise Unauthorized, "Lapse token expired or invalid" if response.status == 401
+
     unless response.success?
       ErrorReporter.capture_message("Lapse hackatime projects fetch failed", level: :warning, contexts: {
         lapse: { status: response.status }
@@ -64,6 +67,8 @@ module LapseService
 
     data = JSON.parse(response.body)
     data.dig("data", "projects")
+  rescue Unauthorized
+    raise
   rescue StandardError => e
     ErrorReporter.capture_exception(e, contexts: { lapse: { action: "hackatime_projects" } })
     nil
@@ -79,6 +84,8 @@ module LapseService
       req.params["projectKey"] = project_key
     end
 
+    raise Unauthorized, "Lapse token expired or invalid" if response.status == 401
+
     unless response.success?
       ErrorReporter.capture_message("Lapse timelapses fetch failed", level: :warning, contexts: {
         lapse: { status: response.status, project_key: project_key }
@@ -88,6 +95,8 @@ module LapseService
 
     data = JSON.parse(response.body)
     data.dig("data", "timelapses")
+  rescue Unauthorized
+    raise
   rescue StandardError => e
     ErrorReporter.capture_exception(e, contexts: { lapse: { action: "timelapses_for_project", project_key: project_key } })
     nil
@@ -102,6 +111,8 @@ module LapseService
       req.params["id"] = timelapse_id
     end
 
+    raise Unauthorized, "Lapse token expired or invalid" if response.status == 401
+
     unless response.success?
       ErrorReporter.capture_message("Lapse timelapse fetch failed", level: :warning, contexts: {
         lapse: { status: response.status, timelapse_id: timelapse_id }
@@ -111,6 +122,8 @@ module LapseService
 
     data = JSON.parse(response.body)
     data.dig("data", "timelapse")
+  rescue Unauthorized
+    raise
   rescue StandardError => e
     ErrorReporter.capture_exception(e, contexts: { lapse: { action: "fetch_timelapse", timelapse_id: timelapse_id } })
     nil

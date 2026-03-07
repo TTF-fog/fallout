@@ -21,7 +21,7 @@ class JournalEntriesController < ApplicationController
       lapse_connected: lapse_connected,
       is_modal: request.headers["X-InertiaUI-Modal"].present?,
       direct_upload_url: rails_direct_uploads_url,
-      hackatime_projects: InertiaRails.defer { fetch_hackatime_projects_with_timelapses if lapse_connected }
+      timelapses: InertiaRails.defer { lapse_connected ? current_user.get_timelapses.map { |t| safe_timelapse_attrs(t) } : [] }
     }
   end
 
@@ -56,24 +56,6 @@ class JournalEntriesController < ApplicationController
   end
 
   private
-
-  def fetch_hackatime_projects_with_timelapses
-    token = current_user.lapse_token
-    ht_projects = LapseService.hackatime_projects(token)
-    return [] unless ht_projects
-
-    ht_projects.filter_map do |project|
-      name = project["name"]
-      next unless name
-
-      timelapses = LapseService.timelapses_for_project(token, name) || []
-      {
-        name: name,
-        time: project["time"],
-        timelapses: timelapses.map { |t| safe_timelapse_attrs(t) }
-      }
-    end
-  end
 
   # Strip owner PII and internal fields before exposing to frontend
   def safe_timelapse_attrs(timelapse)

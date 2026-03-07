@@ -10,6 +10,7 @@ type MarkdownEditorProps = {
   previewUrl: string
   minChars?: number
   minImages?: number
+  draftStatus?: string | null
 }
 
 // --- Helpers ---
@@ -38,9 +39,7 @@ function expandToWordBoundaries(value: string, pos: number): [number, number] {
 
 type InsertResult = { newValue: string; cursorStart: number; cursorEnd: number }
 
-function wrapSelection(
-  value: string, start: number, end: number, prefix: string, suffix: string
-): InsertResult {
+function wrapSelection(value: string, start: number, end: number, prefix: string, suffix: string): InsertResult {
   if (start !== end) {
     // Check if selection is exactly the content between markers → unwrap
     if (
@@ -48,7 +47,8 @@ function wrapSelection(
       value.slice(start - prefix.length, start) === prefix &&
       value.slice(end, end + suffix.length) === suffix
     ) {
-      const newValue = value.slice(0, start - prefix.length) + value.slice(start, end) + value.slice(end + suffix.length)
+      const newValue =
+        value.slice(0, start - prefix.length) + value.slice(start, end) + value.slice(end + suffix.length)
       return { newValue, cursorStart: start - prefix.length, cursorEnd: end - prefix.length }
     }
     const selected = value.slice(start, end)
@@ -81,10 +81,7 @@ function wrapSelection(
       return { newValue, cursorStart: cursorPos, cursorEnd: cursorPos }
     }
     // Check if markers are embedded in word (e.g. _hello_ where _ is \w)
-    if (
-      word.length > prefix.length + suffix.length &&
-      word.startsWith(prefix) && word.endsWith(suffix)
-    ) {
+    if (word.length > prefix.length + suffix.length && word.startsWith(prefix) && word.endsWith(suffix)) {
       const inner = word.slice(prefix.length, word.length - suffix.length)
       const newValue = value.slice(0, wordStart) + inner + value.slice(wordEnd)
       const cursorPos = start - prefix.length
@@ -124,25 +121,31 @@ function insertCodeBlock(value: string, start: number, end: number): InsertResul
   const newValue = before + block + after
 
   const cursorPos = before.length + prefix.length + 4 + (content.length > 0 ? 0 : 0)
-  const cursorOffset = content.length > 0
-    ? before.length + prefix.length + 4 + content.length
-    : before.length + prefix.length + 4
+  const cursorOffset =
+    content.length > 0 ? before.length + prefix.length + 4 + content.length : before.length + prefix.length + 4
 
   return { newValue, cursorStart: cursorOffset, cursorEnd: cursorOffset }
 }
 
-function prefixLines(
-  value: string, start: number, end: number, prefixStr: string, ordered: boolean
-): InsertResult {
+function prefixLines(value: string, start: number, end: number, prefixStr: string, ordered: boolean): InsertResult {
   const lineStart = value.lastIndexOf('\n', start - 1) + 1
-  const lineEnd = end === value.length ? end : (value.indexOf('\n', end - 1) === -1 ? value.length : (end > start && value[end - 1] === '\n' ? end - 1 : value.indexOf('\n', end) === -1 ? value.length : value.indexOf('\n', end)))
+  const lineEnd =
+    end === value.length
+      ? end
+      : value.indexOf('\n', end - 1) === -1
+        ? value.length
+        : end > start && value[end - 1] === '\n'
+          ? end - 1
+          : value.indexOf('\n', end) === -1
+            ? value.length
+            : value.indexOf('\n', end)
 
   const actualLineEnd = value.indexOf('\n', Math.max(end - 1, lineStart))
   const sliceEnd = actualLineEnd === -1 ? value.length : actualLineEnd
 
   const lines = value.slice(lineStart, sliceEnd).split('\n')
 
-  const allWereNumbered = ordered && lines.every(line => /^\d+\. /.test(line))
+  const allWereNumbered = ordered && lines.every((line) => /^\d+\. /.test(line))
   const prefixed = lines.map((line) => {
     if (ordered) {
       const olMatch = line.match(/^(\d+)\. /)
@@ -214,7 +217,11 @@ function handleTab(value: string, start: number, end: number, shift: boolean): I
     const spacesToRemove = lineContent.startsWith('  ') ? 2 : lineContent.startsWith(' ') ? 1 : 0
     if (spacesToRemove === 0) return { newValue: value, cursorStart: start, cursorEnd: end }
     const newValue = value.slice(0, lineStart) + value.slice(lineStart + spacesToRemove)
-    return { newValue, cursorStart: Math.max(lineStart, start - spacesToRemove), cursorEnd: Math.max(lineStart, end - spacesToRemove) }
+    return {
+      newValue,
+      cursorStart: Math.max(lineStart, start - spacesToRemove),
+      cursorEnd: Math.max(lineStart, end - spacesToRemove),
+    }
   }
   const newValue = value.slice(0, start) + '  ' + value.slice(end)
   return { newValue, cursorStart: start + 2, cursorEnd: start + 2 }
@@ -223,43 +230,163 @@ function handleTab(value: string, start: number, end: number, shift: boolean): I
 // --- Toolbar Icon Components (from marksmith gem) ---
 
 function BoldIcon() {
-  return <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}><path strokeLinejoin="round" d="M6.75 3.744h-.753v8.25h7.125a4.125 4.125 0 0 0 0-8.25H6.75Zm0 0v.38m0 16.122h6.747a4.5 4.5 0 0 0 0-9.001h-7.5v9h.753Zm0 0v-.37m0-15.751h6a3.75 3.75 0 1 1 0 7.5h-6m0-7.5v7.5m0 0v8.25m0-8.25h6.375a4.125 4.125 0 0 1 0 8.25H6.75m.747-15.38h4.875a3.375 3.375 0 0 1 0 6.75H7.497v-6.75Zm0 7.5h5.25a3.75 3.75 0 0 1 0 7.5h-5.25v-7.5Z"/></svg>
+  return (
+    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
+      <path
+        strokeLinejoin="round"
+        d="M6.75 3.744h-.753v8.25h7.125a4.125 4.125 0 0 0 0-8.25H6.75Zm0 0v.38m0 16.122h6.747a4.5 4.5 0 0 0 0-9.001h-7.5v9h.753Zm0 0v-.37m0-15.751h6a3.75 3.75 0 1 1 0 7.5h-6m0-7.5v7.5m0 0v8.25m0-8.25h6.375a4.125 4.125 0 0 1 0 8.25H6.75m.747-15.38h4.875a3.375 3.375 0 0 1 0 6.75H7.497v-6.75Zm0 7.5h5.25a3.75 3.75 0 0 1 0 7.5h-5.25v-7.5Z"
+      />
+    </svg>
+  )
 }
 
 function HeadingIcon() {
-  return <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M6 12h12"/><path d="M6 20V4"/><path d="M18 20V4"/></svg>
+  return (
+    <svg
+      className="w-4 h-4"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M6 12h12" />
+      <path d="M6 20V4" />
+      <path d="M18 20V4" />
+    </svg>
+  )
 }
 
 function ItalicIcon() {
-  return <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round"><path d="M5.248 20.246H9.05m0 0h3.696m-3.696 0 5.893-16.502m0 0h-3.697m3.697 0h3.803"/></svg>
+  return (
+    <svg
+      className="w-4 h-4"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.5}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M5.248 20.246H9.05m0 0h3.696m-3.696 0 5.893-16.502m0 0h-3.697m3.697 0h3.803" />
+    </svg>
+  )
 }
 
 function QuoteIcon() {
-  return <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M17 6H3"/><path d="M21 12H8"/><path d="M21 18H8"/><path d="M3 12v6"/></svg>
+  return (
+    <svg
+      className="w-4 h-4"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M17 6H3" />
+      <path d="M21 12H8" />
+      <path d="M21 18H8" />
+      <path d="M3 12v6" />
+    </svg>
+  )
 }
 
 function CodeIcon() {
-  return <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/></svg>
+  return (
+    <svg
+      className="w-4 h-4"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+    </svg>
+  )
 }
 
 function LinkIcon() {
-  return <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round"><path d="M13.19 8.688a4.5 4.5 0 0 1 1.242 7.244l-4.5 4.5a4.5 4.5 0 0 1-6.364-6.364l1.757-1.757m13.35-.622 1.757-1.757a4.5 4.5 0 0 0-6.364-6.364l-4.5 4.5a4.5 4.5 0 0 0 1.242 7.244"/></svg>
+  return (
+    <svg
+      className="w-4 h-4"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.5}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M13.19 8.688a4.5 4.5 0 0 1 1.242 7.244l-4.5 4.5a4.5 4.5 0 0 1-6.364-6.364l1.757-1.757m13.35-.622 1.757-1.757a4.5 4.5 0 0 0-6.364-6.364l-4.5 4.5a4.5 4.5 0 0 0 1.242 7.244" />
+    </svg>
+  )
 }
 
 function ImageIcon() {
-  return <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round"><path d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H3.75A1.5 1.5 0 0 0 2.25 6v12a1.5 1.5 0 0 0 1.5 1.5Zm10.5-11.25h.008v.008h-.008V8.25Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z"/></svg>
+  return (
+    <svg
+      className="w-4 h-4"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.5}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H3.75A1.5 1.5 0 0 0 2.25 6v12a1.5 1.5 0 0 0 1.5 1.5Zm10.5-11.25h.008v.008h-.008V8.25Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" />
+    </svg>
+  )
 }
 
 function UnorderedListIcon() {
-  return <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round"><path d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0ZM3.75 12h.007v.008H3.75V12Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm-.375 5.25h.007v.008H3.75v-.008Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z"/></svg>
+  return (
+    <svg
+      className="w-4 h-4"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.5}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0ZM3.75 12h.007v.008H3.75V12Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm-.375 5.25h.007v.008H3.75v-.008Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" />
+    </svg>
+  )
 }
 
 function OrderedListIcon() {
-  return <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round"><path d="M8.242 5.992h12m-12 6.003H20.24m-12 5.999h12M4.117 7.495v-3.75H2.99m1.125 3.75H2.99m1.125 0H5.24m-1.92 2.577a1.125 1.125 0 1 1 1.591 1.59l-1.83 1.83h2.16M2.99 15.745h1.125a1.125 1.125 0 0 1 0 2.25H3.74m0-.002h.375a1.125 1.125 0 0 1 0 2.25H2.99"/></svg>
+  return (
+    <svg
+      className="w-4 h-4"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.5}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M8.242 5.992h12m-12 6.003H20.24m-12 5.999h12M4.117 7.495v-3.75H2.99m1.125 3.75H2.99m1.125 0H5.24m-1.92 2.577a1.125 1.125 0 1 1 1.591 1.59l-1.83 1.83h2.16M2.99 15.745h1.125a1.125 1.125 0 0 1 0 2.25H3.74m0-.002h.375a1.125 1.125 0 0 1 0 2.25H2.99" />
+    </svg>
+  )
 }
 
 function PaperclipIcon() {
-  return <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round"><path d="m18.375 12.739-7.693 7.693a4.5 4.5 0 0 1-6.364-6.364l10.94-10.94A3 3 0 1 1 19.5 7.372L8.552 18.32m.009-.01-.01.01m5.699-9.941-7.81 7.81a1.5 1.5 0 0 0 2.112 2.13"/></svg>
+  return (
+    <svg
+      className="w-4 h-4"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.5}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="m18.375 12.739-7.693 7.693a4.5 4.5 0 0 1-6.364-6.364l10.94-10.94A3 3 0 1 1 19.5 7.372L8.552 18.32m.009-.01-.01.01m5.699-9.941-7.81 7.81a1.5 1.5 0 0 0 2.112 2.13" />
+    </svg>
+  )
 }
 
 function MarkdownBadge() {
@@ -271,14 +398,20 @@ function MarkdownBadge() {
       className="text-dark-brown/50 hover:text-dark-brown transition-colors"
       title="Markdown is supported"
     >
-      <svg className="w-6 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M22.269 19.385H1.731a1.73 1.73 0 0 1-1.73-1.73V6.345a1.73 1.73 0 0 1 1.73-1.73h20.538a1.73 1.73 0 0 1 1.73 1.73v11.308a1.73 1.73 0 0 1-1.73 1.731zm-16.5-3.462v-4.5l2.308 2.885 2.307-2.885v4.5h2.308V8.078h-2.308l-2.307 2.885-2.308-2.885H3.461v7.847zM21.231 12h-2.308V8.077h-2.307V12h-2.308l3.461 4.039z"/></svg>
+      <svg className="w-6 h-4" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M22.269 19.385H1.731a1.73 1.73 0 0 1-1.73-1.73V6.345a1.73 1.73 0 0 1 1.73-1.73h20.538a1.73 1.73 0 0 1 1.73 1.73v11.308a1.73 1.73 0 0 1-1.73 1.731zm-16.5-3.462v-4.5l2.308 2.885 2.307-2.885v4.5h2.308V8.078h-2.308l-2.307 2.885-2.308-2.885H3.461v7.847zM21.231 12h-2.308V8.077h-2.307V12h-2.308l3.461 4.039z" />
+      </svg>
     </a>
   )
 }
 
 // --- Toolbar Button ---
 
-function ToolbarButton({ onClick, title, children }: {
+function ToolbarButton({
+  onClick,
+  title,
+  children,
+}: {
   onClick: () => void
   title: string
   children: React.ReactNode
@@ -301,7 +434,7 @@ function applyToTextarea(
   textareaRef: RefObject<HTMLTextAreaElement | null>,
   value: string,
   onChange: (v: string) => void,
-  fn: (value: string, start: number, end: number) => InsertResult
+  fn: (value: string, start: number, end: number) => InsertResult,
 ) {
   const ta = textareaRef.current
   if (!ta) return
@@ -321,7 +454,15 @@ function applyToTextarea(
 // --- Main Component ---
 
 export default function MarkdownEditor({
-  value, onChange, onBlobsChange, placeholder, directUploadUrl, previewUrl, minChars, minImages,
+  value,
+  onChange,
+  onBlobsChange,
+  placeholder,
+  directUploadUrl,
+  previewUrl,
+  minChars,
+  minImages,
+  draftStatus,
 }: MarkdownEditorProps) {
   const [tab, setTab] = useState<'write' | 'preview'>('write')
   const [blobSignedIds, setBlobSignedIds] = useState<string[]>([])
@@ -337,7 +478,10 @@ export default function MarkdownEditor({
   // Fetch server-rendered preview when switching to preview tab
   useEffect(() => {
     if (tab !== 'preview') return
-    if (!value.trim()) { setPreviewHtml(''); return }
+    if (!value.trim()) {
+      setPreviewHtml('')
+      return
+    }
 
     setPreviewLoading(true)
     const controller = new AbortController()
@@ -345,145 +489,187 @@ export default function MarkdownEditor({
 
     fetch(previewUrl, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}) },
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+        ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}),
+      },
       body: JSON.stringify({ content: value }),
       signal: controller.signal,
     })
-      .then(r => r.json())
-      .then(data => { setPreviewHtml(data.html); setPreviewLoading(false) })
-      .catch(e => { if (e.name !== 'AbortError') setPreviewLoading(false) })
+      .then((r) => r.json())
+      .then((data) => {
+        setPreviewHtml(data.html)
+        setPreviewLoading(false)
+      })
+      .catch((e) => {
+        if (e.name !== 'AbortError') setPreviewLoading(false)
+      })
 
     return () => controller.abort()
   }, [tab, value, previewUrl])
 
-  const updateBlobs = useCallback((newId: string) => {
-    setBlobSignedIds(prev => {
-      const next = [...prev, newId]
-      onBlobsChange(next)
-      return next
-    })
-    setImageCount(prev => prev + 1)
-  }, [onBlobsChange])
+  const updateBlobs = useCallback(
+    (newId: string) => {
+      setBlobSignedIds((prev) => {
+        const next = [...prev, newId]
+        onBlobsChange(next)
+        return next
+      })
+      setImageCount((prev) => prev + 1)
+    },
+    [onBlobsChange],
+  )
 
-  const replaceInValue = useCallback((prefix: string, replacement: string) => {
-    const pattern = new RegExp(escapeRegex(prefix) + '.*?-->')
-    const newValue = valueRef.current.replace(pattern, replacement)
-    onChange(newValue)
-  }, [onChange])
+  const replaceInValue = useCallback(
+    (prefix: string, replacement: string) => {
+      const pattern = new RegExp(escapeRegex(prefix) + '.*?-->')
+      const newValue = valueRef.current.replace(pattern, replacement)
+      onChange(newValue)
+    },
+    [onChange],
+  )
 
-  const uploadFiles = useCallback((files: File[]) => {
-    for (const file of files) {
-      if (!file.type.startsWith('image/')) continue
+  const uploadFiles = useCallback(
+    (files: File[]) => {
+      for (const file of files) {
+        if (!file.type.startsWith('image/')) continue
 
-      const sizeStr = formatFileSize(file.size)
-      const placeholderPrefix = `<!-- Uploading ${file.name} (${sizeStr})...`
-      const placeholderFull = `${placeholderPrefix} -->\n`
+        const sizeStr = formatFileSize(file.size)
+        const placeholderPrefix = `<!-- Uploading ${file.name} (${sizeStr})...`
+        const placeholderFull = `${placeholderPrefix} -->\n`
 
-      // Insert placeholder at end of content without moving cursor
-      const ta = textareaRef.current
-      const cursorPos = ta ? ta.selectionStart : 0
-      const insertPos = valueRef.current.length
-      const sep = valueRef.current.length > 0 && !valueRef.current.endsWith('\n') ? '\n' : ''
-      const newVal = valueRef.current + sep + placeholderFull
-      onChange(newVal)
-      if (ta) {
-        requestAnimationFrame(() => {
-          ta.setSelectionRange(cursorPos, cursorPos)
+        // Insert placeholder at end of content without moving cursor
+        const ta = textareaRef.current
+        const cursorPos = ta ? ta.selectionStart : 0
+        const insertPos = valueRef.current.length
+        const sep = valueRef.current.length > 0 && !valueRef.current.endsWith('\n') ? '\n' : ''
+        const newVal = valueRef.current + sep + placeholderFull
+        onChange(newVal)
+        if (ta) {
+          requestAnimationFrame(() => {
+            ta.setSelectionRange(cursorPos, cursorPos)
+          })
+        }
+
+        const upload = new DirectUpload(file, directUploadUrl, {
+          directUploadWillStoreFileWithXHR(request: XMLHttpRequest) {
+            request.upload.addEventListener('progress', (event: ProgressEvent) => {
+              if (!event.lengthComputable) return
+              const percent = Math.round((event.loaded / event.total) * 100)
+              const status = percent >= 100 ? 'Processing...' : `${percent}%`
+              replaceInValue(placeholderPrefix, `${placeholderPrefix} ${status} -->`)
+            })
+          },
+        })
+
+        upload.create((error: Error, blob: { signed_id: string; filename: string }) => {
+          if (error) {
+            replaceInValue(placeholderPrefix, `<!-- Upload failed: ${file.name} -->`)
+            return
+          }
+          const imgMarkdown = `![${blob.filename}](/user-attachments/blobs/redirect/${blob.signed_id}/${blob.filename})`
+          replaceInValue(placeholderPrefix, imgMarkdown)
+          updateBlobs(blob.signed_id)
         })
       }
-
-      const upload = new DirectUpload(file, directUploadUrl, {
-        directUploadWillStoreFileWithXHR(request: XMLHttpRequest) {
-          request.upload.addEventListener('progress', (event: ProgressEvent) => {
-            if (!event.lengthComputable) return
-            const percent = Math.round((event.loaded / event.total) * 100)
-            const status = percent >= 100 ? 'Processing...' : `${percent}%`
-            replaceInValue(placeholderPrefix, `${placeholderPrefix} ${status} -->`)
-          })
-        },
-      })
-
-      upload.create((error: Error, blob: { signed_id: string; filename: string }) => {
-        if (error) {
-          replaceInValue(placeholderPrefix, `<!-- Upload failed: ${file.name} -->`)
-          return
-        }
-        const imgMarkdown = `![${blob.filename}](/user-attachments/blobs/redirect/${blob.signed_id}/${blob.filename})`
-        replaceInValue(placeholderPrefix, imgMarkdown)
-        updateBlobs(blob.signed_id)
-      })
-    }
-  }, [directUploadUrl, onChange, replaceInValue, updateBlobs])
+    },
+    [directUploadUrl, onChange, replaceInValue, updateBlobs],
+  )
 
   const openFilePicker = useCallback(() => {
     fileInputRef.current?.click()
   }, [])
 
-  const apply = useCallback((fn: (value: string, start: number, end: number) => InsertResult) => {
-    applyToTextarea(textareaRef, value, onChange, fn)
-  }, [value, onChange])
+  const apply = useCallback(
+    (fn: (value: string, start: number, end: number) => InsertResult) => {
+      applyToTextarea(textareaRef, value, onChange, fn)
+    },
+    [value, onChange],
+  )
 
-  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    const mod = e.metaKey || e.ctrlKey
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+      const mod = e.metaKey || e.ctrlKey
 
-    if (mod && e.key === 'b') {
-      e.preventDefault()
-      apply((v, s, end) => wrapSelection(v, s, end, '**', '**'))
-    } else if (mod && e.key === 'i') {
-      e.preventDefault()
-      apply((v, s, end) => wrapSelection(v, s, end, '_', '_'))
-    } else if (mod && e.key === 'e') {
-      e.preventDefault()
-      apply(insertCodeBlock)
-    } else if (mod && e.key === 'k') {
-      e.preventDefault()
-      apply(insertLink)
-    } else if (e.key === 'Tab') {
-      e.preventDefault()
-      apply((v, s, end) => handleTab(v, s, end, e.shiftKey))
-    }
-  }, [apply])
+      if (mod && e.key === 'b') {
+        e.preventDefault()
+        apply((v, s, end) => wrapSelection(v, s, end, '**', '**'))
+      } else if (mod && e.key === 'i') {
+        e.preventDefault()
+        apply((v, s, end) => wrapSelection(v, s, end, '_', '_'))
+      } else if (mod && e.key === 'e') {
+        e.preventDefault()
+        apply(insertCodeBlock)
+      } else if (mod && e.key === 'k') {
+        e.preventDefault()
+        apply(insertLink)
+      } else if (e.key === 'Tab') {
+        e.preventDefault()
+        apply((v, s, end) => handleTab(v, s, end, e.shiftKey))
+      }
+    },
+    [apply],
+  )
 
-  const handlePaste = useCallback((e: React.ClipboardEvent<HTMLTextAreaElement>) => {
-    const ta = textareaRef.current
-    if (!ta) return
+  const handlePaste = useCallback(
+    (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+      const ta = textareaRef.current
+      if (!ta) return
 
-    // Check for image files in clipboard
-    const items = Array.from(e.clipboardData.items)
-    const imageFiles = items
-      .filter(item => item.type.startsWith('image/'))
-      .map(item => item.getAsFile())
-      .filter((f): f is File => f !== null)
+      // Check for image files in clipboard
+      const items = Array.from(e.clipboardData.items)
+      const imageFiles = items
+        .filter((item) => item.type.startsWith('image/'))
+        .map((item) => item.getAsFile())
+        .filter((f): f is File => f !== null)
 
-    if (imageFiles.length > 0) {
+      if (imageFiles.length > 0) {
+        e.preventDefault()
+        uploadFiles(imageFiles)
+        return
+      }
+
+      // Check for URL paste on selection — use execCommand for undo support
+      const text = e.clipboardData.getData('text/plain')
+      if (ta.selectionStart !== ta.selectionEnd && /^https?:\/\//.test(text)) {
+        e.preventDefault()
+        const start = ta.selectionStart
+        const end = ta.selectionEnd
+        const selected = value.slice(start, end)
+        const replacement = `[${selected}](${text})`
+        document.execCommand('insertText', false, replacement)
+        // Keep original text selected within the markdown link
+        requestAnimationFrame(() => {
+          ta.setSelectionRange(start + 1, start + 1 + selected.length)
+        })
+      }
+    },
+    [value, onChange, uploadFiles],
+  )
+
+  const handleDrop = useCallback(
+    (e: React.DragEvent<HTMLTextAreaElement>) => {
       e.preventDefault()
-      uploadFiles(imageFiles)
-      return
-    }
+      const allFiles = Array.from(e.dataTransfer.files)
+      const imageFiles = allFiles.filter((f) => f.type.startsWith('image/'))
+      const unsupportedFiles = allFiles.filter((f) => !f.type.startsWith('image/'))
 
-    // Check for URL paste on selection — use execCommand for undo support
-    const text = e.clipboardData.getData('text/plain')
-    if (ta.selectionStart !== ta.selectionEnd && /^https?:\/\//.test(text)) {
-      e.preventDefault()
-      const start = ta.selectionStart
-      const end = ta.selectionEnd
-      const selected = value.slice(start, end)
-      const replacement = `[${selected}](${text})`
-      document.execCommand('insertText', false, replacement)
-      // Keep original text selected within the markdown link
-      requestAnimationFrame(() => {
-        ta.setSelectionRange(start + 1, start + 1 + selected.length)
-      })
-    }
-  }, [value, onChange, uploadFiles])
+      if (imageFiles.length > 0) uploadFiles(imageFiles)
 
-  const handleDrop = useCallback((e: React.DragEvent<HTMLTextAreaElement>) => {
-    const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'))
-    if (files.length > 0) {
-      e.preventDefault()
-      uploadFiles(files)
-    }
-  }, [uploadFiles])
+      if (unsupportedFiles.length > 0) {
+        const comments = unsupportedFiles.map((f) => `<!-- ${f.name} is not a supported file -->`).join('\n')
+        const ta = textareaRef.current
+        if (ta) {
+          ta.focus()
+          document.execCommand('insertText', false, comments)
+        } else {
+          onChange(value + comments)
+        }
+      }
+    },
+    [uploadFiles, value, onChange],
+  )
 
   const handleDragOver = useCallback((e: React.DragEvent<HTMLTextAreaElement>) => {
     e.preventDefault()
@@ -492,6 +678,7 @@ export default function MarkdownEditor({
   const charCount = value.length
 
   return (
+    <>
     <div className="border-2 border-dark-brown rounded overflow-hidden bg-white">
       {/* Header: Tabs + Toolbar */}
       <div className="flex items-center justify-between border-b-2 border-dark-brown bg-light-brown/30 px-3 py-1.5">
@@ -518,17 +705,35 @@ export default function MarkdownEditor({
 
         {tab === 'write' && (
           <div className="flex items-center gap-0.5">
-            <ToolbarButton onClick={() => apply((v, s, e) => wrapSelection(v, s, e, '**', '**'))} title="Bold (Cmd+B)"><BoldIcon /></ToolbarButton>
-            <ToolbarButton onClick={() => apply((v, s, e) => prefixLines(v, s, e, '### ', false))} title="Heading"><HeadingIcon /></ToolbarButton>
-            <ToolbarButton onClick={() => apply((v, s, e) => wrapSelection(v, s, e, '_', '_'))} title="Italic (Cmd+I)"><ItalicIcon /></ToolbarButton>
+            <ToolbarButton onClick={() => apply((v, s, e) => wrapSelection(v, s, e, '**', '**'))} title="Bold (Cmd+B)">
+              <BoldIcon />
+            </ToolbarButton>
+            <ToolbarButton onClick={() => apply((v, s, e) => prefixLines(v, s, e, '### ', false))} title="Heading">
+              <HeadingIcon />
+            </ToolbarButton>
+            <ToolbarButton onClick={() => apply((v, s, e) => wrapSelection(v, s, e, '_', '_'))} title="Italic (Cmd+I)">
+              <ItalicIcon />
+            </ToolbarButton>
             <div className="w-px h-4 bg-dark-brown/20 mx-1" />
-            <ToolbarButton onClick={() => apply((v, s, e) => prefixLines(v, s, e, '> ', false))} title="Quote"><QuoteIcon /></ToolbarButton>
-            <ToolbarButton onClick={() => apply(insertCodeBlock)} title="Code block (Cmd+E)"><CodeIcon /></ToolbarButton>
-            <ToolbarButton onClick={() => apply(insertLink)} title="Link (Cmd+K)"><LinkIcon /></ToolbarButton>
+            <ToolbarButton onClick={() => apply((v, s, e) => prefixLines(v, s, e, '> ', false))} title="Quote">
+              <QuoteIcon />
+            </ToolbarButton>
+            <ToolbarButton onClick={() => apply(insertCodeBlock)} title="Code block (Cmd+E)">
+              <CodeIcon />
+            </ToolbarButton>
+            <ToolbarButton onClick={() => apply(insertLink)} title="Link (Cmd+K)">
+              <LinkIcon />
+            </ToolbarButton>
             <div className="w-px h-4 bg-dark-brown/20 mx-1" />
-            <ToolbarButton onClick={openFilePicker} title="Upload image"><ImageIcon /></ToolbarButton>
-            <ToolbarButton onClick={() => apply((v, s, e) => prefixLines(v, s, e, '- ', false))} title="Unordered list"><UnorderedListIcon /></ToolbarButton>
-            <ToolbarButton onClick={() => apply((v, s, e) => prefixLines(v, s, e, '', true))} title="Ordered list"><OrderedListIcon /></ToolbarButton>
+            <ToolbarButton onClick={openFilePicker} title="Upload image">
+              <ImageIcon />
+            </ToolbarButton>
+            <ToolbarButton onClick={() => apply((v, s, e) => prefixLines(v, s, e, '- ', false))} title="Unordered list">
+              <UnorderedListIcon />
+            </ToolbarButton>
+            <ToolbarButton onClick={() => apply((v, s, e) => prefixLines(v, s, e, '', true))} title="Ordered list">
+              <OrderedListIcon />
+            </ToolbarButton>
           </div>
         )}
       </div>
@@ -544,8 +749,11 @@ export default function MarkdownEditor({
             onPaste={handlePaste}
             onDrop={handleDrop}
             onDragOver={handleDragOver}
-            placeholder={placeholder ?? 'Write a few sentences about what you did...\nHow you did it...\nWhat went well, etc...\n\nInclude some images of your work!\n\nTip: Markdown is supported and you can drag and drop images.'}
-            className="w-full min-h-64 p-4 resize-y bg-transparent text-dark-brown placeholder:text-dark-brown/30 focus:outline-none font-mono text-sm"
+            placeholder={
+              placeholder ??
+              'Write a few sentences about what you did...\nHow you did it...\nWhat went well, etc...\n\nInclude some images of your work!\n\nTip: Markdown is supported and you can drag and drop images.'
+            }
+            className="w-full min-h-64 p-4 resize-y bg-transparent text-dark-brown placeholder:text-dark-brown/30 focus:outline-none text-sm"
           />
         ) : (
           <div className="p-4 min-h-64 max-h-96 overflow-y-auto">
@@ -553,7 +761,11 @@ export default function MarkdownEditor({
               <p className="text-dark-brown/30 italic">Loading preview...</p>
             ) : value ? (
               /* Server-sanitized HTML via sanitize_user_html — safe to render */
-              <div className="markdown-content" style={{ margin: 0, padding: 0 }} dangerouslySetInnerHTML={{ __html: previewHtml }} />
+              <div
+                className="markdown-content"
+                style={{ margin: 0, padding: 0 }}
+                dangerouslySetInnerHTML={{ __html: previewHtml }}
+              />
             ) : (
               <p className="text-dark-brown/30 italic">Nothing to preview</p>
             )}
@@ -604,6 +816,11 @@ export default function MarkdownEditor({
           e.target.value = ''
         }}
       />
+
     </div>
+    {draftStatus && (
+      <p className="text-xs text-dark-brown/40 mt-1.5">{draftStatus}</p>
+    )}
+    </>
   )
 }
