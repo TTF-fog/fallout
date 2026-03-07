@@ -63,11 +63,11 @@ const Modal = forwardRef(({ name, children, onFocus = null, onBlur = null, onClo
                                 )}
                                 <TransitionChild
                                     enter={`transition transform ease-in-out duration-300 ${config.duration !== 300 ? `im-bdur-${id.replace(/[^a-zA-Z0-9]/g, '')}` : ''}`}
-                                    enterFrom="opacity-0"
+                                    enterFrom={config.duration === 0 ? '' : 'opacity-0'}
                                     enterTo="opacity-100"
                                     leave={`transition transform ease-in-out duration-300 ${config.duration !== 300 ? `im-bdur-${id.replace(/[^a-zA-Z0-9]/g, '')}` : ''}`}
                                     leaveFrom="opacity-100"
-                                    leaveTo="opacity-0"
+                                    leaveTo={config.duration === 0 ? '' : 'opacity-0'}
                                 >
                                     {onTopOfStack ? (
                                         <div
