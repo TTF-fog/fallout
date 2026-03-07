@@ -132,11 +132,11 @@ Rails.application.routes.draw do
 
   resources :projects do
     get "onboarding", on: :collection # Project onboarding modal accessed from dashboard path
-    resources :journals, only: [ :new ]
+    resources :journal_entries, only: [ :new, :create ]
   end
 
   # Top-level journal entry point — redirects to project-scoped route or shows project selection
-  get "journals/new" => "journals#new", as: :new_journal
+  get "journal_entries/new" => "journal_entries#new", as: :new_journal_entry
 
   get "docs" => "markdown#show", as: :docs
   get "docs/*slug" => "markdown#show", as: :doc

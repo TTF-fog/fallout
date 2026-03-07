@@ -1,0 +1,67 @@
+# == Schema Information
+#
+# Table name: lapse_timelapses
+#
+#  id                   :bigint           not null, primary key
+#  description          :text
+#  duration             :float
+#  is_published         :boolean
+#  lapse_created_at     :datetime
+#  last_refreshed_at    :datetime
+#  name                 :string
+#  owner_handle         :string
+#  playback_url         :string
+#  thumbnail_url        :string
+#  video_container_kind :string
+#  visibility           :string
+#  created_at           :datetime         not null
+#  updated_at           :datetime         not null
+#  journal_entry_id     :bigint
+#  lapse_timelapse_id   :string           not null
+#  owner_lapse_id       :string
+#  user_id              :bigint           not null
+#
+# Indexes
+#
+#  index_lapse_timelapses_on_journal_entry_id    (journal_entry_id)
+#  index_lapse_timelapses_on_lapse_timelapse_id  (lapse_timelapse_id) UNIQUE
+#  index_lapse_timelapses_on_user_id             (user_id)
+#
+# Foreign Keys
+#
+#  fk_rails_...  (journal_entry_id => journal_entries.id)
+#  fk_rails_...  (user_id => users.id)
+#
+class LapseTimelapse < ApplicationRecord
+  belongs_to :user
+  belongs_to :journal_entry, optional: true
+
+  validates :lapse_timelapse_id, presence: true, uniqueness: true
+
+  def fetch_data
+    token = user.lapse_token
+    return nil if token.blank?
+
+    LapseService.fetch_timelapse(token, lapse_timelapse_id)
+  end
+
+  def update_data!
+    data = fetch_data
+    raise ActiveRecord::RecordNotFound, "Timelapse #{lapse_timelapse_id} not found on Lapse" unless data
+
+    update!(
+      name: data["name"],
+      description: data["description"],
+      visibility: data["visibility"],
+      is_published: data["isPublished"],
+      playback_url: data["playbackUrl"],
+      thumbnail_url: data["thumbnailUrl"],
+      video_container_kind: data["videoContainerKind"],
+      duration: data["duration"],
+      lapse_created_at: data["createdAt"] ? Time.at(data["createdAt"] / 1000.0).utc : nil,
+      owner_lapse_id: data.dig("owner", "id"),
+      owner_handle: data.dig("owner", "handle"),
+      last_refreshed_at: Time.current
+    )
+  end
+end

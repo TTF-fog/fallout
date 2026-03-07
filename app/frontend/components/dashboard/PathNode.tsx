@@ -47,7 +47,7 @@ export default function PathNode({
       {index === 3 && <img src="/path/slack.png" fetchPriority="high" style={{ width: '100%', display: 'block' }} />}
 
       {index === 1 && interactive && hasProjects && (
-        <ModalLink href="/journals/new" className="outline-0">
+        <ModalLink href="/journal_entries/new" className="outline-0">
           <img
             src={BILLBOARD_IMAGES[index % BILLBOARD_IMAGES.length]}
             fetchPriority="high"

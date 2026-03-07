@@ -66,7 +66,7 @@ export default function DashboardIndex() {
       params.delete('project_id')
       const newUrl = params.toString() ? `${window.location.pathname}?${params}` : window.location.pathname
       window.history.replaceState({}, '', newUrl)
-      const modalUrl = projectId ? `/projects/${projectId}/journals/new` : '/journals/new'
+      const modalUrl = projectId ? `/projects/${projectId}/journal_entries/new` : '/journal_entries/new'
       visitModal(modalUrl, { config: { duration: 0 } })
     }
   }, [])

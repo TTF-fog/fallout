@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_03_03_200329) do
+ActiveRecord::Schema[8.1].define(version: 2026_03_07_200915) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -83,6 +83,40 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_03_200329) do
     t.index ["user_id"], name: "index_ahoy_visits_on_user_id"
     t.index ["visit_token"], name: "index_ahoy_visits_on_visit_token", unique: true
     t.index ["visitor_token", "started_at"], name: "index_ahoy_visits_on_visitor_token_and_started_at"
+  end
+
+  create_table "journal_entries", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.datetime "discarded_at"
+    t.bigint "project_id", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "user_id", null: false
+    t.index ["discarded_at"], name: "index_journal_entries_on_discarded_at"
+    t.index ["project_id"], name: "index_journal_entries_on_project_id"
+    t.index ["user_id"], name: "index_journal_entries_on_user_id"
+  end
+
+  create_table "lapse_timelapses", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.text "description"
+    t.float "duration"
+    t.boolean "is_published"
+    t.bigint "journal_entry_id"
+    t.datetime "lapse_created_at"
+    t.string "lapse_timelapse_id", null: false
+    t.datetime "last_refreshed_at"
+    t.string "name"
+    t.string "owner_handle"
+    t.string "owner_lapse_id"
+    t.string "playback_url"
+    t.string "thumbnail_url"
+    t.datetime "updated_at", null: false
+    t.bigint "user_id", null: false
+    t.string "video_container_kind"
+    t.string "visibility"
+    t.index ["journal_entry_id"], name: "index_lapse_timelapses_on_journal_entry_id"
+    t.index ["lapse_timelapse_id"], name: "index_lapse_timelapses_on_lapse_timelapse_id", unique: true
+    t.index ["user_id"], name: "index_lapse_timelapses_on_user_id"
   end
 
   create_table "onboarding_responses", force: :cascade do |t|
@@ -167,6 +201,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_03_200329) do
 
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
+  add_foreign_key "journal_entries", "projects"
+  add_foreign_key "journal_entries", "users"
+  add_foreign_key "lapse_timelapses", "journal_entries"
+  add_foreign_key "lapse_timelapses", "users"
   add_foreign_key "onboarding_responses", "users"
   add_foreign_key "projects", "users"
   add_foreign_key "ships", "projects"

@@ -93,6 +93,29 @@ module LapseService
     nil
   end
 
+  def fetch_timelapse(access_token, timelapse_id)
+    raise ArgumentError, "timelapse_id is required" if timelapse_id.blank?
+
+    response = connection.get("/api/rest/timelapse/query") do |req|
+      req.headers["Authorization"] = "Bearer #{access_token}" if access_token.present?
+      req.headers["Accept"] = "application/json"
+      req.params["id"] = timelapse_id
+    end
+
+    unless response.success?
+      ErrorReporter.capture_message("Lapse timelapse fetch failed", level: :warning, contexts: {
+        lapse: { status: response.status, timelapse_id: timelapse_id }
+      })
+      return nil
+    end
+
+    data = JSON.parse(response.body)
+    data.dig("data", "timelapse")
+  rescue StandardError => e
+    ErrorReporter.capture_exception(e, contexts: { lapse: { action: "fetch_timelapse", timelapse_id: timelapse_id } })
+    nil
+  end
+
   def connection
     @connection ||= Faraday.new(url: host)
   end

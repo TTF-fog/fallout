@@ -281,7 +281,7 @@ export const ModalStackProvider = ({ children }) => {
     }
 
     const loadDeferredProps = (modal) => {
-        const deferred = modal.response?.meta?.deferredProps
+        const deferred = modal.response?.deferredProps ?? modal.response?.meta?.deferredProps
 
         if (!deferred) {
             return

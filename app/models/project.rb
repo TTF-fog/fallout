@@ -35,6 +35,7 @@ class Project < ApplicationRecord
 
   belongs_to :user
   has_many :ships, dependent: :destroy
+  has_many :journal_entries, dependent: :destroy
 
   validates :name, presence: true
   validates :is_unlisted, inclusion: { in: [ true, false ] }
