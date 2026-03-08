@@ -22,7 +22,7 @@ function ProjectsOnboarding({ is_modal }: { is_modal: boolean }) {
     if (is_modal) data.return_to = 'path'
     router.post('/projects', data, {
       onFinish: () => setProcessing(false),
-      onSuccess: () => modalRef.current?.close()
+      onSuccess: () => modalRef.current?.close(),
     })
   }
 

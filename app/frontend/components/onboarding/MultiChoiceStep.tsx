@@ -1,12 +1,12 @@
-import SpeechBubble from "./SpeechBubble";
+import SpeechBubble from './SpeechBubble'
 
 interface MultiChoiceStepProps {
   step: {
-    prompt: string;
-    options: string[];
-  };
-  selected: string[];
-  onToggle: (answer: string) => void;
+    prompt: string
+    options: string[]
+  }
+  selected: string[]
+  onToggle: (answer: string) => void
 }
 
 export default function MultiChoiceStep({ step, selected, onToggle }: MultiChoiceStepProps) {
@@ -22,7 +22,7 @@ export default function MultiChoiceStep({ step, selected, onToggle }: MultiChoic
           <li key={option}>
             <button
               className={`w-full min-h-16 rounded-xl cursor-pointer ease-in-out transition-all hover:scale-104 p-2 border-2 border-dark-brown
-                ${selected.includes(option) ? "bg-dark-brown text-light-brown" : "bg-white"}`}
+                ${selected.includes(option) ? 'bg-dark-brown text-light-brown' : 'bg-white'}`}
               onClick={() => onToggle(option)}
             >
               {option}
@@ -31,5 +31,5 @@ export default function MultiChoiceStep({ step, selected, onToggle }: MultiChoic
         ))}
       </ul>
     </section>
-  );
+  )
 }

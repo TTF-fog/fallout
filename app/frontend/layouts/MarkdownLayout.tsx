@@ -17,9 +17,22 @@ interface MenuSection {
 
 type MenuItem = MenuLink | MenuSection
 
-function NavLink({ href, active, children, subpage = false }: { href: string; active: boolean; children: ReactNode; subpage?: boolean }) {
+function NavLink({
+  href,
+  active,
+  children,
+  subpage = false,
+}: {
+  href: string
+  active: boolean
+  children: ReactNode
+  subpage?: boolean
+}) {
   return (
-    <Link href={href} className={`block px-3 py-1.5 ${subpage ? 'rounded-r' : 'rounded'} ${active ? 'bg-brown text-light-brown font-bold' : ''}`}>
+    <Link
+      href={href}
+      className={`block px-3 py-1.5 ${subpage ? 'rounded-r' : 'rounded'} ${active ? 'bg-brown text-light-brown font-bold' : ''}`}
+    >
       {children}
     </Link>
   )

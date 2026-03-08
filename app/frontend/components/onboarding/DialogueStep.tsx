@@ -1,9 +1,9 @@
-import SpeechBubble from "./SpeechBubble";
+import SpeechBubble from './SpeechBubble'
 
 interface DialogueStepProps {
   step: {
-    prompt: string;
-  };
+    prompt: string
+  }
 }
 
 export default function DialogueStep({ step }: DialogueStepProps) {
@@ -12,5 +12,5 @@ export default function DialogueStep({ step }: DialogueStepProps) {
       <SpeechBubble text={step.prompt} />
       <img src="/onboarding/chinese_heidi.gif" className="w-60 lg:w-72 max-w-full h-auto" />
     </section>
-  );
+  )
 }

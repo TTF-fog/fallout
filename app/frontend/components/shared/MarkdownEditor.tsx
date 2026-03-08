@@ -679,148 +679,154 @@ export default function MarkdownEditor({
 
   return (
     <>
-    <div className="border-2 border-dark-brown rounded overflow-hidden bg-white">
-      {/* Header: Tabs + Toolbar */}
-      <div className="flex items-center justify-between border-b-2 border-dark-brown bg-light-brown/30 px-3 py-1.5">
-        <div className="flex items-center gap-1">
-          <button
-            type="button"
-            onClick={() => setTab('write')}
-            className={`px-3 py-1 text-sm font-bold rounded cursor-pointer transition-colors ${
-              tab === 'write' ? 'text-dark-brown bg-white' : 'text-dark-brown/50 hover:text-dark-brown'
-            }`}
-          >
-            Write
-          </button>
-          <button
-            type="button"
-            onClick={() => setTab('preview')}
-            className={`px-3 py-1 text-sm font-bold rounded cursor-pointer transition-colors ${
-              tab === 'preview' ? 'text-dark-brown bg-white' : 'text-dark-brown/50 hover:text-dark-brown'
-            }`}
-          >
-            Preview
-          </button>
+      <div className="border-2 border-dark-brown rounded overflow-hidden bg-white">
+        {/* Header: Tabs + Toolbar */}
+        <div className="flex items-center justify-between border-b-2 border-dark-brown bg-light-brown/30 px-3 py-1.5">
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => setTab('write')}
+              className={`px-3 py-1 text-sm font-bold rounded cursor-pointer transition-colors ${
+                tab === 'write' ? 'text-dark-brown bg-white' : 'text-dark-brown/50 hover:text-dark-brown'
+              }`}
+            >
+              Write
+            </button>
+            <button
+              type="button"
+              onClick={() => setTab('preview')}
+              className={`px-3 py-1 text-sm font-bold rounded cursor-pointer transition-colors ${
+                tab === 'preview' ? 'text-dark-brown bg-white' : 'text-dark-brown/50 hover:text-dark-brown'
+              }`}
+            >
+              Preview
+            </button>
+          </div>
+
+          {tab === 'write' && (
+            <div className="flex items-center gap-0.5">
+              <ToolbarButton
+                onClick={() => apply((v, s, e) => wrapSelection(v, s, e, '**', '**'))}
+                title="Bold (Cmd+B)"
+              >
+                <BoldIcon />
+              </ToolbarButton>
+              <ToolbarButton onClick={() => apply((v, s, e) => prefixLines(v, s, e, '### ', false))} title="Heading">
+                <HeadingIcon />
+              </ToolbarButton>
+              <ToolbarButton
+                onClick={() => apply((v, s, e) => wrapSelection(v, s, e, '_', '_'))}
+                title="Italic (Cmd+I)"
+              >
+                <ItalicIcon />
+              </ToolbarButton>
+              <div className="w-px h-4 bg-dark-brown/20 mx-1" />
+              <ToolbarButton onClick={() => apply((v, s, e) => prefixLines(v, s, e, '> ', false))} title="Quote">
+                <QuoteIcon />
+              </ToolbarButton>
+              <ToolbarButton onClick={() => apply(insertCodeBlock)} title="Code block (Cmd+E)">
+                <CodeIcon />
+              </ToolbarButton>
+              <ToolbarButton onClick={() => apply(insertLink)} title="Link (Cmd+K)">
+                <LinkIcon />
+              </ToolbarButton>
+              <div className="w-px h-4 bg-dark-brown/20 mx-1" />
+              <ToolbarButton onClick={openFilePicker} title="Upload image">
+                <ImageIcon />
+              </ToolbarButton>
+              <ToolbarButton
+                onClick={() => apply((v, s, e) => prefixLines(v, s, e, '- ', false))}
+                title="Unordered list"
+              >
+                <UnorderedListIcon />
+              </ToolbarButton>
+              <ToolbarButton onClick={() => apply((v, s, e) => prefixLines(v, s, e, '', true))} title="Ordered list">
+                <OrderedListIcon />
+              </ToolbarButton>
+            </div>
+          )}
         </div>
 
-        {tab === 'write' && (
-          <div className="flex items-center gap-0.5">
-            <ToolbarButton onClick={() => apply((v, s, e) => wrapSelection(v, s, e, '**', '**'))} title="Bold (Cmd+B)">
-              <BoldIcon />
-            </ToolbarButton>
-            <ToolbarButton onClick={() => apply((v, s, e) => prefixLines(v, s, e, '### ', false))} title="Heading">
-              <HeadingIcon />
-            </ToolbarButton>
-            <ToolbarButton onClick={() => apply((v, s, e) => wrapSelection(v, s, e, '_', '_'))} title="Italic (Cmd+I)">
-              <ItalicIcon />
-            </ToolbarButton>
-            <div className="w-px h-4 bg-dark-brown/20 mx-1" />
-            <ToolbarButton onClick={() => apply((v, s, e) => prefixLines(v, s, e, '> ', false))} title="Quote">
-              <QuoteIcon />
-            </ToolbarButton>
-            <ToolbarButton onClick={() => apply(insertCodeBlock)} title="Code block (Cmd+E)">
-              <CodeIcon />
-            </ToolbarButton>
-            <ToolbarButton onClick={() => apply(insertLink)} title="Link (Cmd+K)">
-              <LinkIcon />
-            </ToolbarButton>
-            <div className="w-px h-4 bg-dark-brown/20 mx-1" />
-            <ToolbarButton onClick={openFilePicker} title="Upload image">
-              <ImageIcon />
-            </ToolbarButton>
-            <ToolbarButton onClick={() => apply((v, s, e) => prefixLines(v, s, e, '- ', false))} title="Unordered list">
-              <UnorderedListIcon />
-            </ToolbarButton>
-            <ToolbarButton onClick={() => apply((v, s, e) => prefixLines(v, s, e, '', true))} title="Ordered list">
-              <OrderedListIcon />
-            </ToolbarButton>
-          </div>
-        )}
-      </div>
+        {/* Editor / Preview area */}
+        <div className="min-h-64">
+          {tab === 'write' ? (
+            <textarea
+              ref={textareaRef}
+              value={value}
+              onChange={(e) => onChange(e.target.value)}
+              onKeyDown={handleKeyDown}
+              onPaste={handlePaste}
+              onDrop={handleDrop}
+              onDragOver={handleDragOver}
+              placeholder={
+                placeholder ??
+                'Write a few sentences about what you did...\nHow you did it...\nWhat went well, etc...\n\nInclude some images of your work!\n\nTip: Markdown is supported and you can drag and drop images.'
+              }
+              className="w-full min-h-64 p-4 resize-y bg-transparent text-dark-brown placeholder:text-dark-brown/30 focus:outline-none text-sm"
+            />
+          ) : (
+            <div className="p-4 min-h-64 max-h-96 overflow-y-auto">
+              {previewLoading ? (
+                <p className="text-dark-brown/30 italic">Loading preview...</p>
+              ) : value ? (
+                /* Server-sanitized HTML via sanitize_user_html — safe to render */
+                <div
+                  className="markdown-content"
+                  style={{ margin: 0, padding: 0 }}
+                  dangerouslySetInnerHTML={{ __html: previewHtml }}
+                />
+              ) : (
+                <p className="text-dark-brown/30 italic">Nothing to preview</p>
+              )}
+            </div>
+          )}
+        </div>
 
-      {/* Editor / Preview area */}
-      <div className="min-h-64">
-        {tab === 'write' ? (
-          <textarea
-            ref={textareaRef}
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
-            onKeyDown={handleKeyDown}
-            onPaste={handlePaste}
-            onDrop={handleDrop}
-            onDragOver={handleDragOver}
-            placeholder={
-              placeholder ??
-              'Write a few sentences about what you did...\nHow you did it...\nWhat went well, etc...\n\nInclude some images of your work!\n\nTip: Markdown is supported and you can drag and drop images.'
-            }
-            className="w-full min-h-64 p-4 resize-y bg-transparent text-dark-brown placeholder:text-dark-brown/30 focus:outline-none text-sm"
-          />
-        ) : (
-          <div className="p-4 min-h-64 max-h-96 overflow-y-auto">
-            {previewLoading ? (
-              <p className="text-dark-brown/30 italic">Loading preview...</p>
-            ) : value ? (
-              /* Server-sanitized HTML via sanitize_user_html — safe to render */
-              <div
-                className="markdown-content"
-                style={{ margin: 0, padding: 0 }}
-                dangerouslySetInnerHTML={{ __html: previewHtml }}
-              />
-            ) : (
-              <p className="text-dark-brown/30 italic">Nothing to preview</p>
+        {/* Bottom bar: Upload zone + Markdown badge */}
+        <div className="flex items-center justify-between border-t-2 border-dark-brown bg-light-brown/30 px-3 py-2">
+          <button
+            type="button"
+            onClick={openFilePicker}
+            className="flex items-center gap-2 text-sm text-dark-brown/50 hover:text-dark-brown transition-colors cursor-pointer"
+          >
+            <PaperclipIcon />
+            <span>Paste, click, or drop to add images</span>
+          </button>
+          <MarkdownBadge />
+        </div>
+
+        {/* Validation counters */}
+        {(minChars != null || minImages != null) && (
+          <div className="flex items-center justify-end gap-4 px-3 py-1 text-xs border-t border-dark-brown/10">
+            {minChars != null && (
+              <span className={charCount >= minChars ? 'text-dark-brown/50' : 'text-red-500'}>
+                Min characters: {charCount}/{minChars}
+              </span>
+            )}
+            {minImages != null && (
+              <span className={imageCount >= minImages ? 'text-dark-brown/50' : 'text-red-500'}>
+                Min images: {imageCount}/{minImages}
+              </span>
             )}
           </div>
         )}
+
+        {/* Hidden file input */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          multiple
+          tabIndex={-1}
+          style={{ position: 'absolute', width: 0, height: 0, overflow: 'hidden', opacity: 0 }}
+          onChange={(e) => {
+            const files = Array.from(e.target.files ?? [])
+            if (files.length > 0) uploadFiles(files)
+            e.target.value = ''
+          }}
+        />
       </div>
-
-      {/* Bottom bar: Upload zone + Markdown badge */}
-      <div className="flex items-center justify-between border-t-2 border-dark-brown bg-light-brown/30 px-3 py-2">
-        <button
-          type="button"
-          onClick={openFilePicker}
-          className="flex items-center gap-2 text-sm text-dark-brown/50 hover:text-dark-brown transition-colors cursor-pointer"
-        >
-          <PaperclipIcon />
-          <span>Paste, click, or drop to add images</span>
-        </button>
-        <MarkdownBadge />
-      </div>
-
-      {/* Validation counters */}
-      {(minChars != null || minImages != null) && (
-        <div className="flex items-center justify-end gap-4 px-3 py-1 text-xs border-t border-dark-brown/10">
-          {minChars != null && (
-            <span className={charCount >= minChars ? 'text-dark-brown/50' : 'text-red-500'}>
-              Min characters: {charCount}/{minChars}
-            </span>
-          )}
-          {minImages != null && (
-            <span className={imageCount >= minImages ? 'text-dark-brown/50' : 'text-red-500'}>
-              Min images: {imageCount}/{minImages}
-            </span>
-          )}
-        </div>
-      )}
-
-      {/* Hidden file input */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*"
-        multiple
-        tabIndex={-1}
-        style={{ position: 'absolute', width: 0, height: 0, overflow: 'hidden', opacity: 0 }}
-        onChange={(e) => {
-          const files = Array.from(e.target.files ?? [])
-          if (files.length > 0) uploadFiles(files)
-          e.target.value = ''
-        }}
-      />
-
-    </div>
-    {draftStatus && (
-      <p className="text-xs text-dark-brown mt-1.5">{draftStatus}</p>
-    )}
+      {draftStatus && <p className="text-xs text-dark-brown mt-1.5">{draftStatus}</p>}
     </>
   )
 }

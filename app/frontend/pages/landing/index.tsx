@@ -14,11 +14,15 @@ export default function LandingIndex() {
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    router.post(shared.trial_session_path, { email }, {
-      onStart: () => setSubmitting(true),
-      onFinish: () => setSubmitting(false),
-      onError: () => notify('alert', 'Something went wrong. Please try again.'),
-    })
+    router.post(
+      shared.trial_session_path,
+      { email },
+      {
+        onStart: () => setSubmitting(true),
+        onFinish: () => setSubmitting(false),
+        onError: () => notify('alert', 'Something went wrong. Please try again.'),
+      },
+    )
   }
 
   const sections = [
@@ -33,10 +37,16 @@ export default function LandingIndex() {
   return (
     <div className="w-screen h-full flex flex-col justify-center bg-blue overflow-hidden">
       <title>Fallout: Hardware Hackathon</title>
-      <meta name="description" content="A seven-day hardware hackathon in ShenZhen, China in 2026. Design hardware projects, build them, & qualify!" />
+      <meta
+        name="description"
+        content="A seven-day hardware hackathon in ShenZhen, China in 2026. Design hardware projects, build them, & qualify!"
+      />
       <meta property="og:type" content="website" />
       <meta property="og:title" content="Fallout: Hardware Hackathon" />
-      <meta property="og:description" content="A seven-day hardware hackathon in ShenZhen, China in 2026. Design hardware projects, build them, & qualify!" />
+      <meta
+        property="og:description"
+        content="A seven-day hardware hackathon in ShenZhen, China in 2026. Design hardware projects, build them, & qualify!"
+      />
       <meta property="og:site_name" content="Fallout" />
 
       <section className="relative w-full min-h-svh md:h-[120vh] flex flex-col items-center pt-4 md:p-5 gap-4">
@@ -44,7 +54,12 @@ export default function LandingIndex() {
           <img src="/landing/cloud_1.webp" alt="" className="h-auto lg:h-[80%] w-auto pointer-events-none" />
           <img src="/landing/cloud_2.webp" alt="" className=" h-auto lg:h-[80%] w-auto pointer-events-none" />
         </div>
-        <img className="absolute inset-0 w-full h-full object-cover scale-110 z-0 -top-10" src="/landing/bg.webp" alt="" aria-hidden="true" />
+        <img
+          className="absolute inset-0 w-full h-full object-cover scale-110 z-0 -top-10"
+          src="/landing/bg.webp"
+          alt=""
+          aria-hidden="true"
+        />
         <div className="flex h-8 gap-4 z-1">
           <img className="w-auto h-full" src="/fallout.svg" alt="fallout" />
           <img className="w-auto h-full" src="/hackclub.svg" alt="hackclub" />
@@ -126,7 +141,9 @@ export default function LandingIndex() {
           <video className="w-full h-full object-cover" src="/landing/video.mp4" autoPlay loop muted playsInline />
           <div className="absolute inset-0 bg-black/40"></div>
           <div className="absolute inset-0 flex items-center justify-center">
-            <span className="text-white text-3xl sm:text-5xl md:text-6xl font-bold text-center">It's one of a kind.</span>
+            <span className="text-white text-3xl sm:text-5xl md:text-6xl font-bold text-center">
+              It's one of a kind.
+            </span>
           </div>
         </div>
       </div>
@@ -135,7 +152,10 @@ export default function LandingIndex() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 w-full gap-6 p-6 md:px-20">
           <div className="min-w-60 bg-green rounded-xl p-8 pb-12 space-y-4 text-center flex flex-col items-center text-white tracking-[5%]">
             <h2 className="text-4xl xl:text-5xl font-bold">DESIGN</h2>
-            <div className="w-full opacity-90 rounded-xl aspect-2/1 bg-cover bg-center" style={{ backgroundImage: 'url(/landing/step_1.webp)' }}></div>
+            <div
+              className="w-full opacity-90 rounded-xl aspect-2/1 bg-cover bg-center"
+              style={{ backgroundImage: 'url(/landing/step_1.webp)' }}
+            ></div>
             <h3 className="text-3xl leading-8 font-medium">Design. Learn. Repeat.</h3>
             <ol className="list-decimal list-inside text-left text-2xl">
               <li>Design your project</li>
@@ -145,15 +165,23 @@ export default function LandingIndex() {
           </div>
           <div className="min-w-60 bg-[#F5C634] rounded-xl p-8 pb-12 space-y-4 text-center flex flex-col items-center text-white tracking-[5%]">
             <h2 className="text-4xl xl:text-5xl font-bold">BUILD</h2>
-            <div className="w-full opacity-90 rounded-xl aspect-2/1 bg-cover bg-center" style={{ backgroundImage: 'url(/landing/step_2.webp)' }}></div>
+            <div
+              className="w-full opacity-90 rounded-xl aspect-2/1 bg-cover bg-center"
+              style={{ backgroundImage: 'url(/landing/step_2.webp)' }}
+            ></div>
             <h3 className="text-3xl leading-8 font-medium">Build. Iterate. Repeat.</h3>
             <span className="text-2xl font-light text-left">Buy the parts with your grant & Build your project!</span>
           </div>
           <div className="min-w-60 bg-[#F761BD] rounded-xl p-8 pb-12 space-y-4 text-center flex flex-col items-center text-white tracking-[5%]">
             <h2 className="text-4xl xl:text-5xl font-bold">BUILD IRL</h2>
-            <div className="w-full opacity-90 rounded-xl aspect-2/1 bg-cover bg-center" style={{ backgroundImage: 'url(/landing/step_3.webp)' }}></div>
+            <div
+              className="w-full opacity-90 rounded-xl aspect-2/1 bg-cover bg-center"
+              style={{ backgroundImage: 'url(/landing/step_3.webp)' }}
+            ></div>
             <h3 className="text-3xl leading-8 font-medium">Join us in ShenZhen</h3>
-            <span className="text-2xl font-light text-left">Share your project to the world, get an invite to build in-person!</span>
+            <span className="text-2xl font-light text-left">
+              Share your project to the world, get an invite to build in-person!
+            </span>
           </div>
         </div>
       </section>
@@ -165,16 +193,36 @@ export default function LandingIndex() {
           <span className="text-lg sm:text-2xl tracking-[5%] font-light px-2">
             <i>Can't make it? get prizes like a 3D printer in our shop!</i>
           </span>
-          <img src="/landing/fish_1.webp" alt="" className="hidden lg:block w-80 sm:w-120 h-auto absolute bottom-0 -left-10 lg:left-10" />
-          <img src="/landing/stingray.webp" alt="" className="hidden lg:block w-60 sm:w-100 h-auto absolute -top-40 md:-top-80 right-0 lg:right-30" />
-          <img src="/landing/fish_2.webp" alt="" className="hidden lg:block w-40 sm:w-60 h-auto absolute -bottom-20 lg:-bottom-20 -right-10 lg:right-0" />
+          <img
+            src="/landing/fish_1.webp"
+            alt=""
+            className="hidden lg:block w-80 sm:w-120 h-auto absolute bottom-0 -left-10 lg:left-10"
+          />
+          <img
+            src="/landing/stingray.webp"
+            alt=""
+            className="hidden lg:block w-60 sm:w-100 h-auto absolute -top-40 md:-top-80 right-0 lg:right-30"
+          />
+          <img
+            src="/landing/fish_2.webp"
+            alt=""
+            className="hidden lg:block w-40 sm:w-60 h-auto absolute -bottom-20 lg:-bottom-20 -right-10 lg:right-0"
+          />
         </div>
 
         <div className="relative w-full h-24 sm:h-40 overflow-x-hidden">
-          <img src="/clouds/4.png" alt="" className="absolute bottom-0 left-0 h-20 sm:h-30 md:h-40 -translate-x-1/4 z-0" />
+          <img
+            src="/clouds/4.png"
+            alt=""
+            className="absolute bottom-0 left-0 h-20 sm:h-30 md:h-40 -translate-x-1/4 z-0"
+          />
           <img src="/clouds/1.png" alt="" className="absolute bottom-0 left-1/4 sm:left-40 h-20 sm:h-30 z-0" />
           <img src="/clouds/2.png" alt="" className="absolute bottom-0 right-1/4 h-20 sm:h-30 z-0" />
-          <img src="/clouds/3.png" alt="" className="absolute bottom-0 right-0 h-20 sm:h-30 md:h-40 w-auto translate-x-1/4 z-0" />
+          <img
+            src="/clouds/3.png"
+            alt=""
+            className="absolute bottom-0 right-0 h-20 sm:h-30 md:h-40 w-auto translate-x-1/4 z-0"
+          />
         </div>
       </section>
 
@@ -217,16 +265,17 @@ export default function LandingIndex() {
                 <>
                   <h2 className="text-2xl font-semibold mb-4">OVERVIEW</h2>
                   <p>Welcome to Fallout! We're still working on releasing this, but it'll be soon!</p>
-                  <p><strong>RSVP above and we'll let you know when we kick off!</strong></p>
+                  <p>
+                    <strong>RSVP above and we'll let you know when we kick off!</strong>
+                  </p>
                   <p>Imagine kicking off summer in Shenzhen, the hardware capital of the world.</p>
                   <p>Never tried hardware before? This is your chance to start.</p>
                   <p>
-                    <strong>Build any hardware project you want. We'll fund the parts.</strong>{' '}
-                    Level up your hardware skills. Join us for a 7-day hardware hackathon in Shenzhen.
+                    <strong>Build any hardware project you want. We'll fund the parts.</strong> Level up your hardware
+                    skills. Join us for a 7-day hardware hackathon in Shenzhen.
                   </p>
                   <p>
-                    (← click on the tabs{' '}
-                    <span className="hidden md:inline">on the left</span>
+                    (← click on the tabs <span className="hidden md:inline">on the left</span>
                     <span className="inline md:hidden">up top</span> to learn more!)
                   </p>
                 </>
@@ -257,7 +306,10 @@ export default function LandingIndex() {
                     We're not here to fund you to build a PC. Your goal is to design something really cool from the
                     ground up, and not to assemble expensive parts others have made.
                   </p>
-                  <p>Don't know what to build, or what counts? You'll be part of a greater community where you can ask for help!</p>
+                  <p>
+                    Don't know what to build, or what counts? You'll be part of a greater community where you can ask
+                    for help!
+                  </p>
                 </>
               )}
               {section.id === 'shipping' && (
@@ -286,7 +338,9 @@ export default function LandingIndex() {
                     of July 1-7, you'll be able to browse the world's largest hardware and electronics market,
                     Huaqiangbei, to build whatever creation you dream up, with friends you meet along the way.
                   </p>
-                  <p>We'll be releasing more information about the logistics and schedule of the event closer to July.</p>
+                  <p>
+                    We'll be releasing more information about the logistics and schedule of the event closer to July.
+                  </p>
                 </>
               )}
               {section.id === 'parents' && (
@@ -308,7 +362,10 @@ export default function LandingIndex() {
                   </p>
                   <p>
                     If you have any questions or concerns, please do not hesitate to reach out to us at{' '}
-                    <a href="mailto:fallout@hackclub.com" className="underline">fallout@hackclub.com</a>.
+                    <a href="mailto:fallout@hackclub.com" className="underline">
+                      fallout@hackclub.com
+                    </a>
+                    .
                   </p>
                 </>
               )}
@@ -320,8 +377,12 @@ export default function LandingIndex() {
       <footer className="bg-dark-brown text-white text-center py-8">
         <p className="text-xl font-medium">Fallout is made with ♡ by teenagers, for teenagers</p>
         <div className="space-x-4 mt-2">
-          <a href="https://hackclub.com" target="_blank" rel="noreferrer" className="underline text-xl">Hack Club</a>
-          <a href="https://hackclub.com/slack" target="_blank" rel="noreferrer" className="underline text-xl">Join Our Slack</a>
+          <a href="https://hackclub.com" target="_blank" rel="noreferrer" className="underline text-xl">
+            Hack Club
+          </a>
+          <a href="https://hackclub.com/slack" target="_blank" rel="noreferrer" className="underline text-xl">
+            Join Our Slack
+          </a>
         </div>
       </footer>
     </div>

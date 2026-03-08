@@ -13,7 +13,7 @@ let counter = 0
 
 export function notify(type: NotificationType, message: string) {
   const id = `notification-${counter++}`
-  listeners.forEach(l => l({ id, type, message }))
+  listeners.forEach((l) => l({ id, type, message }))
 }
 
 export function subscribe(fn: Listener): () => void {

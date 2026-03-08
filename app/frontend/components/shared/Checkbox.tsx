@@ -14,7 +14,15 @@ export default function Checkbox({ checked, onChange, label }: CheckboxProps) {
         }`}
       >
         {checked && (
-          <svg className="w-3 h-3 text-light-brown" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <svg
+            className="w-3 h-3 text-light-brown"
+            viewBox="0 0 12 12"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
             <path d="M2 6l3 3 5-5" />
           </svg>
         )}

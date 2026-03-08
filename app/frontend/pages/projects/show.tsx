@@ -21,7 +21,9 @@ export default function ProjectsShow({
 }) {
   function deleteProject() {
     if (confirm('Are you sure?')) {
-      router.delete(`/projects/${project.id}`, { onError: () => notify('alert', 'Failed to delete project. Please try again.') })
+      router.delete(`/projects/${project.id}`, {
+        onError: () => notify('alert', 'Failed to delete project. Please try again.'),
+      })
     }
   }
 

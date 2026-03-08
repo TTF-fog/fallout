@@ -31,6 +31,6 @@
   },
   "scripts": {
     "check": "tsc -p tsconfig.json && tsc -p tsconfig.node.json",
-    "format:check": "prettier --check 'app/javascript/**/*.{ts,tsx,js}'"
+    "format:check": "prettier --check 'app/frontend/**/*.{ts,tsx,js}'"
   }
 }

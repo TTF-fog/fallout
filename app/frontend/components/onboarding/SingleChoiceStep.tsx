@@ -1,12 +1,12 @@
-import SpeechBubble from "./SpeechBubble";
+import SpeechBubble from './SpeechBubble'
 
 interface SingleChoiceStepProps {
   step: {
-    prompt: string;
-    options: string[];
-  };
-  selected: string | null;
-  onSelect: (answer: string) => void;
+    prompt: string
+    options: string[]
+  }
+  selected: string | null
+  onSelect: (answer: string) => void
 }
 
 export default function SingleChoiceStep({ step, selected, onSelect }: SingleChoiceStepProps) {
@@ -21,7 +21,7 @@ export default function SingleChoiceStep({ step, selected, onSelect }: SingleCho
           <li key={option}>
             <button
               className={`w-full min-h-14 rounded-xl cursor-pointer ease-in-out transition-all hover:scale-104 p-2 border-2 border-dark-brown
-                ${selected === option ? "bg-dark-brown text-light-brown" : "bg-white"}`}
+                ${selected === option ? 'bg-dark-brown text-light-brown' : 'bg-white'}`}
               onClick={() => onSelect(option)}
             >
               {option}
@@ -30,5 +30,5 @@ export default function SingleChoiceStep({ step, selected, onSelect }: SingleCho
         ))}
       </ul>
     </section>
-  );
+  )
 }

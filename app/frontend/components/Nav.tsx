@@ -13,9 +13,7 @@ export default function Nav() {
     <nav>
       {shared.auth.user ? (
         <>
-          {shared.auth.user.is_trial && (
-            <a href={shared.sign_in_path}>Verify your account</a>
-          )}
+          {shared.auth.user.is_trial && <a href={shared.sign_in_path}>Verify your account</a>}
           <button onClick={signOut}>Sign Out</button>
         </>
       ) : (
