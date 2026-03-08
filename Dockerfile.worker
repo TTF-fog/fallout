@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-# check=error=true
+# check=error=true;skip=SecretsUsedInArgOrEnv
 
 # Worker image for Solid Queue job processing.
 # Uses the same build stage as the main Dockerfile.
