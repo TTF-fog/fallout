@@ -19,8 +19,30 @@ export interface SharedProps {
   sign_in_path: string
   sign_out_path: string
   trial_session_path: string
+  has_unread_mail: boolean
   errors: Record<string, string[]>
   [key: string]: unknown
+}
+
+export interface MailItem {
+  id: number
+  summary: string
+  pinned: boolean
+  dismissable: boolean
+  action_url: string | null
+  is_read: boolean
+  created_at: string
+}
+
+export interface MailDetail {
+  id: number
+  summary: string
+  content: string | null
+  pinned: boolean
+  dismissable: boolean
+  action_url: string | null
+  source_type: string | null
+  created_at: string
 }
 
 export interface PagyProps {

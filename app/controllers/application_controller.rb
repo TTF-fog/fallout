@@ -37,6 +37,12 @@ class ApplicationController < ActionController::Base
   inertia_share sign_in_path: -> { signin_path(login_hint: current_user&.trial? ? current_user.email : nil) } # Prefill HCA email for trial users upgrading to full accounts
   inertia_share sign_out_path: -> { signout_path }
   inertia_share trial_session_path: -> { trial_session_path }
+  inertia_share has_unread_mail: -> { # Drives the envelope badge on the path page
+    next false unless current_user && !current_user.trial?
+    MailMessage.visible_to(current_user)
+              .where.not(id: current_user.mail_interactions.read.select(:mail_message_id))
+              .exists?
+  }
 
   private
 

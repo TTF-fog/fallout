@@ -1,0 +1,58 @@
+# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+# == Schema Information
+#
+# Table name: mail_messages
+#
+#  id          :bigint           not null, primary key
+#  action_url  :string
+#  content     :text
+#  dismissable :boolean          default(TRUE), not null
+#  expires_at  :datetime
+#  filters     :jsonb            not null
+#  pinned      :boolean          default(FALSE), not null
+#  source_type :string
+#  summary     :string           not null
+#  created_at  :datetime         not null
+#  updated_at  :datetime         not null
+#  author_id   :bigint
+#  source_id   :bigint
+#  user_id     :bigint
+#
+# Indexes
+#
+#  index_mail_messages_on_expires_at                 (expires_at)
+#  index_mail_messages_on_filters                    (filters) USING gin
+#  index_mail_messages_on_source_type_and_source_id  (source_type,source_id)
+#  index_mail_messages_on_user_id                    (user_id)
+#
+# Foreign Keys
+#
+#  fk_rails_...  (author_id => users.id)
+#  fk_rails_...  (user_id => users.id)
+#
+one:
+  summary: MyString
+  content: MyText
+  pinned: false
+  dismissable: false
+  action_url: MyString
+  expires_at: 2026-03-07 19:17:25
+  source_type: MyString
+  source_id: 
+  filters: 
+  user_id: 
+  author_id: 
+
+two:
+  summary: MyString
+  content: MyText
+  pinned: false
+  dismissable: false
+  action_url: MyString
+  expires_at: 2026-03-07 19:17:25
+  source_type: MyString
+  source_id: 
+  filters: 
+  user_id: 
+  author_id: 

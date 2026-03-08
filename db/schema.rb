@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_03_07_204529) do
+ActiveRecord::Schema[8.1].define(version: 2026_03_08_001726) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -120,6 +120,38 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_07_204529) do
     t.index ["user_id"], name: "index_lapse_timelapses_on_user_id"
   end
 
+  create_table "mail_interactions", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.datetime "dismissed_at"
+    t.bigint "mail_message_id", null: false
+    t.datetime "read_at"
+    t.datetime "updated_at", null: false
+    t.bigint "user_id", null: false
+    t.index ["mail_message_id"], name: "index_mail_interactions_on_mail_message_id"
+    t.index ["user_id", "mail_message_id"], name: "index_mail_interactions_on_user_id_and_mail_message_id", unique: true
+    t.index ["user_id"], name: "index_mail_interactions_on_user_id"
+  end
+
+  create_table "mail_messages", force: :cascade do |t|
+    t.string "action_url"
+    t.bigint "author_id"
+    t.text "content"
+    t.datetime "created_at", null: false
+    t.boolean "dismissable", default: true, null: false
+    t.datetime "expires_at"
+    t.jsonb "filters", default: {}, null: false
+    t.boolean "pinned", default: false, null: false
+    t.bigint "source_id"
+    t.string "source_type"
+    t.string "summary", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "user_id"
+    t.index ["expires_at"], name: "index_mail_messages_on_expires_at"
+    t.index ["filters"], name: "index_mail_messages_on_filters", opclass: :jsonb_path_ops, using: :gin
+    t.index ["source_type", "source_id"], name: "index_mail_messages_on_source_type_and_source_id"
+    t.index ["user_id"], name: "index_mail_messages_on_user_id"
+  end
+
   create_table "onboarding_responses", force: :cascade do |t|
     t.text "answer_text", default: "", null: false
     t.datetime "created_at", null: false
@@ -206,6 +238,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_07_204529) do
   add_foreign_key "journal_entries", "users"
   add_foreign_key "lapse_timelapses", "journal_entries"
   add_foreign_key "lapse_timelapses", "users"
+  add_foreign_key "mail_interactions", "mail_messages"
+  add_foreign_key "mail_interactions", "users"
+  add_foreign_key "mail_messages", "users"
+  add_foreign_key "mail_messages", "users", column: "author_id"
   add_foreign_key "onboarding_responses", "users"
   add_foreign_key "projects", "users"
   add_foreign_key "ships", "projects"

@@ -1,19 +1,21 @@
 import { useState } from 'react'
 import { usePage, router } from '@inertiajs/react'
+// @ts-expect-error useModalStack lacks type declarations in this beta package
+import { useModalStack } from '@inertiaui/modal-react'
 import type { SharedProps } from '@/types'
 import { useClickOutside } from '@/hooks/useClickOutside'
 
 type Props = {
   koiBalance: number
-  mail: boolean
   avatar: string
   displayName: string
 }
 
-export default function Header({ koiBalance, mail, avatar, displayName }: Props) {
+export default function Header({ koiBalance, avatar, displayName }: Props) {
   const shared = usePage<SharedProps>().props
   const [isOpen, setIsOpen] = useState(false)
   const containerRef = useClickOutside<HTMLDivElement>(() => setIsOpen(false))
+  const { visitModal } = useModalStack()
 
   function signOut(e: React.MouseEvent) {
     e.preventDefault()
@@ -62,15 +64,24 @@ export default function Header({ koiBalance, mail, avatar, displayName }: Props)
           <img src="/koifish.png" alt="koi" className="h-10" />
           <span className="text-coral text-4xl xl:text-5xl font-bold">{koiBalance}</span>
         </div>
-        <div className="relative">
+        <button
+          type="button"
+          className="relative cursor-pointer"
+          onClick={() => {
+            if (shared.has_unread_mail) {
+              new Audio('/sfx/youve-got-mail.mp3').play().catch(() => {})
+            }
+            visitModal('/mails')
+          }}
+        >
           <img src="/envelope.png" alt="mail" className="h-10" />
-          {mail && (
+          {shared.has_unread_mail && (
             <>
               <span className="absolute top-1 right-0 rounded-full size-3 bg-coral" />
               <span className="absolute top-1 right-0 rounded-full size-3 bg-coral animate-ping" />
             </>
           )}
-        </div>
+        </button>
       </div>
     </header>
   )

@@ -1,8 +1,12 @@
-import { useState, useEffect, useRef, type ReactNode } from 'react'
+import { useState, useEffect, useRef, useMemo, type ReactNode } from 'react'
 import { Deferred as InertiaDeferred, router } from '@inertiajs/react'
 import { Deferred as ModalDeferred, Modal } from '@inertiaui/modal-react'
 import Frame from '@/components/shared/Frame'
+import Button from '@/components/shared/Button'
 import MarkdownEditor from '@/components/shared/MarkdownEditor'
+
+const MIN_IMAGES = 1
+const MIN_CHARS = 100
 
 type Project = { id: number; name: string }
 
@@ -13,6 +17,52 @@ type Timelapse = {
   playbackUrl: string
   duration: number
   createdAt: number
+}
+
+function countMarkdownChars(md: string): number {
+  let text = md
+  // Remove images ![...](...)
+  text = text.replace(/!\[[^\]]*\]\([^)]*\)/g, '')
+  // Remove links [...](...) — entire syntax including text
+  text = text.replace(/\[[^\]]*\]\([^)]*\)/g, '')
+  // Remove HTML comments <!-- ... -->
+  text = text.replace(/<!--[\s\S]*?-->/g, '')
+  // Normalize zero-width spaces, tabs, non-breaking spaces to regular spaces
+  text = text.replace(/[\u200B\u200C\u200D\uFEFF\t\u00A0]/g, ' ')
+
+  const lines = text.split('\n').map((line) => {
+    // Strip spaces at start and end of lines
+    line = line.trim()
+    // Two or more consecutive spaces count as two
+    line = line.replace(/ {2,}/g, '  ')
+    return line
+  })
+
+  // Collapse consecutive empty lines to one
+  const collapsed: string[] = []
+  let prevEmpty = false
+  for (const line of lines) {
+    const isEmpty = line === ''
+    if (isEmpty) {
+      if (!prevEmpty) collapsed.push('')
+      prevEmpty = true
+    } else {
+      collapsed.push(line)
+      prevEmpty = false
+    }
+  }
+
+  // Trim leading/trailing empty lines
+  while (collapsed.length > 0 && collapsed[0] === '') collapsed.shift()
+  while (collapsed.length > 0 && collapsed[collapsed.length - 1] === '') collapsed.pop()
+
+  let count = 0
+  for (let i = 0; i < collapsed.length; i++) {
+    // Empty lines count as one
+    count += collapsed[i] === '' ? 1 : collapsed[i].length
+    if (i < collapsed.length - 1) count += 1
+  }
+  return count
 }
 
 function NewJournal({
@@ -85,6 +135,11 @@ function NewJournal({
 
   const Deferred = is_modal ? ModalDeferred : InertiaDeferred
 
+  const charCount = useMemo(() => countMarkdownChars(markdown), [markdown])
+  const hasEnoughImages = blobSignedIds.length >= MIN_IMAGES
+  const hasEnoughChars = charCount >= MIN_CHARS
+  const canSubmit = selectedProject && selectedTimelapses.size > 0 && hasEnoughImages && hasEnoughChars
+
   function toggleTimelapse(id: string) {
     setSelectedTimelapses((prev) => {
       const next = new Set(prev)
@@ -95,7 +150,7 @@ function NewJournal({
   }
 
   function handleSubmit() {
-    if (!selectedProject || selectedTimelapses.size === 0) return
+    if (!canSubmit) return
     setSubmitting(true)
     router.post(
       `/projects/${selectedProject.id}/journal_entries`,
@@ -116,22 +171,46 @@ function NewJournal({
     )
   }
 
-  const content = selectedProject ? (
+  const content = (
     <div className="w-full h-full mx-auto p-8 overflow-y-auto">
-      <h1 className="font-bold text-3xl mb-4">New Journal</h1>
+      <h1 className="font-bold text-3xl mb-1">New Journal</h1>
+      <p className="text-dark-brown/60 mb-4">Remember to publish the timelapse</p>
       <p className="text-lg">
-        Journaling for: <span className="font-bold">{selectedProject.name}</span>
+        Journaling for:{' '}
+        {projects.length > 1 ? (
+          <select
+            value={selectedProject?.id ?? ''}
+            onChange={(e) => setSelectedProject(projects.find((p) => p.id === Number(e.target.value)) ?? null)}
+            className="font-bold bg-transparent border-b-2 border-dark-brown cursor-pointer outline-none"
+          >
+            <option value="" disabled>
+              Select a project
+            </option>
+            {projects.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))}
+          </select>
+        ) : (
+          <span className="font-bold">{selectedProject?.name}</span>
+        )}
       </p>
       {!lapse_connected && (
-        <div className="mt-6 p-4 border border-amber-300 bg-amber-50 rounded-lg">
+        <div
+          className={`mt-6 p-4 border border-amber-300 bg-amber-50 rounded-lg relative ${!selectedProject ? 'pointer-events-none' : ''}`}
+        >
+          {!selectedProject && <DisabledOverlay />}
           <p className="text-lg font-bold mb-2">Connect Lapse</p>
           <p className="mb-3">You need to connect Lapse to record timelapses for your journal.</p>
-          <a
-            href={`/auth/lapse/start?return_to=journal&project_id=${selectedProject.id}`}
-            className="inline-block px-4 py-2 bg-dark-brown text-white rounded font-bold hover:opacity-90"
-          >
-            Connect Lapse
-          </a>
+          {selectedProject && (
+            <a
+              href={`/auth/lapse/start?return_to=journal&project_id=${selectedProject.id}`}
+              className="inline-block py-1.5 px-4 border-2 font-bold uppercase bg-brown text-light-brown border-dark-brown cursor-pointer"
+            >
+              Connect Lapse
+            </a>
+          )}
         </div>
       )}
       {lapse_connected && (
@@ -145,44 +224,39 @@ function NewJournal({
       )}
       <div className="mt-6">
         <h2 className="font-bold text-xl mb-3">Write about what you did</h2>
-        <MarkdownEditor
-          value={markdown}
-          onChange={setMarkdown}
-          onBlobsChange={setBlobSignedIds}
-          directUploadUrl={direct_upload_url}
-          previewUrl="/journal_entries/preview"
-          draftStatus={draftStatus}
-        />
+        <div className={`relative ${!selectedProject ? 'pointer-events-none' : ''}`}>
+          {!selectedProject && <DisabledOverlay />}
+          <MarkdownEditor
+            value={markdown}
+            onChange={setMarkdown}
+            onBlobsChange={setBlobSignedIds}
+            directUploadUrl={direct_upload_url}
+            previewUrl="/journal_entries/preview"
+          />
+        </div>
+        {selectedProject && (
+          <div className="flex items-center justify-between mt-1.5 text-xs">
+            <span className="text-dark-brown">{draftStatus ?? '\u00A0'}</span>
+            <div className="flex gap-4">
+              <span className={hasEnoughChars ? 'text-dark-brown' : 'text-red-500'}>
+                Min characters {charCount}/{MIN_CHARS}
+              </span>
+              <span className={hasEnoughImages ? 'text-dark-brown' : 'text-red-500'}>
+                Min images {blobSignedIds.length}/{MIN_IMAGES}
+              </span>
+            </div>
+          </div>
+        )}
       </div>
       {selectedTimelapses.size > 0 && (
         <div className="mt-6">
-          <button
-            onClick={handleSubmit}
-            disabled={submitting}
-            className="px-6 py-3 bg-dark-brown text-white rounded-lg font-bold hover:opacity-90 disabled:opacity-50 cursor-pointer"
-          >
+          <Button onClick={handleSubmit} disabled={submitting || !canSubmit}>
             {submitting
               ? 'Creating...'
               : `Create Journal (${selectedTimelapses.size} timelapse${selectedTimelapses.size !== 1 ? 's' : ''})`}
-          </button>
+          </Button>
         </div>
       )}
-    </div>
-  ) : (
-    <div className="w-full h-full mx-auto p-8">
-      <h1 className="font-bold text-3xl mb-4">Which project?</h1>
-      <p className="text-lg mb-6">Select the project you want to journal for:</p>
-      <div className="flex flex-col gap-3">
-        {projects.map((project) => (
-          <button
-            key={project.id}
-            onClick={() => setSelectedProject(project)}
-            className="text-lg font-bold text-dark-brown hover:underline text-left cursor-pointer"
-          >
-            {project.name}
-          </button>
-        ))}
-      </div>
     </div>
   )
 
@@ -195,6 +269,14 @@ function NewJournal({
   }
 
   return content
+}
+
+function DisabledOverlay() {
+  return (
+    <div className="absolute inset-0 z-10 flex items-center justify-center bg-brown/30 rounded cursor-default">
+      <p className="text-lg font-bold text-dark-brown">Select a project up top first!</p>
+    </div>
+  )
 }
 
 function TimelapseSkeleton() {
@@ -239,8 +321,18 @@ function TimelapseBrowser({
 
   return (
     <div className="mt-6 space-y-6">
-      <h2 className="font-bold text-xl">Select timelapses for your journal</h2>
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+      <div className="flex items-center justify-between">
+        <h2 className="font-bold text-xl">Select timelapses for your journal</h2>
+        <a
+          href="https://lapse.hackclub.com/timelapse/create"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="py-1.5 px-4 border-2 font-bold uppercase bg-brown text-light-brown border-dark-brown cursor-pointer text-sm"
+        >
+          Start a timelapse
+        </a>
+      </div>
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-5">
         {timelapses.map((timelapse) => {
           const selected = selectedTimelapses.has(timelapse.id)
           return (
@@ -248,9 +340,7 @@ function TimelapseBrowser({
               key={timelapse.id}
               type="button"
               onClick={() => onToggle(timelapse.id)}
-              className={`group relative aspect-video rounded overflow-hidden bg-gray-100 border-2 cursor-pointer transition-all ${
-                selected ? 'border-dark-brown ring-2 ring-dark-brown/30' : 'border-dark-brown/30 hover:border-dark-brown/60'
-              }`}
+              className={`group relative aspect-video rounded overflow-hidden border-2 border-dark-brown transition-all cursor-pointer ${selected ? 'scale-105 shadow-lg' : 'hover:scale-105'}`}
             >
               <img src={timelapse.thumbnailUrl} alt={timelapse.name} className="w-full h-full object-cover" />
               {selected && (

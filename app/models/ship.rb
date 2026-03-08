@@ -43,4 +43,12 @@ class Ship < ApplicationRecord
   delegate :user, to: :project
 
   scope :for_user, ->(user) { joins(:project).where(projects: { user_id: user.id }) }
+
+  after_update_commit :notify_status_change, if: :saved_change_to_status?
+
+  private
+
+  def notify_status_change
+    MailDeliveryService.ship_status_changed(self)
+  end
 end

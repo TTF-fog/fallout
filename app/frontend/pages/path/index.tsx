@@ -29,10 +29,10 @@ export default function PathIndex() {
   const {
     user,
     has_projects,
+    has_unread_mail,
     auth: { user: authUser },
     sign_in_path,
   } = usePage<PageProps & SharedProps>().props
-  const [mail] = useState<boolean>(true)
   const [notPressed] = useState<boolean>(true)
   const [loggedIn] = useState(false)
 
@@ -78,7 +78,7 @@ export default function PathIndex() {
     <>
       <FlashMessages />
       <div className="fixed top-6 left-6 right-6 z-20">
-        <Header koiBalance={user.koi} mail={mail} avatar={user.avatar} displayName={user.display_name} />
+        <Header koiBalance={user.koi} avatar={user.avatar} displayName={user.display_name} />
       </div>
 
       <div className="fixed top-6 bottom-6 right-6 z-10 flex items-end pt-[10%]">

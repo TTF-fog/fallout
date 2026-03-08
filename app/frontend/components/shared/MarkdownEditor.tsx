@@ -819,7 +819,7 @@ export default function MarkdownEditor({
 
     </div>
     {draftStatus && (
-      <p className="text-xs text-dark-brown/40 mt-1.5">{draftStatus}</p>
+      <p className="text-xs text-dark-brown mt-1.5">{draftStatus}</p>
     )}
     </>
   )

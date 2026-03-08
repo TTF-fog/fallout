@@ -130,6 +130,11 @@ Rails.application.routes.draw do
 
   get "path" => "path#index", as: :path
 
+  resources :mails, only: [ :index, :show ], controller: "mails" do
+    post :dismiss, on: :member
+    post :read_all, on: :collection
+  end
+
   resources :projects do
     get "onboarding", on: :collection # Project onboarding modal accessed from path page
     resources :journal_entries, only: [ :new, :create ]

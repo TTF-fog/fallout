@@ -21,7 +21,15 @@ class JournalEntriesController < ApplicationController
       lapse_connected: lapse_connected,
       is_modal: request.headers["X-InertiaUI-Modal"].present?,
       direct_upload_url: rails_direct_uploads_url,
-      timelapses: InertiaRails.defer { lapse_connected ? current_user.get_timelapses.map { |t| safe_timelapse_attrs(t) } : [] }
+      timelapses: InertiaRails.defer {
+        if lapse_connected
+          # Exclude timelapses already claimed by any journal (including journals on soft-deleted projects)
+          claimed_ids = current_user.lapse_timelapses.where.not(journal_entry_id: nil).pluck(:lapse_timelapse_id).to_set
+          current_user.get_timelapses.reject { |t| claimed_ids.include?(t["id"]) }.map { |t| safe_timelapse_attrs(t) }
+        else
+          []
+        end
+      }
     }
   end
 
