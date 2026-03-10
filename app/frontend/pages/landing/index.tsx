@@ -106,6 +106,7 @@ export default function LandingIndex() {
             </form>
           </Frame>
           <FlashMessages />
+          <p className="text-white text-base">For teenagers 13-18</p>
           <a href={shared.sign_in_path} className="text-white underline text-sm">
             Sign in with HCA
           </a>
