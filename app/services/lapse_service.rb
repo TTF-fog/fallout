@@ -16,7 +16,7 @@ module LapseService
       client_id: ENV.fetch("LAPSE_CLIENT_ID", nil),
       redirect_uri: redirect_uri,
       response_type: "code",
-      scope: "user:read,timelapse:read",
+      scope: "user:read timelapse:read",
       state: state,
       code_challenge: code_challenge,
       code_challenge_method: "S256"
