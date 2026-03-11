@@ -32,6 +32,7 @@
 # Indexes
 #
 #  index_ahoy_visits_on_user_id                       (user_id)
+#  index_ahoy_visits_on_user_locatable                (user_id,started_at DESC) WHERE ((country IS NOT NULL) AND ((country)::text <> ''::text))
 #  index_ahoy_visits_on_visit_token                   (visit_token) UNIQUE
 #  index_ahoy_visits_on_visitor_token_and_started_at  (visitor_token,started_at)
 #

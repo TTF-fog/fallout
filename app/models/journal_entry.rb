@@ -29,6 +29,7 @@ class JournalEntry < ApplicationRecord
   belongs_to :user
   belongs_to :project
   has_many :lapse_timelapses, dependent: :nullify
+  has_many :you_tube_videos, dependent: :nullify
   has_many_attached :images
 
   validate :user_must_own_project

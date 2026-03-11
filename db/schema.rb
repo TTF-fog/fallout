@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_03_09_000000) do
+ActiveRecord::Schema[8.1].define(version: 2026_03_11_013354) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -355,6 +355,29 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_09_000000) do
     t.index ["item_type", "item_id"], name: "index_versions_on_item_type_and_item_id"
   end
 
+  create_table "you_tube_videos", force: :cascade do |t|
+    t.boolean "caption"
+    t.string "category_id"
+    t.string "channel_id"
+    t.string "channel_title"
+    t.datetime "created_at", null: false
+    t.string "definition"
+    t.text "description"
+    t.integer "duration_seconds"
+    t.bigint "journal_entry_id"
+    t.string "live_broadcast_content"
+    t.datetime "published_at"
+    t.text "tags"
+    t.string "thumbnail_url"
+    t.string "title"
+    t.datetime "updated_at", null: false
+    t.bigint "user_id"
+    t.string "video_id", null: false
+    t.index ["journal_entry_id"], name: "index_you_tube_videos_on_journal_entry_id"
+    t.index ["user_id"], name: "index_you_tube_videos_on_user_id"
+    t.index ["video_id"], name: "index_you_tube_videos_on_video_id", unique: true
+  end
+
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
   add_foreign_key "journal_entries", "projects"
@@ -375,4 +398,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_09_000000) do
   add_foreign_key "solid_queue_ready_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
   add_foreign_key "solid_queue_recurring_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
   add_foreign_key "solid_queue_scheduled_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
+  add_foreign_key "you_tube_videos", "journal_entries"
+  add_foreign_key "you_tube_videos", "users"
 end

@@ -1,0 +1,69 @@
+# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+# == Schema Information
+#
+# Table name: you_tube_videos
+#
+#  id                     :bigint           not null, primary key
+#  caption                :boolean
+#  channel_title          :string
+#  definition             :string
+#  description            :text
+#  duration_seconds       :integer
+#  live_broadcast_content :string
+#  published_at           :datetime
+#  tags                   :text
+#  thumbnail_url          :string
+#  title                  :string
+#  created_at             :datetime         not null
+#  updated_at             :datetime         not null
+#  category_id            :string
+#  channel_id             :string
+#  journal_entry_id       :bigint
+#  user_id                :bigint
+#  video_id               :string           not null
+#
+# Indexes
+#
+#  index_you_tube_videos_on_journal_entry_id  (journal_entry_id)
+#  index_you_tube_videos_on_user_id           (user_id)
+#  index_you_tube_videos_on_video_id          (video_id) UNIQUE
+#
+# Foreign Keys
+#
+#  fk_rails_...  (journal_entry_id => journal_entries.id)
+#  fk_rails_...  (user_id => users.id)
+#
+one:
+  video_id: MyString
+  title: MyString
+  description: MyText
+  channel_id: MyString
+  channel_title: MyString
+  thumbnail_url: MyString
+  duration_seconds: 1
+  published_at: 2026-03-10 21:33:54
+  definition: MyString
+  caption: false
+  live_broadcast_content: MyString
+  tags: MyText
+  category_id: MyString
+  user: one
+  journal_entry: one
+
+two:
+  video_id: MyString
+  title: MyString
+  description: MyText
+  channel_id: MyString
+  channel_title: MyString
+  thumbnail_url: MyString
+  duration_seconds: 1
+  published_at: 2026-03-10 21:33:54
+  definition: MyString
+  caption: false
+  live_broadcast_content: MyString
+  tags: MyText
+  category_id: MyString
+  user: two
+  journal_entry: two
