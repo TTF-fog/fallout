@@ -38,7 +38,7 @@ one:
   email: user1@example.com
   timezone: MyString
   hca_id: hca_id_1
-  roles: ["admin"]
+  roles: ['admin']
   is_banned: false
 
 two:
@@ -48,5 +48,5 @@ two:
   email: user2@example.com
   timezone: MyString
   hca_id: hca_id_2
-  roles: ["user"]
+  roles: ['user']
   is_banned: false

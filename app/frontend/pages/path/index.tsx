@@ -48,7 +48,10 @@ export default function PathIndex() {
   })
 
   const pathNodes = useMemo(
-    () => Array.from({ length: 60 }, (_, i) => <PathNode key={i} index={i} hasProjects={has_projects} journalEntryCount={journal_entry_count} />),
+    () =>
+      Array.from({ length: 60 }, (_, i) => (
+        <PathNode key={i} index={i} hasProjects={has_projects} journalEntryCount={journal_entry_count} />
+      )),
     [has_projects, journal_entry_count],
   )
 

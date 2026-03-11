@@ -49,42 +49,42 @@ Add the following environment variables to **both** the main and worker applicat
 
 ### Required
 
-| Variable | Description |
-|---|---|
-| `DATABASE_URL` | PostgreSQL connection URL from step 1 |
-| `REDIS_URL` | Redis connection URL from step 1 |
-| `RAILS_MASTER_KEY` | Contents of `config/master.key` |
-| `SECRET_KEY_BASE` | Run `bin/rails secret` locally to generate |
-| `APP_HOST` | Your app's domain (e.g. `app.example.com`) |
+| Variable           | Description                                |
+| ------------------ | ------------------------------------------ |
+| `DATABASE_URL`     | PostgreSQL connection URL from step 1      |
+| `REDIS_URL`        | Redis connection URL from step 1           |
+| `RAILS_MASTER_KEY` | Contents of `config/master.key`            |
+| `SECRET_KEY_BASE`  | Run `bin/rails secret` locally to generate |
+| `APP_HOST`         | Your app's domain (e.g. `app.example.com`) |
 
 ### OAuth & Integrations
 
-| Variable | Description |
-|---|---|
-| `HCA_CLIENT_ID` | HCA OAuth client ID |
-| `HCA_CLIENT_SECRET` | HCA OAuth client secret |
-| `SLACK_BOT_TOKEN` | Slack bot token for profile sync |
+| Variable            | Description                      |
+| ------------------- | -------------------------------- |
+| `HCA_CLIENT_ID`     | HCA OAuth client ID              |
+| `HCA_CLIENT_SECRET` | HCA OAuth client secret          |
+| `SLACK_BOT_TOKEN`   | Slack bot token for profile sync |
 
 ### Storage (Cloudflare R2)
 
-| Variable | Description |
-|---|---|
-| `R2_ACCESS_KEY_ID` | Cloudflare R2 access key |
+| Variable               | Description              |
+| ---------------------- | ------------------------ |
+| `R2_ACCESS_KEY_ID`     | Cloudflare R2 access key |
 | `R2_SECRET_ACCESS_KEY` | Cloudflare R2 secret key |
-| `R2_BUCKET` | R2 bucket name |
-| `R2_ENDPOINT` | R2 endpoint URL |
+| `R2_BUCKET`            | R2 bucket name           |
+| `R2_ENDPOINT`          | R2 endpoint URL          |
 
 ### Optional
 
-| Variable | Description |
-|---|---|
-| `GEOCODER_API_KEY` | Geocoding API key |
+| Variable                  | Description                     |
+| ------------------------- | ------------------------------- |
+| `GEOCODER_API_KEY`        | Geocoding API key               |
 | `SKYLIGHT_AUTHENTICATION` | Skylight performance monitoring |
-| `SENTRY_DSN` | Sentry error monitoring DSN |
-| `LOOPS_API_KEY` | Loops.so API key for mailer |
-| `MAILER_FROM` | Default from email address |
-| `EXTERNAL_API_KEY` | API key for `/api/v1` endpoints |
-| `UPTIME_WORKER_PING_URL` | Uptime monitoring ping URL |
+| `SENTRY_DSN`              | Sentry error monitoring DSN     |
+| `LOOPS_API_KEY`           | Loops.so API key for mailer     |
+| `MAILER_FROM`             | Default from email address      |
+| `EXTERNAL_API_KEY`        | API key for `/api/v1` endpoints |
+| `UPTIME_WORKER_PING_URL`  | Uptime monitoring ping URL      |
 
 ## 5. Network Configuration
 

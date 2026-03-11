@@ -39,10 +39,10 @@ one:
   action_url: MyString
   expires_at: 2026-03-07 19:17:25
   source_type: MyString
-  source_id: 
-  filters: 
-  user_id: 
-  author_id: 
+  source_id:
+  filters:
+  user_id:
+  author_id:
 
 two:
   summary: MyString
@@ -52,7 +52,7 @@ two:
   action_url: MyString
   expires_at: 2026-03-07 19:17:25
   source_type: MyString
-  source_id: 
-  filters: 
-  user_id: 
-  author_id: 
+  source_id:
+  filters:
+  user_id:
+  author_id:

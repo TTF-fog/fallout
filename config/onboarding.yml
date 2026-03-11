@@ -9,7 +9,7 @@ steps:
 
   - key: welcome_3
     type: dialogue
-    prompt: "Build hardware projects to get koi fish, & feed me!"
+    prompt: 'Build hardware projects to get koi fish, & feed me!'
 
   - key: welcome_4
     type: dialogue
@@ -17,15 +17,15 @@ steps:
 
   - key: how_heard
     type: multi_choice
-    prompt: "How did you hear about Fallout?"
+    prompt: 'How did you hear about Fallout?'
     options:
-      - "Friends/Family"
-      - "Instagram/Youtube"
-      - "Hack Club Site"
-      - "Slack"
-      - "Email"
-      - "School"
-      - "Other"
+      - 'Friends/Family'
+      - 'Instagram/Youtube'
+      - 'Hack Club Site'
+      - 'Slack'
+      - 'Email'
+      - 'School'
+      - 'Other'
 
   - key: experience
     type: single_choice
@@ -34,8 +34,8 @@ steps:
       - "I'm new to hardware!"
       - "I've made guided projects!"
       - "I've made projects beyond guides!"
-      - "I live and breathe hardware"
+      - 'I live and breathe hardware'
 
   - key: timelapse_reminder
     type: dialogue
-    prompt: "Remember to timelapse your work!"
+    prompt: 'Remember to timelapse your work!'

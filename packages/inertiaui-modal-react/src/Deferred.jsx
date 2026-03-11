@@ -3,19 +3,19 @@ import { useEffect, useState } from 'react'
 import useModal from './useModal'
 
 const Deferred = ({ children, data, fallback }) => {
-    if (!data) {
-        throw new Error('`<Deferred>` requires a `data` prop to be a string or array of strings')
-    }
+  if (!data) {
+    throw new Error('`<Deferred>` requires a `data` prop to be a string or array of strings')
+  }
 
-    const [loaded, setLoaded] = useState(false)
-    const keys = Array.isArray(data) ? data : [data]
-    const modalProps = useModal().props
+  const [loaded, setLoaded] = useState(false)
+  const keys = Array.isArray(data) ? data : [data]
+  const modalProps = useModal().props
 
-    useEffect(() => {
-        setLoaded(keys.every((key) => modalProps[key] !== undefined))
-    }, [modalProps, keys])
+  useEffect(() => {
+    setLoaded(keys.every((key) => modalProps[key] !== undefined))
+  }, [modalProps, keys])
 
-    return loaded ? children : fallback
+  return loaded ? children : fallback
 }
 
 Deferred.displayName = 'InertiaModalDeferred'

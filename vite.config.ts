@@ -5,11 +5,7 @@ import RubyPlugin from 'vite-plugin-ruby'
 import { resolve } from 'path'
 
 export default defineConfig({
-  plugins: [
-    react(),
-    tailwindcss(),
-    RubyPlugin(),
-  ],
+  plugins: [react(), tailwindcss(), RubyPlugin()],
   resolve: {
     alias: {
       '@': resolve(__dirname, 'app/frontend'),

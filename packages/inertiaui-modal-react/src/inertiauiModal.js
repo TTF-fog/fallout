@@ -10,25 +10,25 @@ import ModalLink from './ModalLink.jsx'
 import WhenVisible from './WhenVisible.jsx'
 
 const setPageLayout = (layout) => (module) => {
-    module.default.layout = (page) => createElement(layout, {}, page)
-    return module
+  module.default.layout = (page) => createElement(layout, {}, page)
+  return module
 }
 
 export {
-    Deferred,
-    HeadlessModal,
-    Modal,
-    ModalLink,
-    ModalRoot,
-    ModalStackProvider,
-    WhenVisible,
-    getConfig,
-    initFromPageProps,
-    putConfig,
-    renderApp,
-    resetConfig,
-    setPageLayout,
-    useModal,
-    useModalIndex,
-    useModalStack,
+  Deferred,
+  HeadlessModal,
+  Modal,
+  ModalLink,
+  ModalRoot,
+  ModalStackProvider,
+  WhenVisible,
+  getConfig,
+  initFromPageProps,
+  putConfig,
+  renderApp,
+  resetConfig,
+  setPageLayout,
+  useModal,
+  useModalIndex,
+  useModalStack,
 }

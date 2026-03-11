@@ -59,7 +59,10 @@ export function kebabCase(str) {
   str = str.replace(/_/g, '-')
   str = str.replace(/-+/g, '-')
   if (/[A-Z]/.test(str)) {
-    str = str.replace(/\s+/g, '').replace(/_/g, '').replace(/(?:^|\s|-)+([A-Za-z])/g, (_, c) => c.toUpperCase())
+    str = str
+      .replace(/\s+/g, '')
+      .replace(/_/g, '')
+      .replace(/(?:^|\s|-)+([A-Za-z])/g, (_, c) => c.toUpperCase())
     str = str.replace(/(.)(?=[A-Z])/g, '$1-')
     return str.toLowerCase()
   }
