@@ -51,7 +51,7 @@ class ApplicationController < ActionController::Base
     # Always create a visit so Ahoy sets the visitor cookie, even for unauthenticated users
     ahoy.visit
 
-    return unless user_signed_in?
+    return unless user_signed_in? && ahoy.visit
 
     if ahoy.visit.user_id != current_user.id
       # Backfill all prior visits from this visitor so pre-login visits (e.g. with utm_source) are linked to the user
