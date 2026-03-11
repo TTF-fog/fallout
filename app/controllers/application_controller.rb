@@ -6,6 +6,7 @@ class ApplicationController < ActionController::Base
   include InertiaPagination
 
   before_action :track_ahoy_visit
+  after_action :track_page_view
 
   after_action :verify_authorized, except: :index
   after_action :verify_policy_scoped, only: :index
@@ -48,14 +49,30 @@ class ApplicationController < ActionController::Base
   private
 
   def track_ahoy_visit
-    if user_signed_in? && ahoy.visit && ahoy.visit.user_id != current_user.id
+    return unless user_signed_in?
+
+    if ahoy.visit && ahoy.visit.user_id != current_user.id
       # Backfill all prior visits from this visitor so pre-login visits (e.g. with utm_source) are linked to the user
       Ahoy::Visit.where(visitor_token: ahoy.visit.visitor_token, user_id: nil)
                  .update_all(user_id: current_user.id)
-      ahoy.visit.update(user_id: current_user.id)
     end
 
-    ahoy.authenticate(current_user) if user_signed_in?
+    ahoy.authenticate(current_user)
+  end
+
+  def track_page_view
+    return if response.redirect?
+
+    props = {
+      controller: params[:controller],
+      action: params[:action],
+      user_id: current_user&.id
+    }
+
+    utm_params = request.query_parameters.slice("utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content")
+    props.merge!(utm_params) if utm_params.present?
+
+    ahoy.track "$view", props
   end
 
   def user_not_authorized
