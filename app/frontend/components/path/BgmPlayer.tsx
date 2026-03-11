@@ -151,9 +151,11 @@ export default function BgmPlayer() {
 
   return (
     <Frame>
-      <div className="flex flex-col w-40 gap-1.5 py-1">
-        <p className="text-xs font-medium text-dark-brown truncate text-center">Falling Into The Sky</p>
-        <p className="text-[10px] text-brown text-center -mt-1">Kale Wu</p>
+      <div className="flex flex-col w-60 gap-1 p-4">
+        <div>
+          <p className="text-lg font-medium text-dark-brown truncate text-center">Falling Into The Sky</p>
+          <p className="text-sm text-brown text-center -mt-1">Kale Wu</p>
+        </div>
 
         <div className="flex flex-col gap-0.5">
           <input
@@ -176,7 +178,7 @@ export default function BgmPlayer() {
           </div>
         </div>
 
-        <div className="flex items-center justify-center gap-2">
+        <div className="flex items-center justify-center gap-2 -mt-3">
           <button
             type="button"
             onClick={toggleMute}
