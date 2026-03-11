@@ -150,6 +150,66 @@ module LapseService
     nil
   end
 
+  def query_user_by_email(email)
+    raise ArgumentError, "email is required" if email.blank?
+
+    key = program_key
+    return nil if key.blank?
+
+    response = connection.get("/api/user/queryByEmail") do |req|
+      req.headers["Authorization"] = "Bearer #{key}"
+      req.headers["Accept"] = "application/json"
+      req.params["email"] = email
+    end
+
+    raise Unauthorized, "Lapse program key expired or invalid" if response.status == 401
+
+    unless response.success?
+      ErrorReporter.capture_message("Lapse user query by email failed", level: :warning, contexts: {
+        lapse: { status: response.status }
+      })
+      return nil
+    end
+
+    data = JSON.parse(response.body)
+    data.dig("data", "user")
+  rescue Unauthorized
+    raise
+  rescue StandardError => e
+    ErrorReporter.capture_exception(e, contexts: { lapse: { action: "query_user_by_email" } })
+    nil
+  end
+
+  def find_timelapses_by_user(lapse_user_id)
+    raise ArgumentError, "lapse_user_id is required" if lapse_user_id.blank?
+
+    key = program_key
+    return nil if key.blank?
+
+    response = connection.get("/api/timelapse/findByUser") do |req|
+      req.headers["Authorization"] = "Bearer #{key}"
+      req.headers["Accept"] = "application/json"
+      req.params["user"] = lapse_user_id
+    end
+
+    raise Unauthorized, "Lapse program key expired or invalid" if response.status == 401
+
+    unless response.success?
+      ErrorReporter.capture_message("Lapse find timelapses by user failed", level: :warning, contexts: {
+        lapse: { status: response.status, lapse_user_id: lapse_user_id }
+      })
+      return nil
+    end
+
+    data = JSON.parse(response.body)
+    data.dig("data", "timelapses")
+  rescue Unauthorized
+    raise
+  rescue StandardError => e
+    ErrorReporter.capture_exception(e, contexts: { lapse: { action: "find_timelapses_by_user", lapse_user_id: lapse_user_id } })
+    nil
+  end
+
   def fetch_timelapse(access_token, timelapse_id)
     raise ArgumentError, "timelapse_id is required" if timelapse_id.blank?
 
@@ -175,6 +235,10 @@ module LapseService
   rescue StandardError => e
     ErrorReporter.capture_exception(e, contexts: { lapse: { action: "fetch_timelapse", timelapse_id: timelapse_id } })
     nil
+  end
+
+  def program_key
+    ENV.fetch("LAPSE_PROGRAM_KEY", nil)
   end
 
   def connection

@@ -36,9 +36,7 @@ class LapseTimelapse < ApplicationRecord
   validates :lapse_timelapse_id, presence: true, uniqueness: true
 
   def fetch_data
-    token = user.lapse_token
-    return nil if token.blank?
-
+    token = user.lapse_token.presence || ENV.fetch("LAPSE_PROGRAM_KEY", nil)
     LapseService.fetch_timelapse(token, lapse_timelapse_id)
   end
 

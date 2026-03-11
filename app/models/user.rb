@@ -265,15 +265,28 @@ class User < ApplicationRecord
   end
 
   def get_timelapses
-    return [] if lapse_token.blank?
+    if lapse_token.present?
+      begin
+        return LapseService.my_published_timelapses(lapse_token) || []
+      rescue LapseService::Unauthorized
+        update!(lapse_token: nil)
+      end
+    end
 
-    LapseService.my_published_timelapses(lapse_token) || []
-  rescue LapseService::Unauthorized
-    update!(lapse_token: nil)
-    []
+    get_timelapses_via_program_key
   end
 
   private
+
+  def get_timelapses_via_program_key
+    lapse_user = LapseService.query_user_by_email(email)
+    return [] unless lapse_user&.dig("id")
+
+    LapseService.find_timelapses_by_user(lapse_user["id"]) || []
+  rescue StandardError => e
+    ErrorReporter.capture_exception(e, contexts: { lapse: { user_id: id, action: "program_key_fallback" } })
+    []
+  end
 
   def roles_must_be_valid
     return if roles.blank?

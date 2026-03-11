@@ -96,6 +96,43 @@ textarea:focus {
   transform: scale(1);
 }
 
+/* BGM player range inputs */
+.bgm-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+.bgm-slider::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(97, 69, 58, 0.25);
+}
+
+.bgm-slider::-moz-range-track {
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(97, 69, 58, 0.25);
+}
+
+.bgm-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #61453a;
+  margin-top: -3px;
+}
+
+.bgm-slider::-moz-range-thumb {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #61453a;
+  border: none;
+}
+
 .markdown-content {
   margin: 2rem auto;
   padding: 0 1rem;

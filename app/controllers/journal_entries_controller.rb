@@ -13,7 +13,7 @@ class JournalEntriesController < ApplicationController
       skip_authorization # No specific project to authorize against
     end
 
-    lapse_connected = current_user.lapse_token.present?
+    lapse_connected = current_user.lapse_token.present? || ENV["LAPSE_PROGRAM_KEY"].present?
 
     render inertia: "journal_entries/new", props: {
       projects: projects.map { |p| { id: p.id, name: p.name } },
