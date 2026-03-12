@@ -92,6 +92,8 @@ const HeadlessModal = forwardRef(
         getParentModal: () => modalContextRef.current?.getParentModal(),
         reload: (...args) => modalContextRef.current?.reload(...args),
         setOpen: () => modalContextRef.current?.setOpen(),
+        navigate: (...args) => modalContextRef.current?.navigate(...args),
+        goBack: () => modalContextRef.current?.goBack(),
 
         get id() {
           return modalContextRef.current?.id
@@ -113,6 +115,9 @@ const HeadlessModal = forwardRef(
         },
         get shouldRender() {
           return modalContextRef.current?.shouldRender
+        },
+        get canGoBack() {
+          return modalContextRef.current?.canGoBack ?? false
         },
       }),
       [modalContext],
@@ -137,6 +142,9 @@ const HeadlessModal = forwardRef(
                 reload: modalContext.reload,
                 setOpen: modalContext.setOpen,
                 shouldRender: modalContext.shouldRender,
+                navigate: modalContext.navigate,
+                goBack: modalContext.goBack,
+                canGoBack: modalContext.canGoBack,
               })
             : children}
 

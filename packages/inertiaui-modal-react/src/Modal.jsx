@@ -46,84 +46,97 @@ const Modal = forwardRef(
           reload,
           setOpen,
           shouldRender,
-        }) => (
-          <Transition appear={true} show={isOpen ?? false} afterLeave={onAfterLeave}>
-            <Dialog
-              as="div"
-              className="im-dialog relative z-20"
-              onClose={() => (config.closeExplicitly ? null : close())}
-              data-inertiaui-modal-id={id}
-              data-inertiaui-modal-index={index}
-            >
-              {/* Only transition the backdrop for the first modal in the stack */}
-              {index === 0 ? (
-                <>
-                  {config.duration !== 300 && (
-                    <style>{`.im-bdur-${id.replace(/[^a-zA-Z0-9]/g, '')} { transition-duration: ${config.duration}ms !important; }`}</style>
-                  )}
-                  <TransitionChild
-                    enter={`transition transform ease-in-out duration-300 ${config.duration !== 300 ? `im-bdur-${id.replace(/[^a-zA-Z0-9]/g, '')}` : ''}`}
-                    enterFrom={config.duration === 0 ? '' : 'opacity-0'}
-                    enterTo="opacity-100"
-                    leave={`transition transform ease-in-out duration-300 ${config.duration !== 300 ? `im-bdur-${id.replace(/[^a-zA-Z0-9]/g, '')}` : ''}`}
-                    leaveFrom="opacity-100"
-                    leaveTo={config.duration === 0 ? '' : 'opacity-0'}
-                  >
-                    {onTopOfStack ? (
-                      <div className="im-backdrop fixed inset-0 z-30 bg-black/75" aria-hidden="true" />
-                    ) : (
-                      <div />
+          navigate,
+          goBack,
+          canGoBack,
+        }) => {
+          const NavigatedComponent = modalContext.navigatedContent?.component
+          const navigatedConfig = modalContext.navigatedContent?.config
+            ? { ...config, ...modalContext.navigatedContent.config }
+            : config
+
+          const childProps = {
+            afterLeave,
+            close,
+            config: navigatedConfig,
+            emit,
+            getChildModal,
+            getParentModal,
+            id,
+            index,
+            isOpen,
+            modalContext,
+            onTopOfStack,
+            reload,
+            setOpen,
+            shouldRender,
+            navigate,
+            goBack,
+            canGoBack,
+          }
+
+          const innerContent = NavigatedComponent ? (
+            <NavigatedComponent
+              {...modalContext.navigatedContent.props}
+              _navigatedInModal={true}
+              close={close}
+              navigate={navigate}
+              goBack={goBack}
+              canGoBack={canGoBack}
+            />
+          ) : (
+            renderChildren(childProps)
+          )
+
+          return (
+            <Transition appear={true} show={isOpen ?? false} afterLeave={onAfterLeave}>
+              <Dialog
+                as="div"
+                className="im-dialog relative z-20"
+                onClose={() => (config.closeExplicitly ? null : close())}
+                data-inertiaui-modal-id={id}
+                data-inertiaui-modal-index={index}
+              >
+                {/* Only transition the backdrop for the first modal in the stack */}
+                {index === 0 ? (
+                  <>
+                    {config.duration !== 300 && (
+                      <style>{`.im-bdur-${id.replace(/[^a-zA-Z0-9]/g, '')} { transition-duration: ${config.duration}ms !important; }`}</style>
                     )}
-                  </TransitionChild>
-                </>
-              ) : null}
+                    <TransitionChild
+                      enter={`transition transform ease-in-out duration-300 ${config.duration !== 300 ? `im-bdur-${id.replace(/[^a-zA-Z0-9]/g, '')}` : ''}`}
+                      enterFrom={config.duration === 0 ? '' : 'opacity-0'}
+                      enterTo="opacity-100"
+                      leave={`transition transform ease-in-out duration-300 ${config.duration !== 300 ? `im-bdur-${id.replace(/[^a-zA-Z0-9]/g, '')}` : ''}`}
+                      leaveFrom="opacity-100"
+                      leaveTo={config.duration === 0 ? '' : 'opacity-0'}
+                    >
+                      {onTopOfStack ? (
+                        <div className="im-backdrop fixed inset-0 z-30 bg-black/75" aria-hidden="true" />
+                      ) : (
+                        <div />
+                      )}
+                    </TransitionChild>
+                  </>
+                ) : null}
 
-              {/* On multiple modals, only show a backdrop for the modal that is on top of the stack */}
-              {index > 0 && onTopOfStack ? <div className="im-backdrop fixed inset-0 z-30 bg-black/75" /> : null}
+                {/* On multiple modals, only show a backdrop for the modal that is on top of the stack */}
+                {index > 0 && onTopOfStack ? <div className="im-backdrop fixed inset-0 z-30 bg-black/75" /> : null}
 
-              {/* The modal/slideover content itself */}
-              {config.slideover ? (
-                <SlideoverContent modalContext={modalContext} config={config}>
-                  {renderChildren({
-                    afterLeave,
-                    close,
-                    config,
-                    emit,
-                    getChildModal,
-                    getParentModal,
-                    id,
-                    index,
-                    isOpen,
-                    modalContext,
-                    onTopOfStack,
-                    reload,
-                    setOpen,
-                    shouldRender,
-                  })}
-                </SlideoverContent>
-              ) : (
-                <ModalContent modalContext={modalContext} config={config}>
-                  {renderChildren({
-                    afterLeave,
-                    close,
-                    config,
-                    emit,
-                    getChildModal,
-                    getParentModal,
-                    id,
-                    index,
-                    isOpen,
-                    modalContext,
-                    onTopOfStack,
-                    reload,
-                    setOpen,
-                    shouldRender,
-                  })}
-                </ModalContent>
-              )}
-            </Dialog>
-          </Transition>
-        )}
+                {/* The modal/slideover content itself */}
+                {config.slideover ? (
+                  <SlideoverContent modalContext={modalContext} config={navigatedConfig}>
+                    {innerContent}
+                  </SlideoverContent>
+                ) : (
+                  <ModalContent modalContext={modalContext} config={navigatedConfig}>
+                    {innerContent}
+                  </ModalContent>
+                )}
+              </Dialog>
+            </Transition>
+          )
+        }}
       </HeadlessModal>
     )
   },

@@ -5,11 +5,7 @@ const ModalIndexContext = React.createContext(null)
 ModalIndexContext.displayName = 'ModalIndexContext'
 
 export const useModalIndex = () => {
-  const context = React.useContext(ModalIndexContext)
-  if (context === undefined) {
-    throw new Error('useModalIndex must be used within a ModalIndexProvider')
-  }
-  return context
+  return React.useContext(ModalIndexContext)
 }
 
 const ModalRenderer = ({ index }) => {

@@ -1,5 +1,6 @@
 import { useCallback, useState, useEffect, useMemo } from 'react'
 import { useModalStack, modalPropNames } from './ModalRoot'
+import { useModalIndex } from './ModalRenderer'
 import { only, rejectNullValues, isStandardDomEvent } from './helpers'
 import { getConfig } from './config'
 
@@ -18,12 +19,14 @@ const ModalLink = ({
   onStart = null,
   onSuccess = null,
   navigate = null,
+  replace = false,
   children,
   ...props
 }) => {
   const [loading, setLoading] = useState(false)
   const [modalContext, setModalContext] = useState(null)
   const { stack, visit } = useModalStack()
+  const modalIndex = useModalIndex()
 
   const shouldNavigate = useMemo(() => {
     return navigate ?? getConfig('navigate')
@@ -84,6 +87,27 @@ const ModalLink = ({
         onStart?.()
       }
 
+      // In-modal navigation: replace content within the current modal
+      if (replace && modalIndex !== null && stack[modalIndex]) {
+        stack[modalIndex]
+          .navigate(href, {
+            method,
+            data,
+            headers,
+            config: rejectNullValues(only(props, modalPropNames)),
+            queryStringArrayFormat,
+          })
+          .then(() => {
+            onSuccess?.()
+          })
+          .catch((error) => {
+            console.error(error)
+            onError?.(error)
+          })
+          .finally(() => setLoading(false))
+        return
+      }
+
       visit(
         href,
         method,
@@ -106,7 +130,7 @@ const ModalLink = ({
         })
         .finally(() => setLoading(false))
     },
-    [href, method, data, headers, queryStringArrayFormat, props, onCloseCallback, onAfterLeaveCallback],
+    [href, method, data, headers, queryStringArrayFormat, props, onCloseCallback, onAfterLeaveCallback, replace, modalIndex],
   )
 
   return (

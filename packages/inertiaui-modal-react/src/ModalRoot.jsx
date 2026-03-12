@@ -120,6 +120,9 @@ export const ModalStackProvider = ({ children }) => {
       this.getParentModal = () => null // Will be set in push()
       this.getChildModal = () => null // Will be set in push()
       this.onTopOfStack = true // Will be updated in push()
+
+      this.navigatedContent = null // { component, props, response, config } for in-modal navigation
+      this.navigationHistory = [] // previous navigatedContent values (null = original content)
     }
 
     static generateId() {
@@ -274,6 +277,93 @@ export const ModalStackProvider = ({ children }) => {
       Object.assign(this.props, props)
       updateStack((prevStack) => prevStack) // Trigger re-render
     }
+
+    navigate = (url, options = {}) => {
+      return new Promise((resolve, reject) => {
+        const method = (options.method ?? 'get').toLowerCase()
+        const payload = options.data ?? {}
+        const headers = options.headers ?? {}
+
+        const [resolvedUrl, data] = mergeDataIntoQueryString(method, url || '', payload, options.queryStringArrayFormat ?? 'brackets')
+
+        const requestHeaders = {
+          ...headers,
+          Accept: 'text/html, application/xhtml+xml',
+          'X-Requested-With': 'XMLHttpRequest',
+          'X-Inertia': true,
+          'X-Inertia-Version': pageVersion,
+          'X-InertiaUI-Modal': generateId(),
+          'X-InertiaUI-Modal-Use-Router': 0,
+          'X-InertiaUI-Modal-Base-Url': baseUrl,
+        }
+
+        options.onStart?.()
+
+        const withProgress = (callback) => {
+          try {
+            InertiaReact.progress ? callback(InertiaReact.progress) : null
+          } catch (e) {
+            // ignore
+          }
+        }
+
+        withProgress((progress) => progress.start())
+
+        Axios({
+          url: resolvedUrl,
+          method,
+          data: method === 'get' ? {} : data,
+          params: method === 'get' ? data : {},
+          headers: requestHeaders,
+        })
+          .then((response) => {
+            return resolveComponent(response.data.component).then((component) => {
+              // Push current navigatedContent (null for original) to history
+              this.navigationHistory.push(this.navigatedContent)
+
+              this.navigatedContent = {
+                component,
+                props: { ...response.data.props, is_modal: false },
+                response: response.data,
+                config: options.config ?? {},
+              }
+
+              updateStack((prevStack) => [...prevStack])
+
+              // Load deferred props for navigated content
+              const deferred = response.data?.deferredProps ?? response.data?.meta?.deferredProps
+              if (deferred) {
+                Object.keys(deferred).forEach((key) => {
+                  this.reload({ only: deferred[key] })
+                })
+              }
+
+              options.onSuccess?.(response)
+              resolve(this)
+            })
+          })
+          .catch((error) => {
+            options.onError?.(error)
+            reject(error)
+          })
+          .finally(() => {
+            withProgress((progress) => progress.finish())
+            options.onFinish?.()
+          })
+      })
+    }
+
+    get canGoBack() {
+      return this.navigationHistory.length > 0
+    }
+
+    goBack = () => {
+      if (!this.canGoBack) return
+      const prev = this.navigationHistory.pop()
+      this.navigatedContent = prev // null means show original content
+      updateStack((prevStack) => [...prevStack])
+    }
+
   }
 
   const pushFromResponseData = (responseData, config = {}, onClose = null, onAfterLeave = null) => {
@@ -463,6 +553,14 @@ export const ModalStackProvider = ({ children }) => {
     })
   }
 
+  const navigateModal = (url, options = {}) => {
+    const topModal = [...localStackCopy].reverse().find((m) => m.isOpen)
+    if (!topModal) {
+      return Promise.reject(new Error('No open modal to navigate within'))
+    }
+    return topModal.navigate(url, options)
+  }
+
   const value = {
     stack,
     localModals,
@@ -475,6 +573,7 @@ export const ModalStackProvider = ({ children }) => {
     reset: () => updateStack(() => []),
     visit,
     visitModal,
+    navigateModal,
     registerLocalModal,
     removeLocalModal,
     onModalOnBase: (modalOnBase) => {
