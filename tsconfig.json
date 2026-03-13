@@ -20,5 +20,6 @@
       "~/*": ["app/frontend/*"]
     }
   },
-  "include": ["app/frontend/**/*.ts", "app/frontend/**/*.tsx", "app/frontend/**/*.js"]
+  "include": ["app/frontend/**/*.ts", "app/frontend/**/*.tsx", "app/frontend/**/*.js"],
+  "exclude": ["node_modules", "tmp", "public", "vendor"]
 }
