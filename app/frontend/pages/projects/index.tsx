@@ -1,9 +1,20 @@
 import { useState } from 'react'
-import { router, Link } from '@inertiajs/react'
+import { router } from '@inertiajs/react'
 import { Modal, ModalLink } from '@inertiaui/modal-react'
+import { MagnifyingGlassIcon, BookOpenIcon, ClockIcon, FilmIcon } from '@heroicons/react/16/solid'
 import Frame from '@/components/shared/Frame'
+import Button from '@/components/shared/Button'
+import Input from '@/components/shared/Input'
 import Pagination from '@/components/Pagination'
 import type { ProjectCard, PagyProps } from '@/types'
+
+function formatTime(seconds: number): string {
+  if (seconds === 0) return '0min'
+  const hrs = Math.floor(seconds / 3600)
+  const mins = Math.floor((seconds % 3600) / 60)
+  if (hrs === 0) return `${mins}min`
+  return mins > 0 ? `${hrs}hrs ${mins}min` : `${hrs}hrs`
+}
 
 export default function ProjectsIndex({
   projects,
@@ -26,63 +37,78 @@ export default function ProjectsIndex({
   const content = (
     <div className="w-full mx-auto p-8">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="font-bold text-4xl">Projects</h1>
-        <ModalLink href="/projects/new" className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
-          New Project
+        <h1 className="font-bold text-4xl text-dark-brown">My Projects</h1>
+        <ModalLink href="/projects/new">
+          <Button>New Project</Button>
         </ModalLink>
       </div>
 
-      <form onSubmit={search} className="mb-6">
+      {/* <form onSubmit={search} className="mb-6">
         <div className="flex gap-2">
-          <input
+          <Input
             type="search"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search projects..."
-            className="border rounded px-3 py-2 flex-1"
+            className="flex-1"
           />
-          <button type="submit" className="bg-gray-200 px-4 py-2 rounded hover:bg-gray-300 cursor-pointer">
+          <Button type="submit" className="flex items-center gap-1.5">
+            <MagnifyingGlassIcon className="w-4 h-4" />
             Search
-          </button>
+          </Button>
         </div>
-      </form>
+      </form> */}
 
       {projects.length > 0 ? (
         <>
-          {projects.map((project) => (
-            <div key={project.id} className="border rounded-lg p-4 mb-4">
-              <div className="flex items-center justify-between">
-                <h2 className="text-xl font-semibold">
-                  <Link href={`/projects/${project.id}`} className="hover:underline">
-                    {project.name}
-                  </Link>
-                </h2>
-                {project.is_unlisted && <span className="text-sm text-gray-500">Unlisted</span>}
-              </div>
-
-              {project.description && <p className="text-gray-600 mt-2">{project.description}</p>}
-
-              {project.tags.length > 0 && (
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {project.tags.map((tag) => (
-                    <span key={tag} className="bg-gray-100 text-gray-700 text-sm px-2 py-1 rounded">
-                      {tag}
+          <div className="grid grid-cols-2 gap-4">
+            {projects.map((project) => (
+              <ModalLink
+                key={project.id}
+                href={`/projects/${project.id}`}
+                replace
+                className="text-left rounded-md overflow-hidden p-3 bg-brown cursor-pointer hover:shadow-lg transition-shadow outline-0"
+              >
+                {project.cover_image_url ? (
+                  <div
+                    className="aspect-video bg-light-brown rounded overflow-hidden bg-center bg-cover bg-no-repeat"
+                    style={{ backgroundImage: `url(${project.cover_image_url})` }}
+                  />
+                ) : (
+                  <div className="aspect-video bg-light-brown rounded flex items-center justify-center">
+                    <span className="text-dark-brown text-xl">No image yet</span>
+                  </div>
+                )}
+                <div className="pt-3 pb-2 px-2">
+                  <p className="font-bold text-white truncate text-xl">{project.name}</p>
+                  {project.description && (
+                    <p className="text-xs text-light-brown mt-1 line-clamp-2">{project.description}</p>
+                  )}
+                  <div className="flex items-center gap-3 mt-2 text-xs text-light-brown">
+                    <span className="flex items-center gap-1">
+                      <BookOpenIcon className="w-3.5 h-3.5" />
+                      {project.journal_entries_count} {project.journal_entries_count === 1 ? 'entry' : 'entries'}
                     </span>
-                  ))}
+                    <span className="flex items-center gap-1">
+                      <ClockIcon className="w-3.5 h-3.5" />
+                      {formatTime(project.time_logged)}
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <FilmIcon className="w-3.5 h-3.5" />
+                      {project.recordings_count} {project.recordings_count === 1 ? 'recording' : 'recordings'}
+                    </span>
+                  </div>
                 </div>
-              )}
+              </ModalLink>
+            ))}
+          </div>
 
-              <div className="flex gap-4 mt-3 text-sm text-gray-500">
-                <span>by {project.user_display_name}</span>
-                <span>{project.ships_count} ships</span>
-              </div>
-            </div>
-          ))}
-
-          <Pagination pagy={pagy} />
+          <div className="mt-6">
+            <Pagination pagy={pagy} />
+          </div>
         </>
       ) : (
-        <p className="text-gray-500">No projects yet.</p>
+        <p className="text-dark-brown text-center py-8">No projects yet.</p>
       )}
     </div>
   )

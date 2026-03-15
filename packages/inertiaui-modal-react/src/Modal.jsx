@@ -1,20 +1,65 @@
 import { Dialog, Transition, TransitionChild } from '@headlessui/react'
-import { forwardRef, useRef, useImperativeHandle } from 'react'
+import { createContext, useContext, forwardRef, useRef, useImperativeHandle } from 'react'
 import HeadlessModal from './HeadlessModal'
+import CloseButton from './CloseButton'
 import ModalContent from './ModalContent'
 import SlideoverContent from './SlideoverContent'
+
+// When a Modal renders navigated content, child Modals rendered by the
+// NavigatedComponent should skip Dialog/Transition/backdrop but still
+// apply their own config (panelClasses, maxWidth, etc.).
+// This lets pages use the same <Modal> markup in standalone and navigated contexts.
+const NavigatedModalContext = createContext(null)
 
 const Modal = forwardRef(
   (
     { name, children, onFocus = null, onBlur = null, onClose = null, onSuccess = null, onAfterLeave = null, ...props },
     ref,
   ) => {
+    const navigatedParent = useContext(NavigatedModalContext)
+
     const renderChildren = (contentProps) => {
       if (typeof children === 'function') {
         return children(contentProps)
       }
 
       return children
+    }
+
+    // When this Modal is rendered inside navigated content, render a simple
+    // wrapper that applies panelClasses/paddingClasses without duplicating
+    // the parent's Dialog/Transition/fixed-overlay infrastructure.
+    if (navigatedParent) {
+      const childConfig = {
+        slideover: props.slideover ?? false,
+        closeButton: props.closeButton ?? false,
+        closeExplicitly: props.closeExplicitly ?? false,
+        maxWidth: props.maxWidth ?? navigatedParent.config.maxWidth,
+        paddingClasses: props.paddingClasses ?? navigatedParent.config.paddingClasses,
+        panelClasses: props.panelClasses ?? navigatedParent.config.panelClasses,
+        position: props.position ?? navigatedParent.config.position,
+        duration: props.duration ?? navigatedParent.config.duration ?? 300,
+      }
+
+      const content = renderChildren({
+        close: navigatedParent.close,
+        navigate: navigatedParent.navigate,
+        goBack: navigatedParent.goBack,
+        canGoBack: navigatedParent.canGoBack,
+        config: childConfig,
+        modalContext: navigatedParent.modalContext,
+      })
+
+      return (
+        <div className={`im-modal-content relative ${childConfig.paddingClasses ?? ''} ${childConfig.panelClasses ?? ''}`}>
+          {childConfig.closeButton && (
+            <div className="absolute right-0 top-0 pr-3 pt-3">
+              <CloseButton onClick={navigatedParent.close} />
+            </div>
+          )}
+          {content}
+        </div>
+      )
     }
 
     const headlessModalRef = useRef(null)
@@ -76,14 +121,15 @@ const Modal = forwardRef(
           }
 
           const innerContent = NavigatedComponent ? (
-            <NavigatedComponent
-              {...modalContext.navigatedContent.props}
-              _navigatedInModal={true}
-              close={close}
-              navigate={navigate}
-              goBack={goBack}
-              canGoBack={canGoBack}
-            />
+            <NavigatedModalContext.Provider value={{ modalContext, config: navigatedConfig, close, navigate, goBack, canGoBack }}>
+              <NavigatedComponent
+                {...modalContext.navigatedContent.props}
+                close={close}
+                navigate={navigate}
+                goBack={goBack}
+                canGoBack={canGoBack}
+              />
+            </NavigatedModalContext.Provider>
           ) : (
             renderChildren(childProps)
           )

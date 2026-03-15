@@ -36,6 +36,7 @@ class Project < ApplicationRecord
   belongs_to :user
   has_many :ships, dependent: :destroy
   has_many :journal_entries, dependent: :destroy
+  has_many :kept_journal_entries, -> { kept }, class_name: "JournalEntry"
 
   validates :name, presence: true
   validates :is_unlisted, inclusion: { in: [ true, false ] }
@@ -43,4 +44,18 @@ class Project < ApplicationRecord
   validates :repo_link, format: { with: /\Ahttps?:\/\/\S+\z/i, message: "must be a valid URL starting with http:// or https://" }, allow_blank: true
 
   scope :listed, -> { where(is_unlisted: false) }
+
+  def time_logged
+    lapse = LapseTimelapse
+      .joins(recording: :journal_entry)
+      .where(journal_entries: { project_id: id, discarded_at: nil })
+      .sum(:duration).to_i
+
+    youtube = YouTubeVideo
+      .joins(recording: :journal_entry)
+      .where(journal_entries: { project_id: id, discarded_at: nil })
+      .sum(:duration_seconds).to_i
+
+    lapse + youtube
+  end
 end

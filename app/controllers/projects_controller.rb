@@ -11,7 +11,8 @@ class ProjectsController < ApplicationController
   end
 
   def index
-    scope = policy_scope(Project).includes(:user, :ships)
+    scope = policy_scope(Project).where(user: current_user)
+      .includes(kept_journal_entries: [ :recordings, { images_attachments: :blob } ])
     scope = scope.search(params[:query]) if params[:query].present?
     @pagy, @projects = pagy(scope.order(created_at: :desc))
 
@@ -34,7 +35,8 @@ class ProjectsController < ApplicationController
       can: {
         update: policy(@project).update?,
         destroy: policy(@project).destroy?
-      }
+      },
+      is_modal: request.headers["X-InertiaUI-Modal"].present?
     }
   end
 
@@ -110,14 +112,18 @@ class ProjectsController < ApplicationController
   end
 
   def serialize_project_card(project)
+    kept_entries = project.kept_journal_entries
+    cover_entry = kept_entries.select { |je| je.images.any? }.max_by(&:created_at)
     {
       id: project.id,
       name: project.name,
       description: project.description&.truncate(200),
       is_unlisted: project.is_unlisted,
       tags: project.tags,
-      user_display_name: project.user.display_name,
-      ships_count: project.ships.size
+      cover_image_url: cover_entry&.images&.first&.then { |img| url_for(img) },
+      journal_entries_count: kept_entries.size,
+      time_logged: project.time_logged,
+      recordings_count: kept_entries.sum { |je| je.recordings.size }
     }
   end
 

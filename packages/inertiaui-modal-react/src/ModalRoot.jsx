@@ -323,7 +323,7 @@ export const ModalStackProvider = ({ children }) => {
 
               this.navigatedContent = {
                 component,
-                props: { ...response.data.props, is_modal: false },
+                props: { ...response.data.props },
                 response: response.data,
                 config: options.config ?? {},
               }

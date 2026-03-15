@@ -61,8 +61,10 @@ export interface ProjectCard {
   description: string | null
   is_unlisted: boolean
   tags: string[]
-  user_display_name: string
-  ships_count: number
+  cover_image_url: string | null
+  journal_entries_count: number
+  time_logged: number
+  recordings_count: number
 }
 
 export interface ProjectDetail {

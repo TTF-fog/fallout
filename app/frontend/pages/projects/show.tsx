@@ -1,4 +1,6 @@
 import { router, Link } from '@inertiajs/react'
+import { Modal } from '@inertiaui/modal-react'
+import Frame from '@/components/shared/Frame'
 import { notify } from '@/lib/notifications'
 import type { ProjectDetail, JournalEntryCard } from '@/types'
 
@@ -16,10 +18,12 @@ export default function ProjectsShow({
   project,
   journal_entries,
   can,
+  is_modal,
 }: {
   project: ProjectDetail
   journal_entries: JournalEntryCard[]
   can: { update: boolean; destroy: boolean }
+  is_modal?: boolean
 }) {
   function deleteProject() {
     if (confirm('Are you sure?')) {
@@ -29,8 +33,8 @@ export default function ProjectsShow({
     }
   }
 
-  return (
-    <div className="max-w-4xl py-8 ">
+  const content = (
+    <div className="w-full mx-auto p-8">
       <div className="flex items-center justify-between mb-6">
         <h1 className="font-bold text-4xl">{project.name}</h1>
         <div className="flex gap-2">
@@ -111,4 +115,14 @@ export default function ProjectsShow({
       )}
     </div>
   )
+
+  if (is_modal) {
+    return (
+      <Modal panelClasses="h-full" paddingClasses="max-w-5xl mx-auto" closeButton={false} maxWidth="7xl">
+        <Frame className="h-full">{content}</Frame>
+      </Modal>
+    )
+  }
+
+  return content
 }
