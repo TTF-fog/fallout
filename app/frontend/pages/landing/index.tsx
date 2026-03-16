@@ -1,5 +1,5 @@
 import { usePage, router } from '@inertiajs/react'
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useLayoutEffect, useRef } from 'react'
 import type { ReactNode } from 'react'
 import type { SharedProps } from '@/types'
 import Frame from '@/components/shared/Frame'
@@ -97,6 +97,19 @@ export default function LandingIndex() {
   const [email, setEmail] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [currentSection, setCurrentSection] = useState('overview')
+  const faqPanelContainerRef = useRef<HTMLDivElement>(null)
+
+  useLayoutEffect(() => {
+    const container = faqPanelContainerRef.current
+    if (!container) return
+    const lock = () => {
+      container.style.minHeight = ''
+      container.style.minHeight = `${container.offsetHeight}px`
+    }
+    lock()
+    window.addEventListener('resize', lock)
+    return () => window.removeEventListener('resize', lock)
+  }, [])
 
   function animateHowCards(hoveredIndex: number, entering: boolean) {
     const cards = [card1Ref.current, card2Ref.current, card3Ref.current]
@@ -252,19 +265,19 @@ export default function LandingIndex() {
 
         </div>
 
-        <div className="w-full text-left">
+        <div ref={faqPanelContainerRef} className="w-full text-left" style={{ display: 'grid' }}>
           {sections.map((section) => (
             <div
               key={section.id}
               role="tabpanel"
               id={`panel-${section.id}`}
               aria-labelledby={`tab-${section.id}`}
-              hidden={currentSection !== section.id}
-              className="px-2 md:px-6 py-6 text-lg md:text-2xl space-y-3 rounded-lg bg-beige h-full"
+              aria-hidden={currentSection !== section.id}
+              className={`px-2 md:px-6 py-6 text-lg md:text-2xl space-y-3 rounded-lg bg-beige${currentSection !== section.id ? ' invisible pointer-events-none' : ''}`}
+              style={{ gridArea: '1 / 1' }}
             >
               {section.id === 'overview' && (
                 <>
-                  {/* <h2 className="text-3xl font-bold mb-4">OVERVIEW</h2> */}
                   <p>Welcome to Fallout!</p>
                   <p>Imagine kicking off summer in Shenzhen, the hardware capital of the world.</p>
                   <p>Never tried hardware before? This is your chance to start.</p>
@@ -293,7 +306,6 @@ export default function LandingIndex() {
               )}
               {section.id === 'requirements' && (
                 <>
-                  <h2 className="text-3xl font-bold mb-4">WHAT COUNTS?</h2>
                   <p>
                     Build a hardware project you've always wanted to make. We value effort more than technical ability.
                     It can be really simple, but the end result should feel closer to a product than a demo, a
@@ -311,7 +323,6 @@ export default function LandingIndex() {
               )}
               {section.id === 'shipping' && (
                 <>
-                  <h2 className="text-3xl font-bold mb-4">SHIPPING & SUBMITTING</h2>
                   <p>
                     Shipping is making your project <em>real</em>. Putting it out into the world and making it
                     re-creatable for someone else. For Fallout, you need to:
@@ -341,7 +352,6 @@ export default function LandingIndex() {
               )}
               {section.id === 'parents' && (
                 <>
-                  <h2 className="text-3xl font-bold mb-4">FOR PARENTS</h2>
                   <p>
                     We understand that letting your teen travel to a foreign country can be intimidating. You probably
                     have a lot of questions, and are wondering if this is a good idea. We'll be releasing a parent's
@@ -374,8 +384,7 @@ export default function LandingIndex() {
       <div className="bg-[#41D2FF] relative z-10 px-2 md:px-8 lg:px-18 xl:px-36 2xl:px-54  bg-red flex items-end p-4">
       <div className="text-blue text-4xl bg-light-blue/40 py-2 px-4 w-fit rounded-xl font-semibold mt-auto group cursor-default transition-all flex ">
         <span className="">春</span>
-        <span className="group-hover:hidden">天</span>
-        <span className="hidden group-hover:inline">梦</span>
+        <span className="">天</span>
       </div>
       <p></p>
         <div className="w-60 lg:w-80 -mb-10 ml-auto flex flex-col items-center justify-center text-center">
