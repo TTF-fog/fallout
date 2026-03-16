@@ -319,7 +319,7 @@ export default function LandingIndex() {
               {section.label}
             </button>
           ))}
-          <p className="mt-20">Read more on <a className="underline font-medium" href="" target="_self">our Docs</a></p>
+          <p className="mt-20">Read more on <a className="underline font-medium" href="https://fallout.hackclub.com/docs" target="_self">our Docs</a></p>
         </div>
 
         </div>
