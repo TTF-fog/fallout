@@ -151,7 +151,7 @@ export default function MarkdownLayout({ children }: { children: ReactNode }) {
   }, [currentPath])
 
   return (
-    <div className="relative min-h-screen">
+    <div className="docs-page relative min-h-screen">
       {/* Mobile hamburger */}
       <button
         onClick={() => setMobileOpen(true)}

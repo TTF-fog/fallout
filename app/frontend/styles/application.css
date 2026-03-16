@@ -422,3 +422,110 @@ textarea:focus {
   background-color: rgba(55, 181, 118, 0.08);
   border-color: var(--color-green);
 }
+
+/* Dark mode for docs pages */
+@media (prefers-color-scheme: dark) {
+  .markdown-content {
+    color: #e8d5c4;
+  }
+
+  .markdown-content h1,
+  .markdown-content h2 {
+    border-bottom-color: rgba(237, 209, 176, 0.15);
+  }
+
+  .markdown-content a {
+    color: #6db8e0;
+  }
+
+  .markdown-content a:hover {
+    background: rgba(109, 184, 224, 0.1);
+  }
+
+  .markdown-content blockquote {
+    background: rgba(237, 209, 176, 0.06);
+  }
+
+  .markdown-content code {
+    background-color: rgba(237, 209, 176, 0.1);
+    color: #e8d5c4;
+  }
+
+  .markdown-content pre {
+    background-color: rgba(237, 209, 176, 0.08);
+    color: #e8d5c4;
+  }
+
+  .markdown-content th {
+    border-bottom-color: rgba(237, 209, 176, 0.15);
+  }
+
+  .markdown-content table:not(:has(td)) th {
+    border-bottom: none;
+  }
+
+  .markdown-content hr {
+    border-top-color: rgba(237, 209, 176, 0.15);
+  }
+
+  .markdown-content .footnotes {
+    border-top-color: rgba(237, 209, 176, 0.15);
+  }
+
+  .markdown-content aside {
+    background-color: rgba(237, 209, 176, 0.06);
+    color: #e8d5c4;
+  }
+
+  .markdown-content .external-image-callout {
+    background-color: rgba(237, 209, 176, 0.06);
+    color: #e8d5c4;
+  }
+
+  .markdown-content .callout-info {
+    background-color: rgba(56, 201, 255, 0.12);
+  }
+
+  .markdown-content .callout-alert {
+    background-color: rgba(255, 235, 173, 0.1);
+  }
+
+  .markdown-content .callout-danger {
+    background-color: rgba(255, 125, 112, 0.12);
+  }
+
+  .markdown-content .callout-success {
+    background-color: rgba(55, 181, 118, 0.12);
+  }
+
+  .markdown-content .checkbox-do {
+    background-color: rgba(55, 181, 118, 0.2);
+  }
+
+  .markdown-content .checkbox-dont {
+    background-color: rgba(255, 125, 112, 0.2);
+  }
+
+  /* Docs layout dark mode */
+  .docs-page {
+    color: #e8d5c4;
+  }
+
+  .docs-page .bg-light-brown {
+    background-color: #1e1613;
+  }
+
+  .docs-page .bg-brown {
+    background-color: #6b4a3a;
+  }
+
+  .docs-page .border-dark-brown\/20 {
+    border-color: rgba(237, 209, 176, 0.15);
+  }
+
+  .docs-page button[aria-label="Open navigation"] {
+    background-color: #1e1613;
+    border-color: rgba(237, 209, 176, 0.2);
+    color: #e8d5c4;
+  }
+}

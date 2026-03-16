@@ -38,7 +38,7 @@ function MarkdownShow({ content_html, page_title }: { content_html: string; page
   return (
     <>
       <Head title={`${page_title} - Fallout`}>
-        <style>{`:root { background-color: #fffcf5; }`}</style>
+        <style>{`:root { background-color: #fffcf5; } @media (prefers-color-scheme: dark) { :root { background-color: #1a1412; } }`}</style>
       </Head>
       <div ref={contentRef} className="markdown-content" dangerouslySetInnerHTML={{ __html: content_html }} />
     </>
