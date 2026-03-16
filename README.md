@@ -40,6 +40,9 @@ npm install
 
 ### 4. Setup credentials
 
+> [!WARNING]
+> If you're on the fallout team, please ask for the master.key instead.
+
 The template ships with a placeholder `config/credentials.yml.enc`. Delete it and generate fresh credentials for your project:
 
 ```sh
@@ -88,5 +91,8 @@ R2_ENDPOINT=https://<account_id>.r2.cloudflarestorage.com
 ```
 
 ---
+
+> [!WARNING]
+> If you're on the fallout team, please ask for the .env instead.
 
 See `.env.development.example` for required environment variables.
