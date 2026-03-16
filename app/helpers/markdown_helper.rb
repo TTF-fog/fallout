@@ -44,7 +44,6 @@ module MarkdownHelper
 
     def link(href, title, content)
       href = href.to_s
-      href = append_soup_param(href) if guide_internal_link?(href)
       attrs = []
       attrs << %(href="#{ERB::Util.html_escape(href)}")
       attrs << %(title="#{ERB::Util.html_escape(title)}") if title
@@ -85,11 +84,6 @@ module MarkdownHelper
 
     def default_port(scheme)
       scheme.to_s.downcase == "https" ? 443 : 80
-    end
-
-    def append_soup_param(href)
-      separator = href.include?("?") ? "&" : "?"
-      "#{href}#{separator}soup=true"
     end
   end
 

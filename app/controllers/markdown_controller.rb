@@ -5,8 +5,6 @@ class MarkdownController < ApplicationController
   skip_after_action :verify_policy_scoped # No index action; no policy-scoped queries
 
   def show
-    not_found unless params[:soup] == "true" # Docs gated behind ?soup=true while in development
-
     slug = params[:slug].to_s
     slug = "index" if slug.blank?
     not_found unless valid_slug?(slug)

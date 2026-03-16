@@ -98,9 +98,9 @@ export default function PathIndex() {
       <div className="fixed z-10 flex flex-col items-start space-y-4 bottom-6 left-6">
         <Tooltip>
           <TooltipTrigger>
-            <button onClick={() => notify('alert', "We're still working on the Docs. Check back later!")}>
+            <Link href="/docs">
               <img src="/icon/guide.webp" alt="Guide" className="cursor-pointer w-25" />
-            </button>
+            </Link>
           </TooltipTrigger>
           <TooltipContent>Docs & Resources</TooltipContent>
         </Tooltip>

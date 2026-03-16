@@ -18,11 +18,6 @@ interface MenuSection {
 
 type MenuItem = MenuLink | MenuSection
 
-function soupHref(href: string) {
-  const sep = href.includes('?') ? '&' : '?'
-  return `${href}${sep}soup=true`
-}
-
 function NavLink({
   href,
   active,
@@ -38,7 +33,7 @@ function NavLink({
 }) {
   return (
     <Link
-      href={soupHref(href)}
+      href={href}
       onClick={onClick}
       className={`block px-3 py-1.5 ${subpage ? 'rounded-r' : 'rounded'} ${active ? 'bg-brown text-light-brown font-semibold' : ''}`}
     >
