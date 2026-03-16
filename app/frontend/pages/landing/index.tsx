@@ -57,39 +57,31 @@ export default function LandingIndex() {
 
     })
 
-    // Sticker behavior: nudge in cursor travel direction, then elastic spring back
-    const vel = { x: 0, y: 0, lx: 0, ly: 0 }
-    const trackMouse = (e: MouseEvent) => {
-      vel.x = vel.x * 0.5 + (e.clientX - vel.lx) * 0.5
-      vel.y = vel.y * 0.5 + (e.clientY - vel.ly) * 0.5
-      vel.lx = e.clientX
-      vel.ly = e.clientY
-    }
-    window.addEventListener('mousemove', trackMouse)
-
+    // Sticker behavior: magnetic follow — element drifts toward cursor while hovered, springs back on leave
     const stickerCleanups: (() => void)[] = []
     document.querySelectorAll<HTMLElement>('.sticker').forEach((el) => {
       const springBack = () => {
         gsap.to(el, { x: 0, y: 0, duration: 1.8, ease: 'elastic.out(0.4, 0.28)', overwrite: 'auto' })
       }
-      const onEnter = () => {
-        const cap = 20
-        const px = Math.max(-cap, Math.min(cap, vel.x * 3))
-        const py = Math.max(-cap, Math.min(cap, vel.y * 3))
-        gsap.killTweensOf(el)
-        gsap.to(el, { x: px, y: py, duration: 0.1, ease: 'power2.out', onComplete: springBack })
+      const onMove = (e: MouseEvent) => {
+        const rect = el.getBoundingClientRect()
+        const cx = rect.left + rect.width / 2
+        const cy = rect.top + rect.height / 2
+        const cap = 22
+        const px = Math.max(-cap, Math.min(cap, (e.clientX - cx) * 0.18))
+        const py = Math.max(-cap, Math.min(cap, (e.clientY - cy) * 0.18))
+        gsap.to(el, { x: px, y: py, duration: 0.4, ease: 'power2.out', overwrite: 'auto' })
       }
-      el.addEventListener('mouseenter', onEnter)
+      el.addEventListener('mousemove', onMove)
       el.addEventListener('mouseleave', springBack)
       stickerCleanups.push(() => {
-        el.removeEventListener('mouseenter', onEnter)
+        el.removeEventListener('mousemove', onMove)
         el.removeEventListener('mouseleave', springBack)
       })
     })
 
     return () => {
       ctx.revert()
-      window.removeEventListener('mousemove', trackMouse)
       stickerCleanups.forEach((fn) => fn())
     }
   }, [])
@@ -225,7 +217,7 @@ export default function LandingIndex() {
                 aria-label="Submit"
                 disabled={submitting}
               >
-                {submitting ? '...' : 'ENTER'}
+                {submitting ? '...' : 'START'}
               </button>
             </form>
           </Frame>
