@@ -477,7 +477,7 @@ export default function LandingIndex() {
         </a>
       </footer>
     </div>
-    <div className="fixed bottom-10 right-10 w-100 h-auto rounded-lg overflow-hidden bg-[#37B576] z-50 flex flex-col border-2 border-beige">
+    <div className="fixed bottom-10 right-10 w-[80%] xs:w-100 h-auto rounded-lg overflow-hidden bg-[#37B576] z-50 flex flex-col border-2 border-beige">
       <div className="w-full flex justify-between items-center px-4 py-2 cursor-pointer" onClick={() => {
         setVideoOpen((v) => {
           const next = !v
@@ -495,7 +495,7 @@ export default function LandingIndex() {
             height="100%"
             className="rounded-lg border-beige border-2"
             ref={iframeRef}
-            src="https://www.youtube.com/embed/SrP2ZeNHm6s?si=orljJtYrC7EGSNzi&controls=0&modestbranding=1&rel=0&autoplay=1&&enablejsapi=1"
+            src="https://www.youtube.com/embed/SrP2ZeNHm6s?si=orljJtYrC7EGSNzi&controls=1&modestbranding=1&rel=0&enablejsapi=1"
             title="YouTube video player"
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerPolicy="strict-origin-when-cross-origin"
             allowFullScreen>
