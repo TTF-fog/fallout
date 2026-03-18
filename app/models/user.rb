@@ -255,6 +255,13 @@ class User < ApplicationRecord
     0
   end
 
+  def self.normalize_country_code(country)
+    return nil if country.blank?
+    return country if country.length == 2
+
+    ISO3166::Country.find_country_by_name(country)&.alpha2
+  end
+
   def self.airtable_sync_table_id
     "tblxIZLHdihXkmW86"
   end
@@ -271,8 +278,9 @@ class User < ApplicationRecord
       "First Name" => ->(u) { u.hca_identity&.dig("first_name") },
       "Last Name" => ->(u) { u.hca_identity&.dig("last_name") },
       "Country" => ->(u) {
-        u.hca_identity&.dig("addresses")&.find { |a| a["primary"] }&.dig("country") ||
-          u.latest_locatable_visit&.country
+        raw = u.hca_identity&.dig("addresses")&.find { |a| a["primary"] }&.dig("country") ||
+              u.latest_locatable_visit&.country
+        User.normalize_country_code(raw)
       },
       "First Project Created At" => ->(u) { u.projects.kept.minimum(:created_at)&.iso8601 },
       "Created At" => ->(u) { u.created_at&.iso8601 },
