@@ -9,14 +9,20 @@ export type NotificationPayload = {
 type Listener = (n: NotificationPayload) => void
 
 const listeners = new Set<Listener>()
+const pending: NotificationPayload[] = []
 let counter = 0
 
 export function notify(type: NotificationType, message: string) {
-  const id = `notification-${counter++}`
-  listeners.forEach((l) => l({ id, type, message }))
+  const payload: NotificationPayload = { id: `notification-${counter++}`, type, message }
+  if (listeners.size === 0) {
+    pending.push(payload)
+  } else {
+    listeners.forEach((l) => l(payload))
+  }
 }
 
 export function subscribe(fn: Listener): () => void {
   listeners.add(fn)
+  pending.splice(0).forEach((p) => fn(p))
   return () => listeners.delete(fn)
 }

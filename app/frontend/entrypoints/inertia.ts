@@ -8,6 +8,21 @@ import DefaultLayout from '../layouts/DefaultLayout'
 import { notify } from '../lib/notifications'
 import type { ReactNode } from 'react'
 
+// sessionStorage can be blocked in sandboxed/privacy contexts; catch gracefully so Inertia doesn't crash
+window.addEventListener('unhandledrejection', (event) => {
+  if (
+    event.reason instanceof DOMException &&
+    event.reason.name === 'SecurityError' &&
+    event.reason.message.includes('sessionStorage')
+  ) {
+    event.preventDefault()
+    notify(
+      'alert',
+      'There was an error! Your browser is blocking storage access. Please disable private/strict mode and reload.',
+    )
+  }
+})
+
 Sentry.init({
   dsn: document.querySelector<HTMLMetaElement>('meta[name="sentry-dsn"]')?.content,
   integrations: [Sentry.browserTracingIntegration(), Sentry.replayIntegration(), Sentry.replayCanvasIntegration()],
