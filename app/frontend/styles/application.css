@@ -464,6 +464,11 @@ textarea:focus {
   background-color: var(--color-dark-brown);
 }
 
+.cursor-none,
+.cursor-none * {
+  cursor: none !important;
+}
+
 /* Dark mode for docs pages */
 @media (prefers-color-scheme: dark) {
   .markdown-content {

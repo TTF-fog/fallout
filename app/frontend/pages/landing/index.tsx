@@ -13,7 +13,6 @@ import { consoleLoggingIntegration } from '@sentry/react'
 
 export default function LandingIndex() {
   const shared = usePage<SharedProps>().props
-  const falloutRef = useRef<HTMLImageElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const bgRef = useRef<HTMLCanvasElement>(null)
   const cloudsRef = useRef<HTMLDivElement>(null)
@@ -27,6 +26,9 @@ export default function LandingIndex() {
   const howSectionRef = useRef<HTMLElement>(null)
   const navRef = useRef<HTMLDivElement>(null)
   const cursorFollowerRef = useRef<HTMLDivElement>(null)
+  const customCursorRef = useRef<HTMLDivElement>(null)
+  const pointerCursorRef = useRef<HTMLDivElement>(null)
+  const preloaderRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     gsap.registerPlugin(ScrollTrigger)
@@ -68,27 +70,42 @@ export default function LandingIndex() {
       })
 
 
-      const el = falloutRef.current
+      const el = falloutLettersRef.current
       const container = containerRef.current
-      gsap
-        .timeline()
-        .set(el, { y: -300, scaleX: 1, scaleY: 1 })
-        .to(el, { y: 0, duration: 0.3, ease: 'power2.in' })
-        .to(el, { scaleX: 1.1, scaleY: 0.6, duration: 0.1, ease: 'power1.out' })
-        .call(() => {
-          const shake = gsap.timeline()
-          for (let i = 0; i < 8; i++) {
-            shake.to(container, {
-              x: (Math.random() - 0.5) * 14,
-              y: (Math.random() - 0.5) * 10,
-              duration: 0.04,
-              ease: 'none',
-            })
-          }
-          shake.to(container, { x: 0, y: 0, duration: 0.08, ease: 'power2.out', clearProps: 'x,y' })
-        })
-        .to(el, { scaleX: 0.85, scaleY: 1.2, duration: 0.15, ease: 'power2.out' })
-        .to(el, { scaleX: 1, scaleY: 1, duration: 0.2, ease: 'elastic.out(1, 0.5)' })
+      gsap.set(el, { y: -500 })
+
+      const dropFallout = () => {
+        gsap
+          .timeline()
+          .set(el, { y: -500, scaleX: 1, scaleY: 1 })
+          .to(el, { y: 0, duration: 0.3, ease: 'power2.in' })
+          .to(el, { scaleX: 1.1, scaleY: 0.6, duration: 0.1, ease: 'power1.out' })
+          .call(() => {
+            const shake = gsap.timeline()
+            for (let i = 0; i < 8; i++) {
+              shake.to(container, {
+                x: (Math.random() - 0.5) * 14,
+                y: (Math.random() - 0.5) * 10,
+                duration: 0.04,
+                ease: 'none',
+              })
+            }
+            shake.to(container, { x: 0, y: 0, duration: 0.08, ease: 'power2.out', clearProps: 'x,y' })
+          })
+          .to(el, { scaleX: 0.85, scaleY: 1.2, duration: 0.15, ease: 'power2.out' })
+          .to(el, { scaleX: 1, scaleY: 1, duration: 0.2, ease: 'elastic.out(1, 0.5)' })
+      }
+
+      gsap.to(preloaderRef.current, {
+        opacity: 0,
+        duration: 0.4,
+        delay: 0.5,
+        ease: 'power2.out',
+        onComplete: () => {
+          if (preloaderRef.current) preloaderRef.current.style.display = 'none'
+          dropFallout()
+        },
+      })
 
       ;[highlight1Ref.current, highlight2Ref.current].forEach((span) => {
         if (!span) return
@@ -105,27 +122,44 @@ export default function LandingIndex() {
       })
     })
 
-    // Sticker behavior: magnetic follow — element drifts toward cursor while hovered, springs back on leave
+    // Sticker behavior: proximity drift — sticker drifts in the direction the cursor is moving when nearby, springs back on leave
     const stickerCleanups: (() => void)[] = []
     document.querySelectorAll<HTMLElement>('.sticker').forEach((el) => {
-      const springBack = () => {
-        gsap.to(el, { x: 0, y: 0, duration: 1.8, ease: 'elastic.out(0.4, 0.28)', overwrite: 'auto' })
-      }
-      const onMove = (e: MouseEvent) => {
+      let ox = 0, oy = 0
+      let prevX = 0, prevY = 0
+      let active = false
+
+      const onDocMove = (e: MouseEvent) => {
         const rect = el.getBoundingClientRect()
         const cx = rect.left + rect.width / 2
         const cy = rect.top + rect.height / 2
-        const cap = 22
-        const px = Math.max(-cap, Math.min(cap, (e.clientX - cx) * 0.18))
-        const py = Math.max(-cap, Math.min(cap, (e.clientY - cy) * 0.18))
-        gsap.to(el, { x: px, y: py, duration: 0.4, ease: 'power2.out', overwrite: 'auto' })
+        const dist = Math.hypot(e.clientX - cx, e.clientY - cy)
+        const proximity = 160
+
+        if (dist < proximity) {
+          if (!active) {
+            active = true
+            prevX = e.clientX
+            prevY = e.clientY
+          }
+          const dx = e.clientX - prevX
+          const dy = e.clientY - prevY
+          const cap = 28
+          ox = Math.max(-cap, Math.min(cap, ox + dx * 0.28))
+          oy = Math.max(-cap, Math.min(cap, oy + dy * 0.28))
+          gsap.to(el, { x: ox, y: oy, duration: 0.6, ease: 'power2.out', overwrite: 'auto' })
+        } else if (active) {
+          active = false
+          ox = 0
+          oy = 0
+          gsap.to(el, { x: 0, y: 0, duration: 1.8, ease: 'elastic.out(0.4, 0.28)', overwrite: 'auto' })
+        }
+        prevX = e.clientX
+        prevY = e.clientY
       }
-      el.addEventListener('mousemove', onMove)
-      el.addEventListener('mouseleave', springBack)
-      stickerCleanups.push(() => {
-        el.removeEventListener('mousemove', onMove)
-        el.removeEventListener('mouseleave', springBack)
-      })
+
+      document.addEventListener('mousemove', onDocMove)
+      stickerCleanups.push(() => document.removeEventListener('mousemove', onDocMove))
     })
 
     // Magnetic letters — each letter drifts toward cursor while hovered, springs back on leave
@@ -151,6 +185,22 @@ export default function LandingIndex() {
         span.removeEventListener('mouseleave', springBack)
       })
     })
+
+    const customCursor = customCursorRef.current
+    const pointerCursor = pointerCursorRef.current
+    if (customCursor && !('ontouchstart' in window)) {
+      const onCursorMove = (e: MouseEvent) => {
+        const isClickable = !!(e.target as Element)?.closest('.clickme, a, button, [role="button"]')
+        // Arrow: tip at ~9,6 in rendered 36x48 (viewBox tip ~6,3 scaled by 1.5x/2x)
+        gsap.set(customCursor, { x: e.clientX - 9, y: e.clientY - 6, opacity: isClickable ? 0 : 1 })
+        if (pointerCursor) {
+          // Hand: index finger tip at ~15,10 in rendered 36x36 (viewBox ~10,7 scaled by 1.5x)
+          gsap.set(pointerCursor, { x: e.clientX - 15, y: e.clientY - 10, opacity: isClickable ? 1 : 0 })
+        }
+      }
+      window.addEventListener('mousemove', onCursorMove)
+      stickerCleanups.push(() => window.removeEventListener('mousemove', onCursorMove))
+    }
 
     const follower = cursorFollowerRef.current
     if (follower && !('ontouchstart' in window)) {
@@ -293,7 +343,8 @@ export default function LandingIndex() {
 
   return (
     <>
-    <div ref={containerRef} className="w-screen h-full flex flex-col justify-center bg-beige overflow-hidden">
+    <div ref={preloaderRef} className="fixed inset-0 bg-blue z-50 pointer-events-none" />
+    <div ref={containerRef} className="w-screen h-full flex flex-col justify-center bg-beige overflow-hidden cursor-none">
       
       <title>Fallout: Hardware Hackathon</title>
       <meta
@@ -366,8 +417,8 @@ export default function LandingIndex() {
             </form>
           </Frame>
           <FlashMessages />
-          <p className="text-white text-base -mt-4 text-shadow-md">For teenagers 13-18</p>
-          <a href={shared.sign_in_path} className="text-white text-sm underline -mt-2 text-shadow-md">Sign in with HCA</a>
+          <p className="text-white text-base -mt-4 text-shadow-lg">For teenagers 13-18</p>
+          <a href={shared.sign_in_path} className="text-white text-sm underline -mt-2 text-shadow-lg">Sign in with HCA</a>
         </div>
         
       </section>
@@ -465,12 +516,12 @@ export default function LandingIndex() {
         </div> */}
         <div className="px-2 md:px-8 lg:px-18 xl:px-36 2xl:px-54 py-40">
           <div className="w-full h-[60vh]">
-            <div className="w-full h-full flex flex-col sm:flex-row justify-between text-brown gap-x-8">
+            <div className="w-full h-full flex flex-col sm:flex-row justify-between text-brown gap-x-0">
               <div>
-              <div className="flex flex-col p-4 h-full bg-dark-brown border-2 border-dark-brown">
+              <div className="flex flex-col pl-6 py-10 h-full bg-dark-brown border-2 border-dark-brown">
                 <div
                   role="tablist"
-                  className="w-full flex flex-row sm:flex-col flex-wrap items-start justify-between whitespace-nowrap gap-2 md:gap-6 min-w-[230px] mt-1 h-full text-beige"
+                  className="relative w-full flex flex-row sm:flex-col flex-wrap items-start justify-between whitespace-nowrap gap-2 md:gap-6 min-w-[230px] mt-1 h-full text-beige"
                 >
                   {sections.map((section) => (
                     <button
@@ -486,17 +537,20 @@ export default function LandingIndex() {
                       {section.label}
                     </button>
                   ))}
-                  <p className="sm:mt-20 md:mt-auto text-base md:text-2xl cursor-pointer text-green">
+                  <p className="sm:mt-20 md:mt-auto text-base md:text-2xl cursor-pointer">
                     Read {' '}
                     <a className="underline font-medium" href="https://fallout.hackclub.com/docs" target="_self">
                       our Docs
                     </a>
                   </p>
+                 <img className="sticker absolute bottom-6 -left-40 h-40 object-contain rotate-10" src="/landing/stickers/sticker8.png" />
+
                 </div>
+
               </div>
               </div>
 
-              <div ref={faqPanelContainerRef} className="w-full text-left" style={{ display: 'grid' }}>
+              <div ref={faqPanelContainerRef} className="relative w-full text-left" style={{ display: 'grid' }}>
                 {sections.map((section) => (
                   <div
                     key={section.id}
@@ -504,17 +558,24 @@ export default function LandingIndex() {
                     id={`panel-${section.id}`}
                     aria-labelledby={`tab-${section.id}`}
                     aria-hidden={currentSection !== section.id}
-                    className={`px-2 md:px-6 py-6 text-lg md:text-2xl space-y-3 border-2 border-dark-brown bg-white relative text-dark-brown ${currentSection !== section.id ? ' invisible pointer-events-none' : ''}`}
+                    className={`px-2 md:px-10 py-10 text-lg md:text-2xl space-y-3 border-2 border-dark-brown bg-white relative text-dark-brown ${currentSection !== section.id ? ' invisible pointer-events-none' : ''}`}
                     style={{ gridArea: '1 / 1' }}
                   >
                     {section.id === 'overview' && (
                       <>
-                        <p>Welcome to Fallout!</p>
-                        <p>Imagine kicking off summer in Shenzhen, the hardware capital of the world.</p>
-                        <p>Never tried hardware before? This is your chance to start.</p>
+                        <p>Welcome to...</p>
+                        <span className="font-bells text-6xl tracking-[4%]">FALLOUT</span>
+                        <p className="pt-4">
+                          Imagine kicking off summer in <strong>Shenzhen</strong>, the{' '}
+                          <em>hardware capital of the world</em>.
+                        </p>
+                        <p>Never tried hardware before? <strong>This is your chance to start.</strong></p>
                         <p>
-                          <strong>Build any hardware project you want. We'll fund the parts.</strong> Level up your
-                          hardware skills. Join us for a 7-day hardware hackathon in Shenzhen.
+                          <span className="bg-green text-white px-0.5">
+                            <strong>Build any hardware project you want. We'll fund the parts.</strong>
+                          </span>{' '}
+                          Level up your hardware skills. Join us for a{' '}
+                          <strong>7-day hardware hackathon in Shenzhen</strong>.
                         </p>
                         <p>
                           (← click on the tabs <span className="hidden md:inline">on the left</span>
@@ -524,12 +585,21 @@ export default function LandingIndex() {
                     )}
                     {section.id === 'qualifying' && (
                       <>
-                        <p>Spend 60h designing and building hardware projects to get invited to Fallout!</p>
+                        <p>
+                          Spend <span className="bg-green text-white px-0.5"><strong>60h</strong></span> designing and
+                          building hardware projects to get invited to Fallout!
+                        </p>
                         <p>The premise is simple:</p>
                         <ol className="list-decimal list-outside ml-7 space-y-1">
-                          <li>Design your hardware project digitally</li>
+                          <li>Design your hardware project <em>digitally</em></li>
                           <li>Track your time through timelapses/screen recordings & journals</li>
-                          <li>Ship it! We'll fund up to $5 per hour you work to buy parts</li>
+                          <li>
+                            Ship it!{' '}
+                            <span className="bg-green text-white px-0.5">
+                              <strong>We'll fund up to $5 per hour</strong>
+                            </span>{' '}
+                            you work to buy parts
+                          </li>
                           <li>Build your project IRL</li>
                           <li>Repeat!</li>
                         </ol>
@@ -538,13 +608,17 @@ export default function LandingIndex() {
                     {section.id === 'requirements' && (
                       <>
                         <p>
-                          Build a hardware project you've always wanted to make. We value effort more than technical
-                          ability. It can be really simple, but the end result should feel closer to a product than a
-                          demo, a breadboarded project doesn't count.
+                          Build a hardware project you've always wanted to make.{' '}
+                          <span className="bg-green text-white px-0.5">
+                            <strong>We value effort more than technical ability.</strong>
+                          </span>{' '}
+                          It can be really simple, but the end result should feel closer to{' '}
+                          <em>a product than a demo</em> — a breadboarded project doesn't count.
                         </p>
                         <p>
-                          We're not here to fund you to build a PC. Your goal is to design something really cool from the
-                          ground up, and not to assemble expensive parts others have made.
+                          We're not here to fund you to build a PC. Your goal is to{' '}
+                          <strong>design something really cool from the ground up</strong>, and not to assemble
+                          expensive parts others have made.
                         </p>
                         <p>
                           Don't know what to build, or what counts? You'll be part of a greater community where you can
@@ -560,21 +634,27 @@ export default function LandingIndex() {
                         </p>
                         <ol className="list-decimal pl-7">
                           <li>Document what your project is and its story</li>
-                          <li>Make a one page poster for the Fallout magazine</li>
+                          <li>Make a one page poster for the <strong>Fallout magazine</strong></li>
                           <li>Publish all files so it's easily accessible & organized</li>
                         </ol>
                         <p>
-                          When you make your repository nothing but a dump of files and 2 sentences for a README — it's
-                          hard for people to recognize your work or learn from it. It only lives in your head.
+                          When you make your repository nothing but a dump of files and 2 sentences for a README —{' '}
+                          <span className="bg-green text-white px-0.5">
+                            it's hard for people to recognize your work or learn from it.
+                          </span>{' '}
+                          It only lives in your head.
                         </p>
                       </>
                     )}
                     {section.id === 'travel' && (
                       <>
                         <p>
-                          We're running Fallout at the center of the world's tech manufacturing, ShenZhen China. For the
-                          week of July 1-7, you'll be able to browse the world's largest hardware and electronics market,
-                          Huaqiangbei, to build whatever creation you dream up, with friends you meet along the way.
+                          We're running Fallout at the center of the world's tech manufacturing,{' '}
+                          <strong>ShenZhen China</strong>. For the week of{' '}
+                          <span className="bg-green text-white px-0.5"><strong>July 1–7</strong></span>, you'll be able to
+                          browse the world's largest hardware and electronics market,{' '}
+                          <em>Huaqiangbei</em>, to build whatever creation you dream up, with friends you meet along
+                          the way.
                         </p>
                         <p>
                           We'll be releasing more information about the logistics and schedule of the event closer to
@@ -592,11 +672,12 @@ export default function LandingIndex() {
                         <p>
                           We completely understand your worries, and we want to do everything we can to help you feel more
                           comfortable. We have experience running programs very similar to this, and would be happy to
-                          answer any questions over a Zoom call!
+                          answer any questions over a <strong>Zoom call</strong>!
                         </p>
                         <p>
-                          Hack Club operates on the principle of radical transparency and we promise to communicate with
-                          you frequently and transparently.
+                          Hack Club operates on the principle of{' '}
+                          <span className="bg-green text-white px-0.5"><strong>radical transparency</strong></span> and we
+                          promise to communicate with you frequently and transparently.
                         </p>
                         <p>
                           If you have any questions or concerns, please do not hesitate to reach out to us at{' '}
@@ -609,6 +690,8 @@ export default function LandingIndex() {
                     )}
                   </div>
                 ))}
+                <img className="sticker absolute -bottom-10 right-20 h-26 object-contain" src="/landing/stickers/sticker2.png" />
+                <img className="sticker absolute bottom-0 -right-10 h-40 object-contain" src="/landing/stickers/sticker3.png" />
               </div>
             </div>
           </div>
@@ -644,6 +727,16 @@ export default function LandingIndex() {
       </footer>
 
 
+      </div>
+      <div ref={customCursorRef} className="fixed top-0 left-0 z-[9999] pointer-events-none select-none">
+        <svg xmlns="http://www.w3.org/2000/svg" width="36" height="48" viewBox="0 0 24 24">
+          <path fill="#FCF2E5" stroke="#412E27" strokeWidth="2.25" d="M5.5 3.21V20.8c0 .45.54.67.85.35l4.86-4.86a.5.5 0 0 1 .35-.15h6.87a.5.5 0 0 0 .35-.85L6.35 2.85a.5.5 0 0 0-.85.35Z" />
+        </svg>
+      </div>
+      <div ref={pointerCursorRef} className="fixed top-0 left-0 z-[9999] pointer-events-none select-none" style={{ opacity: 0 }}>
+        <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24">
+          <path fill="#FCF2E5" stroke="#412E27" strokeWidth="2.25" strokeLinejoin="round" d="M10 11V8.99c0-.88.59-1.64 1.44-1.86h.05A1.99 1.99 0 0 1 14 9.05V12v-2c0-.88.6-1.65 1.46-1.87h.05A1.98 1.98 0 0 1 18 10.06V13v-1.94a2 2 0 0 1 1.51-1.94h0A2 2 0 0 1 22 11.06V14c0 .6-.08 1.27-.21 1.97a7.96 7.96 0 0 1-7.55 6.48 54.98 54.98 0 0 1-4.48 0 7.96 7.96 0 0 1-7.55-6.48C2.08 15.27 2 14.59 2 14v-1.49c0-1.11.9-2.01 2.01-2.01h0a2 2 0 0 1 2.01 2.03l-.01.97v-10c0-1.1.9-2 2-2h0a2 2 0 0 1 2 2V11Z" />
+        </svg>
       </div>
       <div ref={cursorFollowerRef} className="click fixed top-0 left-0 z-50 pointer-events-none -translate-x-1/2 -translate-y-1/2 w-14 h-14 rounded-full bg-beige border-2 border-dark-brown flex items-center justify-center text-dark-brown text-md font-semibold select-none" style={{ opacity: 0 }}>
         click
