@@ -451,18 +451,45 @@ function useSession() {
       }
     }, pollIntervalMs);
   }, [client, pollIntervalMs]);
+  const syncStatus = useCallback(async () => {
+    try {
+      const data = await client.getStatus();
+      setState((s) => ({ ...s, status: data.status, trackedSeconds: data.trackedSeconds }));
+    } catch {
+    }
+  }, [client]);
   const pause = useCallback(async () => {
-    const data = await client.pause();
-    setState((s) => ({
-      ...s,
-      status: data.status,
-      totalActiveSeconds: data.totalActiveSeconds
-    }));
-  }, [client]);
+    try {
+      const data = await client.pause();
+      setState((s) => ({
+        ...s,
+        status: data.status,
+        totalActiveSeconds: data.totalActiveSeconds
+      }));
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "";
+      if (msg.includes("409")) {
+        console.warn("[session] pause returned 409, syncing status");
+        await syncStatus();
+      } else {
+        throw e;
+      }
+    }
+  }, [client, syncStatus]);
   const resume = useCallback(async () => {
-    const data = await client.resume();
-    setState((s) => ({ ...s, status: data.status }));
-  }, [client]);
+    try {
+      const data = await client.resume();
+      setState((s) => ({ ...s, status: data.status }));
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "";
+      if (msg.includes("409")) {
+        console.warn("[session] resume returned 409, syncing status");
+        await syncStatus();
+      } else {
+        throw e;
+      }
+    }
+  }, [client, syncStatus]);
   const stop = useCallback(async (name) => {
     if (name) {
       try {
@@ -471,13 +498,23 @@ function useSession() {
         console.warn("[session] rename failed (non-fatal):", e);
       }
     }
-    const data = await client.stop();
-    setState((s) => ({
-      ...s,
-      status: data.status,
-      trackedSeconds: data.trackedSeconds,
-      totalActiveSeconds: data.totalActiveSeconds
-    }));
+    try {
+      const data = await client.stop();
+      setState((s) => ({
+        ...s,
+        status: data.status,
+        trackedSeconds: data.trackedSeconds,
+        totalActiveSeconds: data.totalActiveSeconds
+      }));
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "";
+      if (msg.includes("409")) {
+        console.warn("[session] stop returned 409, syncing status");
+        await syncStatus();
+      } else {
+        throw e;
+      }
+    }
     startPolling();
   }, [client, startPolling]);
   const updateTrackedSeconds = useCallback((seconds) => {
@@ -602,8 +639,11 @@ function useCollapse() {
       intervalRef.current = null;
     };
   }, [capture.isSharing, isActive, config.capture.intervalMs]);
+  const wasSharingRef = useRef(capture.isSharing);
   useEffect(() => {
-    if (capture.isSharing && session.status === "paused") {
+    const wasSharing = wasSharingRef.current;
+    wasSharingRef.current = capture.isSharing;
+    if (!wasSharing && capture.isSharing && session.status === "paused") {
       session.resume().then(() => {
         callbacksRef.current.onResume?.();
       }).catch(() => {
@@ -958,7 +998,8 @@ function PageContainer({ children, maxWidth = 640, centered = false, style }) {
       flexDirection: "column",
       alignItems: "center",
       justifyContent: "center",
-      minHeight: "100vh"
+      minHeight: "100%",
+      flex: 1
     } : {},
     ...style
   }, children });
@@ -1152,7 +1193,7 @@ function Skeleton({ width, height, borderRadius = radii.md, aspectRatio, style }
   } });
 }
 function GallerySkeleton() {
-  return /* @__PURE__ */ jsxs("div", { style: { maxWidth: 640, margin: "0 auto", padding: spacing.lg }, children: [
+  return /* @__PURE__ */ jsxs("div", { style: { padding: spacing.lg }, children: [
     /* @__PURE__ */ jsxs("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: spacing.lg }, children: [
       /* @__PURE__ */ jsx(Skeleton, { width: 180, height: 24 }),
       /* @__PURE__ */ jsx(Skeleton, { width: 36, height: 36, borderRadius: radii.sm })
@@ -1202,7 +1243,7 @@ function Gallery({
     return /* @__PURE__ */ jsx(GallerySkeleton, {});
   }
   if (error && sessions.length === 0) {
-    return /* @__PURE__ */ jsxs("div", { style: { maxWidth: 640, margin: "0 auto", padding: spacing.lg }, children: [
+    return /* @__PURE__ */ jsxs("div", { style: { padding: spacing.lg }, children: [
       /* @__PURE__ */ jsx("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: spacing.lg }, children: /* @__PURE__ */ jsx("h2", { style: { fontSize: fontSize.heading, fontWeight: fontWeight.bold, color: colors.text.primary, margin: 0 }, children: "Your Timelapses" }) }),
       /* @__PURE__ */ jsxs("div", { style: { display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: 300, padding: spacing.xxl }, children: [
         /* @__PURE__ */ jsx(ErrorDisplay, { error, variant: "inline" }),
@@ -1211,20 +1252,20 @@ function Gallery({
     ] });
   }
   if (sessions.length === 0) {
-    return /* @__PURE__ */ jsxs("div", { style: { maxWidth: 640, margin: "0 auto", padding: spacing.lg }, children: [
+    return /* @__PURE__ */ jsxs("div", { style: { padding: spacing.lg }, children: [
       /* @__PURE__ */ jsx("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: spacing.lg }, children: /* @__PURE__ */ jsx("h2", { style: { fontSize: fontSize.heading, fontWeight: fontWeight.bold, color: colors.text.primary, margin: 0 }, children: "Your Timelapses" }) }),
       /* @__PURE__ */ jsxs("div", { style: { display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: 300, padding: spacing.xxl }, children: [
-        /* @__PURE__ */ jsx("p", { style: { marginBottom: spacing.md }, children: /* @__PURE__ */ jsxs("svg", { width: "48", height: "48", viewBox: "0 0 24 24", fill: "none", stroke: colors.border.hover, strokeWidth: "1.5", children: [
+        /* @__PURE__ */ jsx("p", { style: { marginBottom: spacing.md }, children: /* @__PURE__ */ jsxs("svg", { width: "48", height: "48", viewBox: "0 0 24 24", fill: "none", stroke: colors.text.primary, strokeWidth: "1.5", style: { opacity: 0.2 }, children: [
           /* @__PURE__ */ jsx("rect", { x: "2", y: "3", width: "20", height: "14", rx: "2", ry: "2" }),
           /* @__PURE__ */ jsx("line", { x1: "8", y1: "21", x2: "16", y2: "21" }),
           /* @__PURE__ */ jsx("line", { x1: "12", y1: "17", x2: "12", y2: "21" })
         ] }) }),
-        /* @__PURE__ */ jsx("p", { style: { fontSize: fontSize.lg, color: colors.text.secondary, textAlign: "center" }, children: "No timelapses yet" }),
-        /* @__PURE__ */ jsx("p", { style: { fontSize: fontSize.sm, color: colors.text.quaternary, marginTop: spacing.xs, textAlign: "center" }, children: "Start a recording session to see it here." })
+        /* @__PURE__ */ jsx("p", { style: { fontSize: fontSize.lg, color: colors.text.primary, opacity: 0.5, textAlign: "center" }, children: "No timelapses yet" }),
+        /* @__PURE__ */ jsx("p", { style: { fontSize: fontSize.sm, color: colors.text.primary, opacity: 0.3, marginTop: spacing.xs, textAlign: "center" }, children: "Start a recording session to see it here." })
       ] })
     ] });
   }
-  return /* @__PURE__ */ jsxs("div", { style: { maxWidth: 640, margin: "0 auto", padding: spacing.lg }, children: [
+  return /* @__PURE__ */ jsxs("div", { style: { padding: spacing.lg }, children: [
     /* @__PURE__ */ jsxs("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: spacing.lg }, children: [
       /* @__PURE__ */ jsx("h2", { style: { fontSize: fontSize.heading, fontWeight: fontWeight.bold, color: colors.text.primary, margin: 0 }, children: "Your Timelapses" }),
       onRefresh && /* @__PURE__ */ jsx(Button, { variant: "ghost", size: "sm", onClick: onRefresh, title: "Refresh", style: { fontSize: fontSize.xxl }, children: "\u21BB" })
@@ -1460,7 +1501,7 @@ ${text.slice(0, 500)}`);
       }
     }).catch((err) => {
       if (!cancelled) {
-        console.warn("Gallery fetch error:", err);
+        console.warn("Gallery fetch error:", err instanceof Error ? err.message : err);
         setError(err.message);
       }
     }).finally(() => {

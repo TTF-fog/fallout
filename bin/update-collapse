@@ -6,12 +6,12 @@ set -euo pipefail
 # Builds each package after downloading since dist/ is not committed to the repo.
 #
 # Usage:
-#   bin/update-collapse          # install pinned version (v0.0.3)
-#   bin/update-collapse v0.0.4   # install specific version tag
+#   bin/update-collapse          # install pinned version (v0.0.12)
+#   bin/update-collapse v0.0.13  # install specific version tag
 #   bin/update-collapse main     # install from branch (for development)
 
 REPO="hackclub/collapse"
-PINNED_VERSION="v0.0.8"
+PINNED_VERSION="v0.0.12"
 REF="${1:-$PINNED_VERSION}"
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 PACKAGES_DIR="$ROOT_DIR/packages"
