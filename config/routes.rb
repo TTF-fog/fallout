@@ -168,6 +168,9 @@ Rails.application.routes.draw do
   get "faq" => redirect("/docs/faq") # Shortcut to FAQ docs page
   get "info" => redirect("/docs")
   get "about" => redirect("/docs")
+  get "docs/toc", to: "markdown#toc", constraints: { format: "md" }, as: :docs_toc # /docs/toc.md — generated table of contents
+  get "docs", to: "markdown#raw", constraints: { format: "md" }, as: :docs_raw # /docs.md — raw markdown
+  get "docs/*slug", to: "markdown#raw", constraints: { format: "md" } # /docs/<slug>.md — raw markdown
   get "docs" => "markdown#show", as: :docs
   get "docs/*slug" => "markdown#show", as: :doc
 

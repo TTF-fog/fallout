@@ -3,6 +3,8 @@ require "uri"
 require "digest"
 
 module MarkdownHelper
+  @@docs_toc_md = nil # rubocop:disable Style/ClassVars
+
   # Hosts allowed to serve images in user-generated content (e.g. journals).
   # Same-origin images (Active Storage, relative paths) are always allowed.
   ALLOWED_IMAGE_HOSTS = %w[
@@ -363,6 +365,17 @@ module MarkdownHelper
     entries.sort_by { |e| [ e[:priority].nil? ? Float::INFINITY : e[:priority].to_i, e[:title].downcase ] }
   end
 
+  def raw_doc_content(path)
+    raw = File.read(path)
+    content = strip_front_matter_table(raw)
+    "[Table of Contents](/docs/toc.md)\n\n#{content}"
+  end
+
+  def docs_toc_markdown
+    @@docs_toc_md = nil if Rails.env.development? # rubocop:disable Style/ClassVars
+    @@docs_toc_md ||= build_docs_toc_markdown # rubocop:disable Style/ClassVars
+  end
+
   def docs_meta_for_url(url)
     docs_section_metadata.find { |i| i[:path] == url }
   end
@@ -388,6 +401,69 @@ module MarkdownHelper
   end
 
   private
+
+  def build_docs_toc_markdown
+    items = docs_section_metadata.reject { |i| i[:unlisted] }
+    sort = ->(list) { list.sort_by { |h| [ h[:priority].nil? ? Float::INFINITY : h[:priority].to_i, h[:title].downcase ] } }
+
+    index_item = items.find { |i| i[:slug].blank? }
+    non_index = items.reject { |i| i[:slug].blank? }
+
+    top_level = []
+    sections = {}
+
+    non_index.each do |item|
+      parts = item[:slug].to_s.split("/")
+      if parts.length <= 1
+        top_level << item
+      else
+        section_key = parts.first
+        sections[section_key] ||= []
+        sections[section_key] << item
+      end
+    end
+
+    entries = sort.call(top_level).map { |i| { type: "link", title: i[:title], path: i[:path], description: i[:description], priority: i[:priority] } }
+
+    sections.each do |key, section_items|
+      sorted = sort.call(section_items)
+      meta = load_section_metadata(key)
+      entries << {
+        type: "section",
+        title: meta[:title] || key.tr("-_", " ").split.map(&:capitalize).join(" "),
+        items: sorted.map { |i| { title: i[:title], path: i[:path], description: i[:description] } },
+        priority: meta[:priority]
+      }
+    end
+
+    entries.sort_by! { |e| [ e[:priority].nil? ? Float::INFINITY : e[:priority].to_i, e[:title].downcase ] }
+
+    lines = [ "# Table of Contents - Fallout Docs", "" ]
+
+    if index_item
+      line = "- [#{index_item[:title]}](/docs.md)"
+      line += " - #{index_item[:description]}" if index_item[:description].present?
+      lines << line
+      lines << ""
+    end
+
+    entries.each do |entry|
+      if entry[:type] == "link"
+        line = "- [#{entry[:title]}](#{entry[:path]}.md)"
+        line += " - #{entry[:description]}" if entry[:description].present?
+        lines << line
+      elsif entry[:type] == "section"
+        lines << "- #{entry[:title]}"
+        entry[:items].each do |item|
+          line = "  - [#{item[:title]}](#{item[:path]}.md)"
+          line += " - #{item[:description]}" if item[:description].present?
+          lines << line
+        end
+      end
+    end
+
+    lines.join("\n") + "\n"
+  end
 
   def load_section_metadata(section_key)
     path = Rails.root.join("docs", section_key, "metadata.yml")
