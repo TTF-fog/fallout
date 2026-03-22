@@ -42,7 +42,7 @@ class ApplicationController < ActionController::Base
     next {} unless current_user && !current_user.trial?
     {
       collaborators: Flipper.enabled?(:collaborators, current_user),
-      collapse: Flipper.enabled?(:"03_18_collapse", current_user)
+      lookout: Flipper.enabled?(:"03_18_collapse", current_user)
     }
   }
   inertia_share has_unread_mail: -> { # Drives the envelope badge on the path page

@@ -21,11 +21,11 @@ class JournalEntriesController < ApplicationController
       lapse_connected: lapse_connected,
       is_modal: request.headers["X-InertiaUI-Modal"].present?,
       direct_upload_url: rails_direct_uploads_url,
-      collapse_timelapses: InertiaRails.defer {
+      lookout_timelapses: InertiaRails.defer {
         if Flipper.enabled?(:"03_18_collapse", current_user)
-          tokens = current_user.pending_collapse_tokens
+          tokens = current_user.pending_lookout_tokens
           if tokens.any?
-            sessions = CollapseService.batch_sessions(tokens) || []
+            sessions = LookoutService.batch_sessions(tokens) || []
             sessions
               .select { |s| %w[complete stopped].include?(s["status"]) }
               .map { |s| { token: s["token"], name: s["name"], status: s["status"], duration: s["trackedSeconds"], thumbnail_url: s["thumbnailUrl"], created_at: s["createdAt"] } }
@@ -64,7 +64,7 @@ class JournalEntriesController < ApplicationController
 
     timelapse_ids = Array(params[:timelapse_ids]).map(&:to_s).uniq
     youtube_video_ids = Array(params[:youtube_video_ids]).map(&:to_i).uniq
-    collapse_tokens = Array(params[:collapse_tokens]).map(&:to_s).uniq
+    lookout_tokens = Array(params[:lookout_tokens]).map(&:to_s).uniq
 
     ActiveRecord::Base.transaction do
       @journal_entry.save!
@@ -82,14 +82,14 @@ class JournalEntriesController < ApplicationController
         @journal_entry.recordings.create!(recordable: video, user: current_user)
       end
 
-      collapse_tokens.each do |token|
-        raise ActiveRecord::RecordNotFound, "Token not in pending list" unless current_user.pending_collapse_tokens.include?(token)
+      lookout_tokens.each do |token|
+        raise ActiveRecord::RecordNotFound, "Token not in pending list" unless current_user.pending_lookout_tokens.include?(token)
 
-        collapse = current_user.collapse_timelapses.create!(session_token: token)
-        collapse.refetch_data!
-        @journal_entry.recordings.create!(recordable: collapse, user: current_user)
+        lookout = current_user.lookout_timelapses.create!(session_token: token)
+        lookout.refetch_data!
+        @journal_entry.recordings.create!(recordable: lookout, user: current_user)
 
-        current_user.update!(pending_collapse_tokens: current_user.pending_collapse_tokens - [token])
+        current_user.update!(pending_lookout_tokens: current_user.pending_lookout_tokens - [token])
       end
     end
 

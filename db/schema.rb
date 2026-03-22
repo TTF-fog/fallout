@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_03_22_200000) do
+ActiveRecord::Schema[8.1].define(version: 2026_03_22_210000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -120,7 +120,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_22_200000) do
     t.index ["user_id"], name: "index_collaborators_on_user_id"
   end
 
-  create_table "collapse_timelapses", force: :cascade do |t|
+  create_table "lookout_timelapses", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.float "duration"
     t.datetime "last_refreshed_at"
@@ -130,8 +130,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_22_200000) do
     t.string "thumbnail_url"
     t.datetime "updated_at", null: false
     t.bigint "user_id", null: false
-    t.index ["session_token"], name: "index_collapse_timelapses_on_session_token", unique: true
-    t.index ["user_id"], name: "index_collapse_timelapses_on_user_id"
+    t.index ["session_token"], name: "index_lookout_timelapses_on_session_token", unique: true
+    t.index ["user_id"], name: "index_lookout_timelapses_on_user_id"
   end
 
   create_table "flipper_features", force: :cascade do |t|
@@ -407,7 +407,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_22_200000) do
     t.boolean "is_banned", default: false, null: false
     t.text "lapse_token"
     t.boolean "onboarded", default: false, null: false
-    t.string "pending_collapse_tokens", default: [], null: false, array: true
+    t.string "pending_lookout_tokens", default: [], null: false, array: true
     t.string "roles", default: [], null: false, array: true
     t.string "slack_id"
     t.string "timezone", null: false
@@ -457,7 +457,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_22_200000) do
   add_foreign_key "collaboration_invites", "users", column: "invitee_id"
   add_foreign_key "collaboration_invites", "users", column: "inviter_id"
   add_foreign_key "collaborators", "users"
-  add_foreign_key "collapse_timelapses", "users"
+  add_foreign_key "lookout_timelapses", "users"
   add_foreign_key "journal_entries", "projects"
   add_foreign_key "journal_entries", "users"
   add_foreign_key "lapse_timelapses", "users"

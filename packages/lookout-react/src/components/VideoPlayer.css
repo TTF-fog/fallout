@@ -1,0 +1,25 @@
+.lookout-video-player .media-button--mute,
+.lookout-video-player .media-slider--volume {
+  display: none !important;
+}
+
+/* Hide PiP on Windows, Mac, Linux */
+.lookout-video-player.platform-windows .media-button--pip,
+.lookout-video-player.platform-mac .media-button--pip,
+.lookout-video-player.platform-linux .media-button--pip {
+  display: none !important;
+}
+
+/* Hide Fullscreen on Linux only */
+.lookout-video-player.platform-linux .media-button--fullscreen {
+  display: none !important;
+}
+
+.lookout-video-player {
+  --media-border-radius: 8px;
+  --media-video-border-radius: 8px;
+}
+
+.lookout-video-player * {
+  --media-border-radius: 8px;
+}

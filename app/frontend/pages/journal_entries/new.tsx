@@ -31,7 +31,7 @@ type YouTubeVideo = {
   claimed: boolean
 }
 
-type CollapseRecording = {
+type LookoutRecording = {
   token: string
   name: string | null
   status: string
@@ -92,7 +92,7 @@ function NewJournal({
   lapse_connected,
   is_modal,
   direct_upload_url,
-  collapse_timelapses,
+  lookout_timelapses,
   timelapses,
 }: {
   projects: Project[]
@@ -100,11 +100,11 @@ function NewJournal({
   lapse_connected: boolean
   is_modal: boolean
   direct_upload_url: string
-  collapse_timelapses: CollapseRecording[] | null
+  lookout_timelapses: LookoutRecording[] | null
   timelapses: Timelapse[] | null
 }) {
   const { features } = usePage<SharedProps>().props
-  const collapseEnabled = !!(features as Record<string, boolean> | undefined)?.collapse
+  const lookoutEnabled = !!(features as Record<string, boolean> | undefined)?.lookout
   const initialProject = selected_project_id
     ? (projects.find((p) => p.id === selected_project_id) ?? null)
     : projects.length === 1
@@ -112,7 +112,7 @@ function NewJournal({
       : null
 
   const [selectedProject, setSelectedProject] = useState<Project | null>(initialProject)
-  const [rightTab, setRightTab] = useState<'lapse' | 'youtube' | 'collapse'>('lapse')
+  const [rightTab, setRightTab] = useState<'lapse' | 'youtube' | 'lookout'>('lapse')
   const [selectedTimelapses, setSelectedTimelapses] = useState<Set<string>>(new Set())
   const [youtubeVideos, setYoutubeVideos] = useState<YouTubeVideo[]>([])
   const [youtubeUrl, setYoutubeUrl] = useState('')
@@ -122,7 +122,7 @@ function NewJournal({
   const [submitting, setSubmitting] = useState(false)
   const [draftStatus, setDraftStatus] = useState<string | null>(null)
   const modalRef = useRef<{ close: () => void }>(null)
-  const [selectedCollapseTokens, setSelectedCollapseTokens] = useState<Set<string>>(new Set())
+  const [selectedLookoutTokens, setSelectedLookoutTokens] = useState<Set<string>>(new Set())
 
   const draftKey = selectedProject ? `journal-draft-${selectedProject.id}` : null
   const [markdown, setMarkdown] = useState(() => {
@@ -171,7 +171,7 @@ function NewJournal({
   const markdownImageCount = (markdown.match(/!\[[^\]]*\]\([^)]*\)/g) || []).length
   const hasEnoughImages = markdownImageCount >= MIN_IMAGES
   const hasEnoughChars = charCount >= MIN_CHARS
-  const recordingCount = selectedTimelapses.size + youtubeVideos.length + selectedCollapseTokens.size
+  const recordingCount = selectedTimelapses.size + youtubeVideos.length + selectedLookoutTokens.size
   const hasRecording = recordingCount > 0
   const canSubmit = selectedProject && hasRecording && hasEnoughImages && hasEnoughChars
 
@@ -250,7 +250,7 @@ function NewJournal({
     const data: Record<string, unknown> = {
       timelapse_ids: Array.from(selectedTimelapses),
       youtube_video_ids: youtubeVideos.map((v) => v.id),
-      collapse_tokens: Array.from(selectedCollapseTokens),
+      lookout_tokens: Array.from(selectedLookoutTokens),
       content: markdown,
       images: blobSignedIds,
     }
@@ -267,10 +267,10 @@ function NewJournal({
     })
   }
 
-  const ribbonTabs: { label: string; tab: 'lapse' | 'youtube' | 'collapse' }[] = [
+  const ribbonTabs: { label: string; tab: 'lapse' | 'youtube' | 'lookout' }[] = [
     { label: 'Lapse', tab: 'lapse' },
     { label: 'YouTube', tab: 'youtube' },
-    ...(collapseEnabled ? [{ label: 'Collapse', tab: 'collapse' as const }] : []),
+    ...(lookoutEnabled ? [{ label: 'Lookout', tab: 'lookout' as const }] : []),
   ]
 
   const content = (
@@ -469,9 +469,9 @@ function NewJournal({
           )}
         </div>
 
-        {collapseEnabled && (
-          <div className={rightTab === 'collapse' ? 'flex flex-col min-h-0 flex-1' : 'hidden'}>
-            <h2 className="text-center font-bold text-2xl uppercase tracking-wide">Collapse</h2>
+        {lookoutEnabled && (
+          <div className={rightTab === 'lookout' ? 'flex flex-col min-h-0 flex-1' : 'hidden'}>
+            <h2 className="text-center font-bold text-2xl uppercase tracking-wide">Lookout</h2>
             <p className="text-center text-sm text-dark-brown mt-1 mb-4">
               Record your screen directly from the browser or desktop app.
               <br />
@@ -479,12 +479,12 @@ function NewJournal({
             </p>
 
             <div className="flex-1 min-h-0 overflow-y-auto p-1 -m-1">
-              <Deferred data="collapse_timelapses" fallback={<CollapseTimelapseSkeleton />}>
-                <CollapseTimelapseBrowser
-                  recordings={collapse_timelapses ?? []}
-                  selectedIds={selectedCollapseTokens}
+              <Deferred data="lookout_timelapses" fallback={<LookoutTimelapseSkeleton />}>
+                <LookoutTimelapseBrowser
+                  recordings={lookout_timelapses ?? []}
+                  selectedIds={selectedLookoutTokens}
                   onToggle={(id) => {
-                    setSelectedCollapseTokens((prev) => {
+                    setSelectedLookoutTokens((prev) => {
                       const next = new Set(prev)
                       if (next.has(id)) next.delete(id)
                       else next.add(id)
@@ -617,13 +617,13 @@ function TimelapseBrowser({
   )
 }
 
-function CollapseTimelapseBrowser({
+function LookoutTimelapseBrowser({
   recordings,
   selectedIds,
   onToggle,
   selectedProject,
 }: {
-  recordings: CollapseRecording[]
+  recordings: LookoutRecording[]
   selectedIds: Set<string>
   onToggle: (token: string) => void
   selectedProject: Project | null
@@ -634,7 +634,7 @@ function CollapseTimelapseBrowser({
         <p className="text-dark-brown">No recordings found</p>
         {selectedProject && (
           <a
-            href="/collapse_sessions/new"
+            href="/lookout_sessions/new"
             className="py-1.5 px-4 border-2 font-bold uppercase cursor-pointer bg-brown text-light-brown border-dark-brown"
           >
             Record New Timelapse
@@ -649,7 +649,7 @@ function CollapseTimelapseBrowser({
       {selectedProject && (
         <div className="flex justify-center">
           <a
-            href="/collapse_sessions/new"
+            href="/lookout_sessions/new"
             className="py-1.5 px-4 border-2 font-bold uppercase cursor-pointer bg-brown text-light-brown border-dark-brown text-sm"
           >
             Record New Timelapse
@@ -685,7 +685,7 @@ function CollapseTimelapseBrowser({
                 style={recording.thumbnail_url ? { backgroundImage: `url(${recording.thumbnail_url})` } : undefined}
               />
               <div className="mt-1.5">
-                <p className="font-bold text-sm truncate text-white">{recording.name || 'Collapse Recording'}</p>
+                <p className="font-bold text-sm truncate text-white">{recording.name || 'Lookout Recording'}</p>
                 <div className="flex justify-between text-xs text-light-brown">
                   <span>{formatDuration(recording.duration ?? 0)}</span>
                   <span>{date}</span>
@@ -699,7 +699,7 @@ function CollapseTimelapseBrowser({
   )
 }
 
-const SKELETON_COLLAPSE: CollapseRecording[] = Array.from({ length: 4 }, (_, i) => ({
+const SKELETON_LOOKOUT: LookoutRecording[] = Array.from({ length: 4 }, (_, i) => ({
   token: `skeleton-${i}`,
   name: '\u00A0',
   status: 'complete',
@@ -708,11 +708,11 @@ const SKELETON_COLLAPSE: CollapseRecording[] = Array.from({ length: 4 }, (_, i) 
   created_at: new Date().toISOString(),
 }))
 
-function CollapseTimelapseSkeleton() {
+function LookoutTimelapseSkeleton() {
   return (
     <div className="animate-pulse">
-      <CollapseTimelapseBrowser
-        recordings={SKELETON_COLLAPSE}
+      <LookoutTimelapseBrowser
+        recordings={SKELETON_LOOKOUT}
         selectedIds={new Set()}
         onToggle={() => {}}
         selectedProject={null}

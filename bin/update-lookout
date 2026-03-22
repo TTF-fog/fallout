@@ -1,0 +1,74 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Updates @lookout/react and @lookout/shared from the hackclub/lookout GitHub repo.
+# Uses the GitHub API to download only the needed subdirectories (no full clone).
+# Builds each package after downloading since dist/ is not committed to the repo.
+#
+# Usage:
+#   bin/update-lookout          # install pinned version (v0.0.25)
+#   bin/update-lookout v0.0.26  # install specific version tag
+#   bin/update-lookout main     # install from branch (for development)
+
+REPO="hackclub/lookout"
+PINNED_VERSION="v0.0.26"
+REF="${1:-$PINNED_VERSION}"
+ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+PACKAGES_DIR="$ROOT_DIR/packages"
+TARBALL=$(mktemp)
+
+echo "Fetching @lookout packages from $REPO@$REF..."
+curl -sL "https://api.github.com/repos/$REPO/tarball/$REF" -o "$TARBALL"
+
+# Extract the monorepo's base tsconfig (needed to build packages)
+LOOKOUT_BUILD_DIR=$(mktemp -d)
+tar -xzf "$TARBALL" --strip-components=1 -C "$LOOKOUT_BUILD_DIR" "*/tsconfig.base.json" 2>/dev/null || true
+
+# Download shared first (react depends on it)
+for mapping in "packages/shared:lookout-shared" "clients/react:lookout-react"; do
+  src="${mapping%%:*}"
+  dest="${mapping##*:}"
+  dest_dir="$PACKAGES_DIR/$dest"
+
+  echo "  $src -> packages/$dest"
+  rm -rf "$dest_dir"
+  mkdir -p "$dest_dir"
+
+  tar -xzf "$TARBALL" --strip-components=$(($(echo "$src" | tr '/' '\n' | wc -l) + 1)) -C "$dest_dir" "*/$src/"
+
+  # Build the package if dist/ is missing
+  if [ ! -d "$dest_dir/dist" ] && [ -f "$dest_dir/package.json" ]; then
+    echo "  Building $dest..."
+    cd "$dest_dir"
+
+    # Place monorepo tsconfig.base.json where the extends path expects it (../../tsconfig.base.json)
+    if [ -f "$LOOKOUT_BUILD_DIR/tsconfig.base.json" ]; then
+      cp "$LOOKOUT_BUILD_DIR/tsconfig.base.json" "$ROOT_DIR/tsconfig.base.json" 2>/dev/null || true
+    fi
+
+    # Point @lookout/shared to the local build so npm doesn't try the registry
+    if [ "$dest" = "lookout-react" ] && [ -d "$PACKAGES_DIR/lookout-shared" ]; then
+      node -e "
+        const pkg = require('./package.json');
+        if (pkg.dependencies?.['@lookout/shared']) {
+          pkg.dependencies['@lookout/shared'] = 'file:../lookout-shared';
+          require('fs').writeFileSync('./package.json', JSON.stringify(pkg, null, 2) + '\n');
+        }
+      "
+    fi
+
+    npm install --ignore-scripts
+    npm run build
+    cd "$ROOT_DIR"
+  fi
+done
+
+# Clean up
+rm -f "$TARBALL"
+rm -rf "$LOOKOUT_BUILD_DIR"
+rm -f "$ROOT_DIR/tsconfig.base.json"
+
+echo "Running npm install..."
+npm install
+
+echo "Installed @lookout packages at $REF"
