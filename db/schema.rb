@@ -120,20 +120,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_22_210000) do
     t.index ["user_id"], name: "index_collaborators_on_user_id"
   end
 
-  create_table "lookout_timelapses", force: :cascade do |t|
-    t.datetime "created_at", null: false
-    t.float "duration"
-    t.datetime "last_refreshed_at"
-    t.string "name"
-    t.string "playback_url"
-    t.text "session_token", null: false
-    t.string "thumbnail_url"
-    t.datetime "updated_at", null: false
-    t.bigint "user_id", null: false
-    t.index ["session_token"], name: "index_lookout_timelapses_on_session_token", unique: true
-    t.index ["user_id"], name: "index_lookout_timelapses_on_user_id"
-  end
-
   create_table "flipper_features", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.string "key", null: false
@@ -181,6 +167,20 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_22_210000) do
     t.string "visibility"
     t.index ["lapse_timelapse_id"], name: "index_lapse_timelapses_on_lapse_timelapse_id", unique: true
     t.index ["user_id"], name: "index_lapse_timelapses_on_user_id"
+  end
+
+  create_table "lookout_timelapses", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.float "duration"
+    t.datetime "last_refreshed_at"
+    t.string "name"
+    t.string "playback_url"
+    t.text "session_token", null: false
+    t.string "thumbnail_url"
+    t.datetime "updated_at", null: false
+    t.bigint "user_id", null: false
+    t.index ["session_token"], name: "index_lookout_timelapses_on_session_token", unique: true
+    t.index ["user_id"], name: "index_lookout_timelapses_on_user_id"
   end
 
   create_table "mail_interactions", force: :cascade do |t|
@@ -457,10 +457,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_22_210000) do
   add_foreign_key "collaboration_invites", "users", column: "invitee_id"
   add_foreign_key "collaboration_invites", "users", column: "inviter_id"
   add_foreign_key "collaborators", "users"
-  add_foreign_key "lookout_timelapses", "users"
   add_foreign_key "journal_entries", "projects"
   add_foreign_key "journal_entries", "users"
   add_foreign_key "lapse_timelapses", "users"
+  add_foreign_key "lookout_timelapses", "users"
   add_foreign_key "mail_interactions", "mail_messages"
   add_foreign_key "mail_interactions", "users"
   add_foreign_key "mail_messages", "users"
