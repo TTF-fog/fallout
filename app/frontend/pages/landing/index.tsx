@@ -210,6 +210,15 @@ export default function LandingIndex() {
       }
       window.addEventListener('mousemove', onCursorMove)
       stickerCleanups.push(() => window.removeEventListener('mousemove', onCursorMove))
+
+      // Hide cursor when mouse enters iframe (window loses focus); it reappears on next mousemove
+      const onWindowBlur = () => {
+        cursorVisible = false
+        gsap.set(customCursor, { opacity: 0 })
+        if (pointerCursor) gsap.set(pointerCursor, { opacity: 0 })
+      }
+      window.addEventListener('blur', onWindowBlur)
+      stickerCleanups.push(() => window.removeEventListener('blur', onWindowBlur))
     }
 
     const hero = document.getElementById('hero')!
@@ -299,11 +308,11 @@ export default function LandingIndex() {
 
   return (
     <>
+    <style>{`html, html * { cursor: none !important; }`}</style>
     <div ref={preloaderRef} className="fixed inset-0 bg-blue z-50 pointer-events-none" />
-    <nav className="absolute top-3 right-3  w-full grid grid-cols-3 items-center z-30 text-white">
-      {/* <img src="/landing/flag.svg" className="w-30" /> */}
-      <div></div>
-      <div ref={falloutLettersRef} className="text-[2.5rem] font-bells cursor-pointer select-none space-x-[3px] justify-self-center" onDoubleClick={handleFalloutClick}>
+    <nav className="absolute top-3 px-3 w-full grid grid-cols-3 items-center z-30 text-white">
+      <img src="/landing/flag.svg" className="w-20 sm:w-30" />
+      <div ref={falloutLettersRef} className="clickme text-3xl md:text-[2.5rem] font-bells cursor-pointer select-none md:space-x-[3px] justify-self-center whitespace-nowrap" onClick={handleFalloutClick}>
         <span className="inline-block">F</span>
         <span className="inline-block">A</span>
         <span className="inline-block">L</span>
@@ -335,20 +344,20 @@ export default function LandingIndex() {
       >
         
         <HalftoneBg
-          src="/landing/bg.png"
+          src="/landing/hero.webp"
           className="absolute inset-0 w-full h-full  pointer-events-none"
           halftoneOpacity={0.1}
           bleed={0.08}
         />
         
-        <div className="relative flex flex-col items-center w-full px-4 md:px-0 mt-6 sm:mt-14 md:mt-40 gap-3 sm:gap-4">
+        <div className="relative flex flex-col items-center w-full px-4 md:px-0 mt-20 md:mt-40 gap-3 sm:gap-4">
           {/* <div className="text-lg md:text-xl lg:text-2xl tracking-[5%] text-center">JULY 1-7, 2026</div> */}
           
-          <h1 className="shake text-center tracking-[5%] text-shadow-md text-shadow-blue text-6xl font-bold max-w-5xl">
+          <h1 className="shake text-center tracking-[5%] text-shadow-md text-shadow-blue  text-3xl md:text-6xl font-bold max-w-5xl">
             Build hardware projects for 60h, 
             Visit Shenzhen, China!
           </h1>
-          <p className="text-xl tracking-[5%]">A beginner-friendly program for teens 13-18.</p>
+          <p className="text-xl tracking-[5%] text-center ">A beginner-friendly program for teens 13-18.</p>
           <Frame className="w-full max-w-[calc(100%-1rem)] sm:max-w-160 ml-1">
             <form
               className="w-full h-full flex px-2 sm:px-4 py-1 text-xl items-center justify-between gap-2"
@@ -378,16 +387,16 @@ export default function LandingIndex() {
 
       <div ref={belowFoldRef} className="relative">
        
-{/* 
+
       <div className="w-screen -mt-40">
         <img src="/landing/clouds/banner.png" className="object-cover object-bottom select-none" />
-      </div> */}
+      </div>
 
-      <div className="w-screen bg-beige px-6 md:px-8 lg:px-18 xl:px-36 2xl:px-54 pt-10">
+      <div className="w-screen bg-beige px-3 sm:px-6 md:px-8 lg:px-18 xl:px-36 2xl:px-54 pt-10">
         <section className="bg-dark-brown border-2 border-dark-brown text-beige p-6 md:p-10 flex flex-col md:flex-row justify-center items-center gap-4 relative lg:items-stretch rounded-sm">
-          <div className="flex flex-col font-normal p-6">
-            <span className="text-5xl font-medium">WHAT IS</span>
-            <span className="text-6xl md:text-7xl xl:text-8xl font-extrabold">FALLOUT?</span>
+          <div className="flex flex-col font-normal">
+            <span className="text-3xl sm:text-5xl font-medium">WHAT IS</span>
+            <span className="text-4xl sm:text-6xl md:text-7xl xl:text-8xl font-extrabold">FALLOUT?</span>
             <p className="text-xl md:text-2xl xl:text-3xl mt-auto lg:mt-10">Hack Club Fallout is a three-month program leading to a 7-day, <span ref={highlight1Ref} style={{ backgroundImage: 'linear-gradient(var(--color-green), var(--color-green))', backgroundRepeat: 'no-repeat', backgroundPosition: 'left center', backgroundSize: '0% 100%' }}>free hardware hackathon in Shenzhen, China.</span></p>
             <p className="mt-8 text-xl md:text-2xl xl:text-3xl">Students qualify by designing and <span ref={highlight2Ref} style={{ backgroundImage: 'linear-gradient(var(--color-green), var(--color-green))', backgroundRepeat: 'no-repeat', backgroundPosition: 'left center', backgroundSize: '0% 100%' }}>building 60h</span>, with components funded by us!</p>
           </div>
@@ -397,33 +406,32 @@ export default function LandingIndex() {
           <div className="flex flex-col items-center w-220 space-y-6">
             <div className="clickme group grid lg:max-w-220 w-full h-70 lg:h-110 grid-cols-1 grid-rows-1 place-items-center cursor-none" onClick={() => setCardOrder(prev => [...prev.slice(1), prev[0]])}>
             {cardOrder.map(i => (
-              <div key={i} className={`col-start-1 row-start-1 border-2 border-beige h-full aspect-5/6 bg-cover bg-center bg-brown/20 bg-blend-soft-light shadow-md ${['rotate-6', 'rotate-0', '-rotate-4'][i]}`} style={{backgroundImage: `url(/landing/past/${['juice1.jpg', 'overglade.webp', 'parthenon.jpg'][i]})`}} /> 
+              <div key={i} className={`col-start-1 row-start-1 border-2 border-beige h-full aspect-5/6 bg-cover bg-center bg-brown/20 bg-blend-soft-light shadow-md ${['rotate-6', 'rotate-0', '-rotate-4'][i]}`} style={{backgroundImage: `url(/landing/past/${['juice.webp', 'overglade.webp', 'parthenon.webp'][i]})`}} /> 
             ))}
             </div>
-            <p><a className="text-light-brown text-lg underline" href={cardCaptions[cardOrder[cardOrder.length - 1]].href} target="_self">{cardCaptions[cardOrder[cardOrder.length - 1]].label}</a></p>
- 
+            <p><a className="text-light-brown text-lg underline text-sm md:text-base" href={cardCaptions[cardOrder[cardOrder.length - 1]].href} target="_self">{cardCaptions[cardOrder[cardOrder.length - 1]].label}</a></p>
           </div>
       </section>
 
-      <div className="pt-40 qualify-outer min-h-[100svh]">
-        <section className="qualify-section sticky top-[calc(50svh-15rem)] flex flex-col md:flex-row justify-between w-full text-beige gap-4 md:h-120">
+      <div className="md:pt-40 md:qualify-outer">
+        <section className="md:qualify-section md:sticky md:top-[calc(50svh-15rem)] flex flex-col md:flex-row justify-between w-full text-beige gap-4 md:min-h-120">
           <div className="flex-3/4 lg:flex-3/4 w-full flex justify-center md:block">
-          <div className="qualify-scroll-wrapper w-full">
-            <div className="qualify-card-wrapper h-80" style={{ perspective: '500px' }}>
-              <HalftoneBg src="/landing/comic1.png" className="qualify-card w-full h-full" objectFit="contain" background="" halftoneOpacity={0.12} />
+          <div className="md:qualify-scroll-wrapper w-full flex flex-col md:block gap-2 md:gap-0">
+            <div className="md:qualify-card-wrapper md:h-80 h-60" style={{ perspective: '500px' }}>
+              <HalftoneBg src="/landing/comic1.webp" className="md:qualify-card w-full h-full" objectFit="contain" background="" halftoneOpacity={0.12} />
             </div>
-            <div className="qualify-card-wrapper h-80" style={{ perspective: '500px' }}>
-              <HalftoneBg src="/landing/comic2.png" className="qualify-card w-full h-full" objectFit="contain" background="" halftoneOpacity={0.12} />
+            <div className="md:qualify-card-wrapper md:h-80 h-60" style={{ perspective: '500px' }}>
+              <HalftoneBg src="/landing/comic2.webp" className="md:qualify-card w-full h-full" objectFit="contain" background="" halftoneOpacity={0.12} />
             </div>
-            <div className="qualify-card-wrapper h-80" style={{ perspective: '500px' }}>
-              <HalftoneBg src="/landing/comic3.png" className="qualify-card w-full h-full" objectFit="contain" background="" halftoneOpacity={0.12} />
+            <div className="md:qualify-card-wrapper md:h-80 h-60" style={{ perspective: '500px' }}>
+              <HalftoneBg src="/landing/comic3.webp" className="md:qualify-card w-full h-full" objectFit="contain" background="" halftoneOpacity={0.12} />
             </div>
           </div>
         </div>
-        <div className="relative grow flex flex-col bg-blue border-2 border-dark-brown p-6 md:p-10 text-beige rounded-sm">
+        <div className="relative flex flex-col h-fit bg-blue border-2 border-dark-brown p-6 md:p-10 text-beige rounded-sm">
           <div className="text-white flex flex-col w-full md:w-fit space-y-4">
-            <span className="text-4xl md:text-6xl font-bold text-center">HOW TO QUALIFY</span>
-            <ol className="ml-8 list-decimal leading-8 text-2xl xl:text-3xl space-y-3">
+            <span className="text-4xl lg:text-6xl font-bold text-center">HOW TO QUALIFY</span>
+            <ol className="ml-8 list-decimal leading-8 text-xl sm:text-2xl xl:text-3xl space-y-3">
               <li>Design your project</li>
               <li>Track all of your time by journaling & timelapsing on our platform</li>
               <li>Submit for feedback!</li>
@@ -432,7 +440,7 @@ export default function LandingIndex() {
               <li>Repeat until you've spent 60 hours</li>
             </ol>
           </div>
-          <div className="absolute -bottom-24 right-10 mx-auto sm:mx-0 w-full sm:ml-auto mt-10 bg-white md:w-80 shadow-md border-2 border-dark-brown z-10 text-dark-brown p-4 text-2xl">
+          <div className="md:absolute -bottom-24 right-10 mx-auto sm:mx-0 w-full sm:ml-auto mt-10 bg-white md:w-80 shadow-md border-2 border-dark-brown z-10 text-dark-brown p-4 text-xl sm:text-2xl">
             <p>As long as you build for 60h, you can come to Shenzhen, China!</p>
           </div>
         </div>
@@ -442,11 +450,11 @@ export default function LandingIndex() {
       </div>
       </div>
 
-      <section className="py-8 px-6 lg:px-30 xl:px-50 flex flex-col md:flex-row justify-center items-center w-full">
+      <section className="-mt-40 px-6 lg:px-30 xl:px-50 flex flex-col md:flex-row justify-center items-center w-full">
         <h2 className="text-8xl lg:text-9xl lg:text-[10rem] font-bold">
           60H
         </h2>
-        <HalftoneBg src="/landing/person.png" objectFit="contain" background="" halftoneOpacity={0.25} className="w-full max-w-200 -mx-4 md:-mx-20 aspect-[637/576]" />
+        <HalftoneBg src="/landing/person.webp" objectFit="contain" background="" halftoneOpacity={0.25} className="w-full max-w-200 -mx-4 md:-mx-20 aspect-[637/576]" />
         <div className="flex flex-col text-center text-4xl">
           {/* <h4>shen zhen</h4> */}
           <h2 className="text-8xl lg:text-9xl lg:text-[10rem] font-bold whitespace-nowrap">深圳
@@ -459,15 +467,19 @@ export default function LandingIndex() {
         <h2 className="text-6xl font-bold mb-10">FAQ</h2>
         <div className="divide-y-2 divide-dark-brown border-y-2 border-dark-brown font-outfit">
           {[
-            { q: 'Can I join if I\'m a beginner?', a: 'Absolutely! We have beginner friendly guided projects and weekly calls where you can ask for help!' },
-            { q: 'Am I eligible?', a: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident.' },
-            { q: 'What if I can\'t come?', a: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sunt in culpa qui officia deserunt mollit anim id est laborum. Sed ut perspiciatis unde omnis iste natus error sit voluptatem.' },
-            { q: 'Is this free?', a: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut fugit, sed quia consequuntur magni dolores eos qui ratione sequi.' },
-            { q: 'New to hardware, where should I start?', a: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Neque porro quisquam est, qui dolorem ipsum quia dolor sit amet, consectetur, adipisci velit, sed quia non numquam eius modi tempora.' },
-            { q: 'What is Hack Club?', a: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Ut labore et dolore magnam aliquam quaerat voluptatem. Quis autem vel eum iure reprehenderit qui in ea voluptate velit esse quam nihil.' },
-            { q: 'Why Shenzhen, China?', a: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. At vero eos et accusamus et iusto odio dignissimos ducimus qui blanditiis praesentium voluptatum deleniti atque corrupti quos dolores et quas molestias.' },
-            { q: 'My parents are worried!', a: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nam libero tempore, cum soluta nobis est eligendi optio cumque nihil impedit quo minus id quod maxime placeat facere possimus.' },
-            { q: 'I have more questions!', a: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Temporibus autem quibusdam et aut officiis debitis aut rerum necessitatibus saepe eveniet ut et voluptates repudiandae sint et molestiae non recusandae.' },
+            { q: 'Can I join if I\'m a beginner?', a: <>Absolutely! We have <strong>beginner friendly guided projects</strong> and <strong>weekly calls</strong> where you can ask for help!</> },
+            { q: 'Am I eligible?', a: <>You must be a <strong>teenager (ages 13–18)</strong>, and under 19 before <strong>August 2026</strong>.</> },
+            { q: 'What if I can\'t come?', a: <>We will have an <strong>online shop</strong> where you can purchase prizes such as 3D printers, tools, and more!</> },
+            { q: 'Is this free?', a: <>Yes! Each of your projects will be funded up to <strong>$350 (USD)</strong>, and the event itself is <strong>100% free</strong>. As for travel, each hour you work beyond the <strong>60 hour minimum</strong> will earn you <strong>$8 (USD)</strong> and we will have need-based flight stipends available.</> },
+            { q: 'What is Hack Club?', a: <><a href="" target="_self">Hack Club</a> is a <strong>501(c)(3) nonprofit</strong> (EIN: 81-2908499) that helps high school students learn to code and build projects. We&apos;re the largest teen-led coding community, with over <strong>50,000 students</strong> building projects with their friends in Hack Club each year. Some of our past events include:
+            <ul className="list-disc ml-5 mt-1">
+              <li><a href="https://www.youtube.com/watch?v=fuTlToZ1SX8" target="_self" className="font-bold">Juice</a>: a 2 month game jam leading to a pop-up cafe in Shanghai, China!</li>
+              <li><a href="https://blueprint.hackclub.com/prototype" target="_self" className="font-bold">Prototype</a>: a 48-hour hardware hackathon in San Francisco, California.</li>
+              <li><a href="https://youtu.be/kaEFv7e49mo?si=9gATZE-c3CqwsJF2" target="_self" className="font-bold">Undercity</a>: a 4-day hardware hackathon at GitHub HQ!</li>
+            </ul>
+            </> },
+            { q: 'Why Shenzhen, China?', a: <>Shenzhen is the <strong>hardware capital of the world</strong>! Components are cheap, manufacturing is rapid, and there are massive electronics markets (see <em>Huaqiangbei</em>).</> },
+            { q: 'I have more questions!', a: <>Ask us in <a href="https://hackclub.enterprise.slack.com/archives/C0ACJ290090" target="_self" className="font-bold">#fallout-help</a> on the <a href="http://slack.hackclub.com/" target="_self">Hack Club Slack</a>, or email us at <a href="mailto:fallout@hackclub.com" className="underline">fallout@hackclub.com</a>!</> },
           ].map(({ q, a }, i) => (
             <div key={i}>
               <button
@@ -481,7 +493,7 @@ export default function LandingIndex() {
                 className="overflow-hidden transition-all duration-300 ease-in-out"
                 style={{ maxHeight: openFaq === i ? '300px' : '0px' }}
               >
-                <p className="pb-5 text-lg md:text-xl text-brown">{a}</p>
+                <div className="pb-5 text-lg md:text-xl text-brown">{a}</div>
               </div>
             </div>
           ))}
@@ -517,12 +529,12 @@ export default function LandingIndex() {
 
 
       </div>
-      <div ref={customCursorRef} className="fixed top-0 left-0 z-[9999] pointer-events-none select-none" style={{ opacity: 0 }}>
-        <svg xmlns="http://www.w3.org/2000/svg" width="36" height="48" viewBox="0 0 24 24"><path fill="#FCF1E5" stroke="#000" strokeWidth="2" d="M5.5 3.21V20.8c0 .45.54.67.85.35l4.86-4.86a.5.5 0 0 1 .35-.15h6.87a.5.5 0 0 0 .35-.85L6.35 2.85a.5.5 0 0 0-.85.35Z"></path></svg>
-      </div>
-      <div ref={pointerCursorRef} className="fixed top-0 left-0 z-[9999] pointer-events-none select-none" style={{ opacity: 0 }}>
-        <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24"><path fill="#FCF1E5" stroke="#000" strokeWidth="2" strokeLinejoin="round" d="M10 11V8.99c0-.88.59-1.64 1.44-1.86h.05A1.99 1.99 0 0 1 14 9.05V12v-2c0-.88.6-1.65 1.46-1.87h.05A1.98 1.98 0 0 1 18 10.06V13v-1.94a2 2 0 0 1 1.51-1.94h0A2 2 0 0 1 22 11.06V14c0 .6-.08 1.27-.21 1.97a7.96 7.96 0 0 1-7.55 6.48 54.98 54.98 0 0 1-4.48 0 7.96 7.96 0 0 1-7.55-6.48C2.08 15.27 2 14.59 2 14v-1.49c0-1.11.9-2.01 2.01-2.01h0a2 2 0 0 1 2.01 2.03l-.01.97v-10c0-1.1.9-2 2-2h0a2 2 0 0 1 2 2V11Z"></path></svg>
-      </div>
+    </div>
+    <div ref={customCursorRef} className="fixed top-0 left-0 z-[9999] pointer-events-none select-none" style={{ opacity: 0 }}>
+      <svg xmlns="http://www.w3.org/2000/svg" width="36" height="48" viewBox="0 0 24 24"><path fill="#FCF1E5" stroke="#000" strokeWidth="2" d="M5.5 3.21V20.8c0 .45.54.67.85.35l4.86-4.86a.5.5 0 0 1 .35-.15h6.87a.5.5 0 0 0 .35-.85L6.35 2.85a.5.5 0 0 0-.85.35Z"></path></svg>
+    </div>
+    <div ref={pointerCursorRef} className="fixed top-0 left-0 z-[9999] pointer-events-none select-none" style={{ opacity: 0 }}>
+      <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24"><path fill="#FCF1E5" stroke="#000" strokeWidth="2" strokeLinejoin="round" d="M10 11V8.99c0-.88.59-1.64 1.44-1.86h.05A1.99 1.99 0 0 1 14 9.05V12v-2c0-.88.6-1.65 1.46-1.87h.05A1.98 1.98 0 0 1 18 10.06V13v-1.94a2 2 0 0 1 1.51-1.94h0A2 2 0 0 1 22 11.06V14c0 .6-.08 1.27-.21 1.97a7.96 7.96 0 0 1-7.55 6.48 54.98 54.98 0 0 1-4.48 0 7.96 7.96 0 0 1-7.55-6.48C2.08 15.27 2 14.59 2 14v-1.49c0-1.11.9-2.01 2.01-2.01h0a2 2 0 0 1 2.01 2.03l-.01.97v-10c0-1.1.9-2 2-2h0a2 2 0 0 1 2 2V11Z"></path></svg>
     </div>
 
 </>
