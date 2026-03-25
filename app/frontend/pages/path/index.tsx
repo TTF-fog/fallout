@@ -106,8 +106,8 @@ export default function PathIndex() {
       </div>
       
 
-      <div className="fixed h-full z-10 flex justify-end items-end p-8 w-full">
-        <div className="flex flex-col items-center justify-center sm:justify-end w-full sm:w-fit h-full space-y-6">
+      <div className="fixed h-full z-10 flex justify-end items-end p-8 w-full pointer-events-none">
+        <div className="flex flex-col items-center justify-center sm:justify-end w-full sm:w-fit h-fit space-y-6 pointer-events-auto ">
           {authUser?.is_trial && <SignUpCta signInPath={sign_in_path} />}
           {/* <Leaderboard /> */}
           <div className="hidden xs:block">
