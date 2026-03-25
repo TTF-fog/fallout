@@ -46,6 +46,10 @@ class ApplicationPolicy
     record.respond_to?(:user) && record.user == user
   end
 
+  def collaborators_enabled?
+    user.present? && Flipper.enabled?(:collaborators, user) # Feature flag gating for collaborator access
+  end
+
   class Scope
     def initialize(user, scope)
       @user = user
@@ -59,5 +63,9 @@ class ApplicationPolicy
     private
 
     attr_reader :user, :scope
+
+    def collaborators_enabled?
+      user.present? && Flipper.enabled?(:collaborators, user) # Feature flag gating for collaborator access
+    end
   end
 end

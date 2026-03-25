@@ -37,9 +37,18 @@ class Project < ApplicationRecord
   has_many :ships, dependent: :destroy
   has_many :journal_entries, dependent: :destroy
   has_many :kept_journal_entries, -> { kept }, class_name: "JournalEntry"
-  has_many :collaborators, as: :collaboratable, dependent: :destroy
+  has_many :collaborators, -> { kept }, as: :collaboratable, dependent: :destroy
   has_many :collaborator_users, through: :collaborators, source: :user
-  has_many :collaboration_invites, dependent: :destroy
+  has_many :collaboration_invites, -> { kept }, dependent: :destroy
+
+  def discard
+    transaction do
+      Collaborator.where(collaboratable: self).each(&:discard)
+      CollaborationInvite.where(project: self).each(&:discard)
+      journal_entries.each(&:discard)
+      super
+    end
+  end
 
   def collaborator?(user)
     return false unless user

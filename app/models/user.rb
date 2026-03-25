@@ -53,10 +53,10 @@ class User < ApplicationRecord
   has_many :authored_mail_messages, class_name: "MailMessage", foreign_key: :author_id, dependent: :nullify, inverse_of: :author
   has_many :mail_interactions, dependent: :destroy
   has_many :critters, dependent: :destroy
-  has_many :collaborations, class_name: "Collaborator", dependent: :destroy
+  has_many :collaborations, -> { kept }, class_name: "Collaborator", dependent: :destroy
   has_many :collaborated_projects, through: :collaborations, source: :collaboratable, source_type: "Project"
-  has_many :received_collaboration_invites, class_name: "CollaborationInvite", foreign_key: :invitee_id, dependent: :destroy, inverse_of: :invitee
-  has_many :sent_collaboration_invites, class_name: "CollaborationInvite", foreign_key: :inviter_id, dependent: :destroy, inverse_of: :inviter
+  has_many :received_collaboration_invites, -> { kept }, class_name: "CollaborationInvite", foreign_key: :invitee_id, dependent: :destroy, inverse_of: :invitee
+  has_many :sent_collaboration_invites, -> { kept }, class_name: "CollaborationInvite", foreign_key: :inviter_id, dependent: :destroy, inverse_of: :inviter
 
   encrypts :hca_token
   encrypts :lapse_token

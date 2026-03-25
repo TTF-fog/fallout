@@ -13,7 +13,7 @@ class ProjectsController < ApplicationController
   def index
     scope = policy_scope(Project).where(user: current_user)
     if collaborators_enabled?
-      collaborated_ids = Collaborator.where(user: current_user, collaboratable_type: "Project").select(:collaboratable_id)
+      collaborated_ids = Collaborator.kept.where(user: current_user, collaboratable_type: "Project").select(:collaboratable_id)
       scope = scope.or(Project.kept.where(id: collaborated_ids))
     end
     scope = scope.includes(kept_journal_entries: [ :recordings, { images_attachments: :blob } ])

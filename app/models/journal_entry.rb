@@ -32,7 +32,7 @@ class JournalEntry < ApplicationRecord
   has_many :lapse_timelapses, through: :recordings, source: :recordable, source_type: "LapseTimelapse"
   has_many :you_tube_videos, through: :recordings, source: :recordable, source_type: "YouTubeVideo"
   has_one :critter, dependent: :nullify
-  has_many :collaborators, as: :collaboratable, dependent: :destroy
+  has_many :collaborators, -> { kept }, as: :collaboratable, dependent: :destroy
   has_many :collaborator_users, through: :collaborators, source: :user
   has_many_attached :images
 

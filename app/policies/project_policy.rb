@@ -11,7 +11,7 @@ class ProjectPolicy < ApplicationPolicy
 
   def show?
     return false if record.discarded? && !admin?
-    admin? || !record.is_unlisted || owner? || record.collaborator?(user) # Collaborators can see unlisted projects they're on
+    admin? || !record.is_unlisted || owner? || (collaborators_enabled? && record.collaborator?(user)) # Collaborators can see unlisted projects they're on (flag-gated)
   end
 
   def create?
@@ -32,8 +32,8 @@ class ProjectPolicy < ApplicationPolicy
   end
 
   def manage_collaborators?
-    return false unless user.present? && !user.trial?
-    admin? || owner? # Only verified project owners can send/revoke invites
+    return false unless user.present? && !user.trial? && collaborators_enabled?
+    admin? || owner? # Only verified project owners can send/revoke invites (flag-gated)
   end
 
   class Scope < ApplicationPolicy::Scope
@@ -41,10 +41,12 @@ class ProjectPolicy < ApplicationPolicy
       if user&.admin?
         scope.all
       else
-        collaborated_ids = Collaborator.where(user: user, collaboratable_type: "Project").select(:collaboratable_id)
-        scope.kept.listed
-          .or(scope.kept.where(user: user))
-          .or(scope.kept.where(id: collaborated_ids)) # Include projects user collaborates on
+        base = scope.kept.listed.or(scope.kept.where(user: user))
+        if collaborators_enabled?
+          collaborated_ids = Collaborator.kept.where(user: user, collaboratable_type: "Project").select(:collaboratable_id)
+          base = base.or(scope.kept.where(id: collaborated_ids)) # Include projects user collaborates on (flag-gated)
+        end
+        base
       end
     end
   end

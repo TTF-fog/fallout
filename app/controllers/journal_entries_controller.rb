@@ -6,7 +6,7 @@ class JournalEntriesController < ApplicationController
   def new
     projects = Project.kept.where(user: current_user)
     if collaborators_enabled?
-      collaborated_project_ids = Collaborator.where(user: current_user, collaboratable_type: "Project").select(:collaboratable_id)
+      collaborated_project_ids = Collaborator.kept.where(user: current_user, collaboratable_type: "Project").select(:collaboratable_id)
       projects = projects.or(Project.kept.where(id: collaborated_project_ids))
     end
     projects = projects.includes(:collaborator_users, :user)

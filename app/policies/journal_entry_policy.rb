@@ -4,21 +4,23 @@ class JournalEntryPolicy < ApplicationPolicy
   def create?
     return false unless user.present?
     return true if record.project&.user == user # Project owner can always create (preserves trial user behavior)
-    !user.trial? && record.project&.collaborator?(user) # Collaborators must be verified
+    collaborators_enabled? && !user.trial? && record.project&.collaborator?(user) # Collaborators must be verified and flag-gated
   end
 
   def show?
-    admin? || owner? || record.project&.owner_or_collaborator?(user)
+    admin? || owner? || (collaborators_enabled? && record.project&.owner_or_collaborator?(user)) # Collaborator visibility is flag-gated
   end
 
   def update?
     return true if admin?
-    owner? && record.project&.owner_or_collaborator?(user) # Author must still be a project participant to edit
+    return false unless owner?
+    record.project&.user == user || (collaborators_enabled? && record.project&.owner_or_collaborator?(user)) # Collaborator edit access is flag-gated
   end
 
   def destroy?
     return true if admin?
-    owner? && record.project&.owner_or_collaborator?(user) # Author must still be a project participant to delete
+    return false unless owner?
+    record.project&.user == user || (collaborators_enabled? && record.project&.owner_or_collaborator?(user)) # Collaborator delete access is flag-gated
   end
 
   class Scope < ApplicationPolicy::Scope
@@ -26,9 +28,14 @@ class JournalEntryPolicy < ApplicationPolicy
       if user&.admin?
         scope.all
       else
-        collaborated_project_ids = Collaborator.where(user: user, collaboratable_type: "Project").select(:collaboratable_id)
-        scope.kept.where(user: user)
-          .or(scope.kept.where(project_id: collaborated_project_ids)) # Entries on projects user collaborates on
+        owned_project_ids = Project.kept.where(user: user).select(:id)
+        base = scope.kept.where(user: user)
+          .or(scope.kept.where(project_id: owned_project_ids)) # Entries on projects user owns
+        if collaborators_enabled?
+          collaborated_project_ids = Collaborator.kept.where(user: user, collaboratable_type: "Project").select(:collaboratable_id)
+          base = base.or(scope.kept.where(project_id: collaborated_project_ids)) # Entries on projects user collaborates on (flag-gated)
+        end
+        base
       end
     end
   end

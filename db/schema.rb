@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_03_23_185701) do
+ActiveRecord::Schema[8.1].define(version: 2026_03_25_200036) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -98,11 +98,13 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_23_185701) do
 
   create_table "collaboration_invites", force: :cascade do |t|
     t.datetime "created_at", null: false
+    t.datetime "discarded_at"
     t.bigint "invitee_id", null: false
     t.bigint "inviter_id", null: false
     t.bigint "project_id", null: false
     t.integer "status", default: 0, null: false
     t.datetime "updated_at", null: false
+    t.index ["discarded_at"], name: "index_collaboration_invites_on_discarded_at"
     t.index ["invitee_id"], name: "index_collaboration_invites_on_invitee_id"
     t.index ["inviter_id"], name: "index_collaboration_invites_on_inviter_id"
     t.index ["project_id", "invitee_id", "status"], name: "index_collaboration_invites_on_project_invitee_status"
@@ -113,9 +115,11 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_23_185701) do
     t.bigint "collaboratable_id", null: false
     t.string "collaboratable_type", null: false
     t.datetime "created_at", null: false
+    t.datetime "discarded_at"
     t.datetime "updated_at", null: false
     t.bigint "user_id", null: false
     t.index ["collaboratable_type", "collaboratable_id"], name: "index_collaborators_on_collaboratable"
+    t.index ["discarded_at"], name: "index_collaborators_on_discarded_at"
     t.index ["user_id", "collaboratable_type", "collaboratable_id"], name: "index_collaborators_uniqueness", unique: true
     t.index ["user_id"], name: "index_collaborators_on_user_id"
   end
