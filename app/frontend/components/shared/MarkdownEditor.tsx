@@ -11,6 +11,8 @@ type MarkdownEditorProps = {
   minChars?: number
   minImages?: number
   draftStatus?: string | null
+  onFullscreen?: () => void
+  onShrink?: () => void
 }
 
 // --- Helpers ---
@@ -463,6 +465,8 @@ export default function MarkdownEditor({
   minChars,
   minImages,
   draftStatus,
+  onFullscreen,
+  onShrink,
 }: MarkdownEditorProps) {
   const [tab, setTab] = useState<'write' | 'preview'>('write')
   const [blobSignedIds, setBlobSignedIds] = useState<string[]>([])
@@ -783,7 +787,39 @@ export default function MarkdownEditor({
             <PaperclipIcon />
             <span>Paste, click, or drop to add images</span>
           </button>
-          <MarkdownBadge />
+          {onFullscreen ? (
+            <button
+              type="button"
+              onClick={onFullscreen}
+              className="text-dark-brown/50 hover:text-dark-brown transition-colors cursor-pointer"
+              title="Fullscreen editor"
+            >
+              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15"
+                />
+              </svg>
+            </button>
+          ) : onShrink ? (
+            <button
+              type="button"
+              onClick={onShrink}
+              className="text-dark-brown/50 hover:text-dark-brown transition-colors cursor-pointer"
+              title="Exit fullscreen"
+            >
+              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M9 9V4.5M9 9H4.5M9 9 3.75 3.75M9 15v4.5M9 15H4.5M9 15l-5.25 5.25M15 9h4.5M15 9V4.5M15 9l5.25-5.25M15 15h4.5M15 15v4.5m0-4.5 5.25 5.25"
+                />
+              </svg>
+            </button>
+          ) : (
+            <MarkdownBadge />
+          )}
         </div>
 
         {/* Validation counters */}

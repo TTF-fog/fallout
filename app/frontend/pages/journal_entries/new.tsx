@@ -125,6 +125,7 @@ function NewJournal({
   const [draftStatus, setDraftStatus] = useState<string | null>(null)
   const modalRef = useRef<{ close: () => void }>(null)
   const [selectedLookoutTokens, setSelectedLookoutTokens] = useState<Set<string>>(new Set())
+  const [fullscreenEditor, setFullscreenEditor] = useState(false)
 
   const draftKey = selectedProject ? `journal-draft-${selectedProject.id}` : null
   const [markdown, setMarkdown] = useState(() => {
@@ -378,6 +379,7 @@ function NewJournal({
             onBlobsChange={setBlobSignedIds}
             directUploadUrl={direct_upload_url}
             previewUrl="/journal_entries/preview"
+            onFullscreen={() => setFullscreenEditor(true)}
           />
         </div>
         {selectedProject && (
@@ -542,15 +544,42 @@ function NewJournal({
     </div>
   )
 
+  const fullscreenModal = fullscreenEditor && (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+      onClick={() => setFullscreenEditor(false)}
+    >
+      <div
+        className="bg-light-brown border-2 border-dark-brown rounded-lg w-[90vw] h-[85vh] flex flex-col overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <MarkdownEditor
+          value={markdown}
+          onChange={setMarkdown}
+          onBlobsChange={setBlobSignedIds}
+          directUploadUrl={direct_upload_url}
+          previewUrl="/journal_entries/preview"
+          onShrink={() => setFullscreenEditor(false)}
+        />
+      </div>
+    </div>
+  )
+
   if (is_modal) {
     return (
       <Modal ref={modalRef} panelClasses="h-full" paddingClasses="max-w-5xl mx-auto" closeButton={false} maxWidth="7xl">
         <BookLayout className="max-h-[40em]">{content}</BookLayout>
+        {fullscreenModal}
       </Modal>
     )
   }
 
-  return <div className="h-screen">{content}</div>
+  return (
+    <>
+      <div className="h-screen">{content}</div>
+      {fullscreenModal}
+    </>
+  )
 }
 
 function DisabledOverlay() {
