@@ -15,7 +15,6 @@ export type FlashData = Record<string, string>
 
 export interface Features {
   collaborators?: boolean
-  lookout?: boolean
 }
 
 export interface SharedProps {

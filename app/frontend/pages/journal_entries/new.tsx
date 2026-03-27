@@ -1,11 +1,10 @@
 import { useState, useEffect, useRef, useMemo, type ReactNode } from 'react'
-import { Deferred as InertiaDeferred, router, usePage } from '@inertiajs/react'
+import { Deferred as InertiaDeferred, router } from '@inertiajs/react'
 import { Deferred as ModalDeferred, Modal } from '@inertiaui/modal-react'
 import BookLayout from '@/components/shared/BookLayout'
 import Button from '@/components/shared/Button'
 import Input from '@/components/shared/Input'
 import MarkdownEditor from '@/components/shared/MarkdownEditor'
-import type { SharedProps } from '@/types'
 
 const MIN_IMAGES = 1
 const MIN_CHARS = 100
@@ -104,8 +103,6 @@ function NewJournal({
   lookout_timelapses: LookoutRecording[] | null
   timelapses: Timelapse[] | null
 }) {
-  const { features } = usePage<SharedProps>().props
-  const lookoutEnabled = !!(features as Record<string, boolean> | undefined)?.lookout
   const initialProject = selected_project_id
     ? (projects.find((p) => p.id === selected_project_id) ?? null)
     : projects.length === 1
@@ -113,7 +110,7 @@ function NewJournal({
       : null
 
   const [selectedProject, setSelectedProject] = useState<Project | null>(initialProject)
-  const [rightTab, setRightTab] = useState<'lapse' | 'youtube' | 'lookout'>(lookoutEnabled ? 'lookout' : 'lapse')
+  const [rightTab, setRightTab] = useState<'lapse' | 'youtube' | 'lookout'>('lookout')
   const [selectedTimelapses, setSelectedTimelapses] = useState<Set<string>>(new Set())
   const [youtubeVideos, setYoutubeVideos] = useState<YouTubeVideo[]>([])
   const [youtubeUrl, setYoutubeUrl] = useState('')
@@ -273,7 +270,7 @@ function NewJournal({
   }
 
   const ribbonTabs: { label: string; tab: 'lapse' | 'youtube' | 'lookout'; badge?: string }[] = [
-    ...(lookoutEnabled ? [{ label: 'Lookout', tab: 'lookout' as const, badge: 'NEW' }] : []),
+    { label: 'Lookout', tab: 'lookout' as const, badge: 'NEW' },
     { label: 'YouTube', tab: 'youtube' },
     { label: 'Lapse', tab: 'lapse' },
   ]
@@ -512,34 +509,32 @@ function NewJournal({
           )}
         </div>
 
-        {lookoutEnabled && (
-          <div className={rightTab === 'lookout' ? 'flex flex-col min-h-0 flex-1' : 'hidden'}>
-            <h2 className="text-center font-bold text-2xl uppercase tracking-wide">Lookout</h2>
-            <p className="text-center text-sm text-dark-brown mt-1 mb-4">
-              New! Record your screen or camera directly from the browser.
-              <br />
-              Alternatively, download our desktop app.
-            </p>
+        <div className={rightTab === 'lookout' ? 'flex flex-col min-h-0 flex-1' : 'hidden'}>
+          <h2 className="text-center font-bold text-2xl uppercase tracking-wide">Lookout</h2>
+          <p className="text-center text-sm text-dark-brown mt-1 mb-4">
+            New! Record your screen or camera directly from the browser.
+            <br />
+            Alternatively, download our desktop app.
+          </p>
 
-            <div className="flex-1 min-h-0 overflow-y-auto p-1 -m-1">
-              <Deferred data="lookout_timelapses" fallback={<LookoutTimelapseSkeleton />}>
-                <LookoutTimelapseBrowser
-                  recordings={lookout_timelapses ?? []}
-                  selectedIds={selectedLookoutTokens}
-                  onToggle={(id) => {
-                    setSelectedLookoutTokens((prev) => {
-                      const next = new Set(prev)
-                      if (next.has(id)) next.delete(id)
-                      else next.add(id)
-                      return next
-                    })
-                  }}
-                  selectedProject={selectedProject}
-                />
-              </Deferred>
-            </div>
+          <div className="flex-1 min-h-0 overflow-y-auto p-1 -m-1">
+            <Deferred data="lookout_timelapses" fallback={<LookoutTimelapseSkeleton />}>
+              <LookoutTimelapseBrowser
+                recordings={lookout_timelapses ?? []}
+                selectedIds={selectedLookoutTokens}
+                onToggle={(id) => {
+                  setSelectedLookoutTokens((prev) => {
+                    const next = new Set(prev)
+                    if (next.has(id)) next.delete(id)
+                    else next.add(id)
+                    return next
+                  })
+                }}
+                selectedProject={selectedProject}
+              />
+            </Deferred>
           </div>
-        )}
+        </div>
       </div>
     </div>
   )

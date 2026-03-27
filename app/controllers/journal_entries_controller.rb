@@ -27,16 +27,12 @@ class JournalEntriesController < ApplicationController
       is_modal: request.headers["X-InertiaUI-Modal"].present?,
       direct_upload_url: rails_direct_uploads_url,
       lookout_timelapses: InertiaRails.defer {
-        if Flipper.enabled?(:"03_18_collapse", current_user)
-          tokens = current_user.pending_lookout_tokens
-          if tokens.any?
-            sessions = LookoutService.batch_sessions(tokens) || []
-            sessions
-              .select { |s| %w[complete stopped].include?(s["status"]) }
-              .map { |s| { token: s["token"], name: s["name"], status: s["status"], duration: s["trackedSeconds"], thumbnail_url: s["thumbnailUrl"], created_at: s["createdAt"] } }
-          else
-            []
-          end
+        tokens = current_user.pending_lookout_tokens
+        if tokens.any?
+          sessions = LookoutService.batch_sessions(tokens) || []
+          sessions
+            .select { |s| %w[complete stopped].include?(s["status"]) }
+            .map { |s| { token: s["token"], name: s["name"], status: s["status"], duration: s["trackedSeconds"], thumbnail_url: s["thumbnailUrl"], created_at: s["createdAt"] } }
         else
           []
         end
