@@ -319,6 +319,7 @@ export default function LandingIndex() {
         duration: 0.7 + Math.random() * 0.8,
         delay: Math.random() * 0.3,
         ease: 'bounce.out',
+        overwrite: true,
       })
     })
   }
@@ -454,12 +455,12 @@ export default function LandingIndex() {
           </div>
         </section>
 
-        <div ref={belowFoldRef} className="relative -mt-10">
-          <div className="w-screen">
+        <div ref={belowFoldRef} className="relative">
+          <div className="w-screen bg-transparent -mt-10">
             <img src="/landing/clouds/banner.png" className="object-cover object-bottom select-none" />
           </div>
 
-          <div className="w-screen bg-beige px-3 sm:px-6 md:px-8 lg:px-18 xl:px-36 2xl:px-54 pt-10">
+          <div className="w-screen bg-beige px-3 sm:px-6 md:px-8 lg:px-18 xl:px-36 2xl:px-54 ">
             <section className="bg-dark-brown border-2 border-dark-brown text-beige p-6 md:p-10 flex flex-col md:flex-row justify-center items-center gap-4 relative lg:items-stretch rounded-sm">
               <div className="flex flex-col font-normal">
                 <span className="text-3xl sm:text-5xl font-semibold font-outfit">WHAT IS</span>
