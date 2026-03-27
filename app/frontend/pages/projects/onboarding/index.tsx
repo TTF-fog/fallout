@@ -1,4 +1,4 @@
-import { type ReactNode, useState, useRef, useEffect } from 'react'
+import { type ReactNode, useState, useRef } from 'react'
 import { router } from '@inertiajs/react'
 import { Modal } from '@inertiaui/modal-react'
 import Frame from '@/components/shared/Frame'
@@ -6,41 +6,12 @@ import Button from '@/components/shared/Button'
 import Input from '@/components/shared/Input'
 import TextArea from '@/components/shared/TextArea'
 import { Pagination, PaginationPage } from '@/components/shared/Pagination'
-
-function IntroVideo({ onContinue }: { onContinue: () => void }) {
-  const videoRef = useRef<HTMLVideoElement>(null)
-  const [ended, setEnded] = useState(false)
-
-  useEffect(() => {
-    videoRef.current?.play().catch(() => {})
-  }, [])
-
-  return (
-    <>
-      <div className="flex flex-col flex-1 min-h-0 items-center justify-center">
-        <video
-          ref={videoRef}
-          src="/intro.mp4"
-          className="w-full aspect-video rounded-lg"
-          autoPlay
-          playsInline
-          controls
-          onEnded={() => setEnded(true)}
-        />
-      </div>
-      <div className="flex justify-end mt-auto pt-4">
-        <Button type="button" onClick={onContinue}>
-          Continue
-        </Button>
-      </div>
-    </>
-  )
-}
+import { Label } from '@headlessui/react'
 
 function ProjectsOnboarding({ is_modal }: { is_modal: boolean }) {
+  const videoRef = useRef<HTMLVideoElement>(null)
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
-  const [agreed, setAgreed] = useState(false)
   const [processing, setProcessing] = useState(false)
   const modalRef = useRef<{ close: () => void }>(null)
 
@@ -59,119 +30,133 @@ function ProjectsOnboarding({ is_modal }: { is_modal: boolean }) {
   const content = (
     <form onSubmit={submit} className="w-full h-full mx-auto p-8">
       <Pagination className="flex flex-col h-full">
-        <PaginationPage>{({ next }) => <IntroVideo onContinue={next} />}</PaginationPage>
+        <PaginationPage>
+          {({ next }) => (
+            <div className="space-y-5 text-xl flex flex-col h-full">
+              <h2 className="font-outfit text-3xl font-semibold">Welcome to Fallout!!</h2>
+              <div className="space-y-4">
+                <p>
+                  This is a walkthrough to get your started!
+                  <br />
+                  We've made a really cool video showing how Fallout works. Give it a watch!
+                </p>
+              </div>
+              <div className="grow min-h-0 flex items-center justify-center">
+                <video
+                  ref={videoRef}
+                  src="/intro.mp4"
+                  className="max-w-full max-h-full rounded-lg"
+                  autoPlay
+                  playsInline
+                  controls
+                />
+              </div>
+              <Button type="button" onClick={next} className="ml-auto">
+                Continue
+              </Button>
+            </div>
+          )}
+        </PaginationPage>
 
         <PaginationPage>
           {({ next, prev }) => (
-            <>
-              <div className="flex flex-col flex-1 min-h-0">
-                <h1 className="font-bold text-3xl mb-4">Let's get started!</h1>
-                <p className="text-lg mb-4">
-                  Build any hardware project and we'll help you make it real, but there are some things we look out for.
+            <div className="space-y-5 text-xl flex flex-col h-full">
+              <h2 className="font-outfit text-3xl font-semibold">Start your first project</h2>
+              <div className="space-y-4">
+                <p>Build as many hardware projects as you wish, and we'll help you make it real.</p>
+                <div className="flex justify-between">
+                  <div>
+                    <p>However, there are some things we look for!</p>
+                    <ul className="list-disc ml-5 pt-2 min-w-90">
+                      <li>We value effort more than technical ability.</li>
+                      <li>Be original and personal. You don't need to solve climate change.</li>
+                      <li>Most of your project should be physical and hands-on.</li>
+                      <li>It should be by you, not AI, or a tutorial online.</li>
+                    </ul>
+                  </div>
+                  <div className="hidden lg:flex items-center justify-center">
+                    <img src="/onboarding/example.webp" alt="Example Projects" className="w-60" />
+                  </div>
+                </div>
+                <p>
+                  We know starting your first project is hard. We have a community to help you!
+                  <br />
+                  There's a good chance your first idea isn't great, but just jot something down!
                 </p>
-                <p className="text-lg mb-4">
-                  We value effort more than technical ability. Build something you've been wanting to make! It can be
-                  really simple, but it should feel closer to a product than a demo. Your goal is to build something
-                  others can re-create, experience, and build off of. AI is always low effort and will not help you to
-                  create something personal.
-                </p>
-                <p className="text-lg mb-4">
-                  Don't worry if you don't know how to get there, you'll be part of a greater community where you can
-                  ask for help!
-                </p>
-                <p className="text-lg mb-6">First, describe what you want to build, and why!</p>
+              </div>
+              <div className="grow min-h-0 flex flex-col">
+                <label className="text-lg mb-2">
+                  <span className="font-bold">Describe what you want to build.</span> You'll be able to edit this later.
+                </label>
                 <TextArea
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  className="flex-1 min-h-lh overflow-y-auto resize-y"
+                  className="w-full h-full resize-y px-3 py-2 text-base"
                 />
               </div>
-              <div className="flex justify-between mt-auto pt-4">
+              <div className="flex justify-between">
                 <Button variant="link" type="button" onClick={prev}>
-                  go back
+                  Back
                 </Button>
                 <Button type="button" onClick={next} disabled={!description.trim()}>
                   Continue
                 </Button>
               </div>
-            </>
-          )}
-        </PaginationPage>
-
-        <PaginationPage>
-          {({ next, prev }) => (
-            <>
-              <div className="flex-1">
-                <h1 className="font-bold text-3xl mb-4">Here's how it'll work</h1>
-                <p className="text-lg mb-4">
-                  You'll be tracking your progress and hours through a combination of journaling and timelapses.
-                </p>
-                <p className="text-lg mb-4">
-                  You should timelapse/screen record everything that is hands-on. Time spent on research, design, CAD,
-                  assembly counts, but waiting for 3D prints, or downloading software do not.
-                </p>
-                <p className="text-lg mb-4">
-                  Journals can be tedious to write. Treat journals as notes for your future self and others to learn off
-                  from your experience. AI doesn't know about your experience, so don't use it.
-                </p>
-                <p className="text-lg mb-6">
-                  We're trusting you to track your hours truthfully. We'll be checking what you submit. Fraudulent
-                  submissions will lead to a ban.
-                </p>
-                <label className="flex items-center gap-3 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={agreed}
-                    onChange={(e) => setAgreed(e.target.checked)}
-                    className="custom-checkbox"
-                  />
-                  <span className="text-lg font-bold">I understand and I agree!</span>
-                </label>
-              </div>
-              <div className="flex justify-between mt-auto pt-4">
-                <Button variant="link" type="button" onClick={prev}>
-                  go back
-                </Button>
-                <Button type="button" onClick={next} disabled={!agreed}>
-                  Continue
-                </Button>
-              </div>
-            </>
+            </div>
           )}
         </PaginationPage>
 
         <PaginationPage>
           {({ prev }) => (
-            <>
-              <div className="flex-1">
-                <h1 className="font-bold text-3xl mb-4">Alright, let's go!</h1>
-                <p className="text-lg mb-4">If you had to remember 3 things from this, it'd be:</p>
-                <ol className="text-lg mb-6 list-decimal list-inside space-y-2">
-                  <li>Build something you've been wanting to make</li>
-                  <li>Timelapse/screen record your hands-on work</li>
-                  <li>Track your hours truthfully</li>
-                </ol>
-                <p className="text-lg mb-4">
-                  You should start designing your project and log it using lapse! Click on the next truck to do so!
+            <div className="space-y-5 text-xl flex flex-col h-full">
+              <h2 className="font-outfit text-3xl font-semibold">Here's how it'll work</h2>
+              <div className="space-y-4">
+                <p>We need to make sure the time you're spending is real.</p>
+                <p>You'll be time-lapsing your progress, and journaling.</p>
+                <p>
+                  Journaling is a great practice for your future self and others hoping to learn from your experiences.
+                  Don't use AI. AI doesn't know your experiences.
                 </p>
-                <p className="text-lg mb-6">Before we wrap here, give your project a fun name</p>
+                <div className="flex justify-between">
+                  <div className="space-y-4">
+                    <p>
+                      Screen record and film everything that's hands-on. We have more information in our documentation!
+                      (check the backpack icon on the main page →)
+                    </p>
+                    <p>
+                      We've written a lot of helpful notes in the documentation section.
+                      <br />
+                      Make sure to give it a read after this: (backpack icon on the main page →)
+                    </p>
+                  </div>
+                  <div className="hidden lg:flex justify-center items-center">
+                    <a href="/docs" target="_blank" rel="noopener noreferrer">
+                      <img src="/icon/guide.webp" alt="Guide Icon" className="w-50" />
+                    </a>
+                  </div>
+                </div>
+              </div>
+              <div className="grow min-h-0 flex flex-col">
+                <label className="text-lg mb-2">
+                  <span className="font-bold">Give your project a fun name.</span> You'll be able to edit this later.
+                </label>
                 <Input
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="My awesome project"
-                  autoFocus
+                  className="text-base px-3 py-2"
+                  placeholder=""
                 />
               </div>
-              <div className="flex justify-between mt-auto pt-4">
+              <div className="flex justify-between">
                 <Button variant="link" type="button" onClick={prev}>
-                  go back
+                  Back
                 </Button>
                 <Button type="submit" disabled={!name.trim() || processing}>
-                  {processing ? 'Creating...' : 'Create Project'}
+                  {processing ? 'Creating...' : "Let's start!"}
                 </Button>
               </div>
-            </>
+            </div>
           )}
         </PaginationPage>
       </Pagination>

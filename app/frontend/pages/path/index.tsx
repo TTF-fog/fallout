@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import type { ReactNode } from 'react'
 import { Link, usePage } from '@inertiajs/react'
 import type { SharedProps } from '@/types'
@@ -45,6 +45,27 @@ export default function PathIndex() {
 
   const [showBanner, setShowBanner] = useState(() => localStorage.getItem('kickoff_banner_dismissed') !== 'true')
 
+  const modalOpen = stack.length > 0
+
+  const [readDocsNudge, setReadDocsNudge] = useState(false)
+  const prevHasProjects = useRef(has_projects)
+
+  // Detect first project creation: has_projects flips false → true while modal is closing
+  useEffect(() => {
+    if (!prevHasProjects.current && has_projects) {
+      setReadDocsNudge(true)
+    }
+    prevHasProjects.current = has_projects
+  }, [has_projects])
+
+  // Delay showing "Read this!" tooltip so it appears after modal fade-out
+  const [docsNudgeReady, setDocsNudgeReady] = useState(false)
+  useEffect(() => {
+    if (!readDocsNudge) return
+    const timer = setTimeout(() => setDocsNudgeReady(true), 500)
+    return () => clearTimeout(timer)
+  }, [readDocsNudge])
+
   const [autoOpenModal, setAutoOpenModal] = useState(() => {
     if (typeof window === 'undefined') return false
     const params = new URLSearchParams(window.location.search)
@@ -60,9 +81,10 @@ export default function PathIndex() {
           hasProjects={has_projects}
           journalEntryCount={journal_entry_count}
           critterVariant={i >= 1 ? critter_variants[i - 1] ?? undefined : undefined}
+          readDocsNudge={readDocsNudge}
         />
       )),
-    [has_projects, journal_entry_count, critter_variants],
+    [has_projects, journal_entry_count, critter_variants, readDocsNudge],
   )
 
   useEffect(() => {
@@ -117,13 +139,13 @@ export default function PathIndex() {
       </div>
 
       <div className="fixed z-10 flex flex-row xs:flex-col items-center xs:items-start space-y-4 bottom-2 left-2 xs:bottom-6 xs:left-6">
-        <Tooltip>
+        <Tooltip alwaysShow={docsNudgeReady && !modalOpen}>
           <TooltipTrigger>
-            <Link href="/docs">
+            <Link href="/docs" onClick={() => setReadDocsNudge(false)}>
               <img src="/icon/guide.webp" alt="Guide" className="cursor-pointer w-20 xs:w-25" />
             </Link>
           </TooltipTrigger>
-          <TooltipContent>Docs & Resources</TooltipContent>
+          <TooltipContent>{readDocsNudge ? 'Read this!' : 'Docs & Resources'}</TooltipContent>
         </Tooltip>
         <Tooltip>
           <TooltipTrigger>

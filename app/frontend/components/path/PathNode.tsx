@@ -16,12 +16,14 @@ export default function PathNode({
   hasProjects = false,
   journalEntryCount = 0,
   critterVariant,
+  readDocsNudge = false,
 }: {
   index: number
   interactive?: boolean
   hasProjects?: boolean
   journalEntryCount?: number
   critterVariant?: string
+  readDocsNudge?: boolean
 }) {
   const activeIndex = hasProjects ? journalEntryCount + 1 : 0
   const state: 'completed' | 'active' | 'locked' =
@@ -88,7 +90,9 @@ export default function PathNode({
             onClick={() =>
               notify(
                 'alert',
-                "You've finished this step! Want to create another project? Click the projects button in the left (Hint: Fish in a box)",
+                readDocsNudge
+                  ? 'Check out the docs & resources (backpack icon to the left)'
+                  : "You've finished this step! Want to create another project? Click the projects button in the left (Hint: Fish in a box)",
               )
             }
             className="outline-0"
@@ -99,9 +103,11 @@ export default function PathNode({
           starImage
         )
       ) : state === 'active' && interactive ? (
-        isTrial ? (
+        isTrial || readDocsNudge ? (
           <button
-            onClick={() => notify('alert', 'You need to verify your account before continuing!')}
+            onClick={() => notify('alert', isTrial
+              ? 'You need to verify your account before continuing!'
+              : 'Check out the docs & resources (backpack icon to the left)')}
             className="outline-0"
           >
             {billboardImage}
@@ -111,6 +117,13 @@ export default function PathNode({
             {billboardImage}
           </ModalLink>
         )
+      ) : readDocsNudge && interactive ? (
+        <button
+          onClick={() => notify('alert', 'Check out the docs & resources (backpack icon to the left)')}
+          className="outline-0"
+        >
+          {billboardImage}
+        </button>
       ) : (
         billboardImage
       )}
@@ -120,8 +133,8 @@ export default function PathNode({
   if (!interactive) return content
 
   if (state === 'active') {
-    const tooltipText = index === 0 ? 'Start here!' : journalEntryCount === 0 ? 'Here next!' : 'Continue here!'
-    const showAlways = index === 0 ? !modalOpen : activeReady && !modalOpen
+    const tooltipText = readDocsNudge && index !== 0 ? 'Locked' : index === 0 ? 'Start here!' : journalEntryCount === 0 ? 'Here next!' : 'Continue here!'
+    const showAlways = readDocsNudge ? false : index === 0 ? !modalOpen : activeReady && !modalOpen
     return (
       <Tooltip side="top" gap={12} trackScroll alwaysShow={showAlways} snapWhenOffscreen={snapPosition}>
         <TooltipTrigger>{content}</TooltipTrigger>
