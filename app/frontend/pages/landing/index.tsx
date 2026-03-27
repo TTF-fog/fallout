@@ -196,8 +196,8 @@ export default function LandingIndex() {
         const cx = rect.left + rect.width / 2
         const cy = rect.top + rect.height / 2
         const cap = 18
-        const px = Math.max(-cap, Math.min(cap, (e.clientX - cx) * 0.3))
-        const py = Math.max(-cap, Math.min(cap, (e.clientY - cy) * 0.3))
+        const px = Math.max(-cap, Math.min(cap, (e.clientX - cx) * 0.6))
+        const py = Math.max(-cap, Math.min(cap, (e.clientY - cy) * 0.6))
         gsap.to(span, { x: px, y: py, duration: 0.5, ease: 'power3.out', overwrite: 'auto' })
       }
       span.addEventListener('mousemove', onMove)
@@ -216,13 +216,13 @@ export default function LandingIndex() {
       let cursorVisible = false
       const onCursorMove = (e: MouseEvent) => {
         const isClickable = !!(e.target as Element)?.closest('.clickme, a, button, [role="button"]')
-        // Arrow: tip at viewBox (5.5,3.21) → rendered (8,6) at 36x48
-        gsap.set(customCursor, { x: e.clientX - 8, y: e.clientY - 6, opacity: cursorVisible && !isClickable ? 1 : 0 })
+        // Arrow: tip at viewBox (5.5,3.21) → rendered (8,5) at 36x36
+        gsap.set(customCursor, { x: e.clientX - 8, y: e.clientY - 5, opacity: cursorVisible && !isClickable ? 1 : 0 })
         if (pointerCursor) {
-          // Hand: index finger tip at viewBox (10,9) → rendered (15,13) at 36x36
+          // Hand: index finger tip at viewBox (10,9) → rendered (15,14) at 36x36
           gsap.set(pointerCursor, {
             x: e.clientX - 15,
-            y: e.clientY - 13,
+            y: e.clientY - 14,
             opacity: cursorVisible && isClickable ? 1 : 0,
           })
         }
@@ -236,7 +236,7 @@ export default function LandingIndex() {
         const { innerWidth, innerHeight } = window
         const dLeft = clientX, dRight = innerWidth - clientX, dTop = clientY, dBottom = innerHeight - clientY
         const min = Math.min(dLeft, dRight, dTop, dBottom)
-        let tx = clientX - 8, ty = clientY - 6
+        let tx = clientX - 8, ty = clientY - 5
         if (min === dLeft) tx = -40
         else if (min === dRight) tx = innerWidth + 8
         else if (min === dTop) ty = -52
@@ -295,6 +295,8 @@ export default function LandingIndex() {
   }, [])
 
   const [openFaq, setOpenFaq] = useState<number | null>(null)
+  const [videoOpen, setVideoOpen] = useState(true)
+  const iframeRef = useRef<HTMLIFrameElement>(null)
   const scrollHintRef = useRef<HTMLDivElement>(null)
   const highlight1Ref = useRef<HTMLSpanElement>(null)
   const highlight2Ref = useRef<HTMLSpanElement>(null)
@@ -345,34 +347,15 @@ export default function LandingIndex() {
   return (
     <>
       <div ref={preloaderRef} className="fixed inset-0 bg-blue z-50 pointer-events-none" />
-      <nav className="absolute top-3 px-3 w-full grid grid-cols-3 items-center z-30 text-white">
-        <img src="/landing/flag.svg" className="w-20 sm:w-30" />
-        <div
-          ref={falloutLettersRef}
-          className="clickme text-3xl md:text-[2.5rem] font-bells cursor-pointer select-none md:space-x-[3px] justify-self-center whitespace-nowrap"
-          onClick={handleFalloutClick}
-        >
-          <span className="inline-block">F</span>
-          <span className="inline-block">A</span>
-          <span className="inline-block">L</span>
-          <span className="inline-block">L</span>
-          <span className="inline-block">O</span>
-          <span className="inline-block">U</span>
-          <span className="inline-block">T</span>
-        </div>
-        <a
-          href={shared.sign_in_path}
-          className="justify-self-end w-fit h-fit shrink-0 border-2 border-dark-brown bg-brown text-light-brown font-bold whitespace-nowrap text-sm sm:text-xl md:text-2xl px-3 py-2 rounded-sm"
-        >
-          LOG IN
-        </a>
-      </nav>
       <a
         ref={navRef}
         href={shared.sign_in_path}
-        className="fixed top-4 right-4 z-30 w-fit h-fit border-2 border-dark-brown bg-brown text-light-brown font-bold whitespace-nowrap text-sm sm:text-xl md:text-2xl px-3 py-2 rounded-sm"
+        className="group fixed top-4 right-4 z-30 w-fit h-fit border-2 border-dark-brown bg-brown text-light-brown active:bg-dark-brown active:text-light-brown font-bold whitespace-nowrap text-sm sm:text-xl md:text-2xl px-3 py-2 rounded-sm"
       >
-        LOG IN
+        <span className="relative overflow-hidden block leading-none">
+          <span className="block transition-transform duration-300 group-hover:translate-y-full">LOG IN</span>
+          <span className="absolute inset-0 block transition-transform duration-300 -translate-y-full group-hover:translate-y-0">LOG IN</span>
+        </span>
       </a>
       <div
         ref={containerRef}
@@ -394,9 +377,34 @@ export default function LandingIndex() {
           id="hero"
           className="bg-blue relative min-h-svh text-white flex flex-col items-center pt-4 md:p-5 gap-4 overflow-hidden"
         >
+          <nav className="absolute top-3 px-3 w-full grid grid-cols-3 items-center z-30 text-white">
+            <img src="/landing/flag.svg" className="w-20 sm:w-30" />
+            <div
+              ref={falloutLettersRef}
+              className="clickme text-3xl md:text-[2.5rem] font-bells cursor-pointer select-none md:space-x-[3px] justify-self-center whitespace-nowrap"
+              onClick={handleFalloutClick}
+            >
+              <span className="inline-block">F</span>
+              <span className="inline-block">A</span>
+              <span className="inline-block">L</span>
+              <span className="inline-block">L</span>
+              <span className="inline-block">O</span>
+              <span className="inline-block">U</span>
+              <span className="inline-block">T</span>
+            </div>
+            <a
+              href={shared.sign_in_path}
+              className="group justify-self-end w-fit h-fit shrink-0 border-2 border-dark-brown bg-brown text-light-brown active:bg-dark-brown active:text-light-brown font-bold whitespace-nowrap text-sm sm:text-xl md:text-2xl px-3 py-2 rounded-sm transition-all"
+            >
+              <span className="relative overflow-hidden block leading-none">
+                <span className="block transition-transform duration-300 group-hover:translate-y-full">LOG IN</span>
+                <span className="absolute inset-0 block transition-transform duration-300 -translate-y-full group-hover:translate-y-0">LOG IN</span>
+              </span>
+            </a>
+          </nav>
           <HalftoneBg
             src="/landing/hero.webp"
-            className="absolute inset-0 w-full h-full  pointer-events-none"
+            className="absolute inset-0 w-full h-[110vh]  pointer-events-none"
             halftoneOpacity={0.1}
             bleed={0.08}
           />
@@ -425,11 +433,14 @@ export default function LandingIndex() {
                   required
                 />
                 <button
-                  className="cursor-pointer disabled:opacity-50 w-fit h-fit shrink-0 border-2 border-dark-brown bg-brown text-light-brown font-bold whitespace-nowrap text-sm sm:text-xl md:text-2xl px-3 py-2 rounded-sm"
+                  className="group cursor-pointer disabled:opacity-50 w-fit h-fit shrink-0 border-2 border-dark-brown bg-brown text-light-brown active:bg-dark-brown active:text-light-brown font-bold whitespace-nowrap text-sm sm:text-xl md:text-2xl px-3 py-2 rounded-sm transition-all"
                   aria-label="Submit"
                   disabled={submitting}
                 >
-                  {submitting ? '...' : 'START NOW'}
+                  <span className="relative overflow-hidden block leading-none">
+                    <span className="block transition-transform duration-300 group-hover:translate-y-full">{submitting ? '...' : 'START NOW'}</span>
+                    <span className="absolute inset-0 block transition-transform duration-300 -translate-y-full group-hover:translate-y-0">{submitting ? '...' : 'START NOW'}</span>
+                  </span>
                 </button>
               </form>
             </Frame>
@@ -443,8 +454,8 @@ export default function LandingIndex() {
           </div>
         </section>
 
-        <div ref={belowFoldRef} className="relative">
-          <div className="w-screen -mt-40">
+        <div ref={belowFoldRef} className="relative -mt-10">
+          <div className="w-screen">
             <img src="/landing/clouds/banner.png" className="object-cover object-bottom select-none" />
           </div>
 
@@ -514,6 +525,31 @@ export default function LandingIndex() {
                   </a>
                 </p>
               </div>
+              {/* <div className="fixed bottom-10 right-10 w-[80%] xs:w-100 h-auto rounded-xs overflow-hidden bg-beige z-50 flex flex-col border-2 border-black cursor-pointer">
+                <div className="w-full flex justify-between items-center px-4 py-2 cursor-pointer" onClick={() => {
+                  setVideoOpen((v) => {
+                    const next = !v
+                    const msg = next ? 'playVideo' : 'pauseVideo'
+                    iframeRef.current?.contentWindow?.postMessage(`{"event":"command","func":"${msg}","args":""}`, '*')
+                    return next
+                  })
+                }}>
+                  <span className="font-medium text-black text-2xl">{videoOpen ? 'Close Video' : 'Open Video'}</span>
+                  <img src="/arrow.svg" className={`h-5 w-auto transition-transform duration-300 ${videoOpen ? 'rotate-180' : 'rotate-0'}`} />
+                </div>
+                <div className={`aspect-16/9 w-full h-auto p-3  pt-0${videoOpen ? '' : ' hidden'}`}>
+                  <iframe
+                    width="100%"
+                    height="100%"
+                    className="rounded-lg border-beige border-2"
+                    ref={iframeRef}
+                    src="https://www.youtube.com/embed/SrP2ZeNHm6s?si=orljJtYrC7EGSNzi&controls=1&modestbranding=1&rel=0&enablejsapi=1"
+                    title="YouTube video player"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerPolicy="strict-origin-when-cross-origin"
+                    allowFullScreen>
+                  </iframe>
+                </div>
+              </div> */}
             </section>
 
             <div className="md:pt-40 md:qualify-outer">
@@ -750,34 +786,45 @@ export default function LandingIndex() {
           </footer>
         </div>
       </div>
+      <div className="fixed bottom-10 right-10 w-[80%] xs:w-100 h-auto rounded-sm overflow-hidden bg-white z-50 flex flex-col border-2 border-dark-brown [transform:translateZ(0)]">
+        <div className="w-full flex justify-between items-center px-4 py-2 cursor-pointer" onClick={() => {
+          setVideoOpen((v) => {
+            const next = !v
+            const msg = next ? 'playVideo' : 'pauseVideo'
+            iframeRef.current?.contentWindow?.postMessage(`{"event":"command","func":"${msg}","args":""}`, '*')
+            return next
+          })
+        }}>
+          <span className="font-medium text-dark-brown text-2xl">{videoOpen ? 'Close Video' : 'Open Video'}</span>
+          <img src="/arrow.svg" className={`h-5 w-auto transition-transform duration-300 ${videoOpen ? 'rotate-180' : 'rotate-0'}`} />
+        </div>
+        <div className={`aspect-16/9 w-full h-auto p-3 pt-0 ${videoOpen ? '' : ' hidden'}`}>
+          <iframe
+            width="100%"
+            height="100%"
+            className="rounded-md border-beige border-2"
+            ref={iframeRef}
+            src="https://www.youtube.com/embed/SrP2ZeNHm6s?si=orljJtYrC7EGSNzi&controls=1&modestbranding=1&rel=0&enablejsapi=1"
+            title="YouTube video player"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            referrerPolicy="strict-origin-when-cross-origin"
+            allowFullScreen
+          />
+        </div>
+      </div>
       <div
         ref={customCursorRef}
         className="fixed top-0 left-0 z-[9999] pointer-events-none select-none"
         style={{ opacity: 0 }}
       >
-        <svg xmlns="http://www.w3.org/2000/svg" width="36" height="48" viewBox="0 0 24 24">
-          <path
-            fill="#FCF1E5"
-            stroke="#000"
-            strokeWidth="2"
-            d="M5.5 3.21V20.8c0 .45.54.67.85.35l4.86-4.86a.5.5 0 0 1 .35-.15h6.87a.5.5 0 0 0 .35-.85L6.35 2.85a.5.5 0 0 0-.85.35Z"
-          ></path>
-        </svg>
+        <img src="/cursors/arrowhead.svg" width="36" height="36" />
       </div>
       <div
         ref={pointerCursorRef}
         className="fixed top-0 left-0 z-[9999] pointer-events-none select-none"
         style={{ opacity: 0 }}
       >
-        <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24">
-          <path
-            fill="#FCF1E5"
-            stroke="#000"
-            strokeWidth="2"
-            strokeLinejoin="round"
-            d="M10 11V8.99c0-.88.59-1.64 1.44-1.86h.05A1.99 1.99 0 0 1 14 9.05V12v-2c0-.88.6-1.65 1.46-1.87h.05A1.98 1.98 0 0 1 18 10.06V13v-1.94a2 2 0 0 1 1.51-1.94h0A2 2 0 0 1 22 11.06V14c0 .6-.08 1.27-.21 1.97a7.96 7.96 0 0 1-7.55 6.48 54.98 54.98 0 0 1-4.48 0 7.96 7.96 0 0 1-7.55-6.48C2.08 15.27 2 14.59 2 14v-1.49c0-1.11.9-2.01 2.01-2.01h0a2 2 0 0 1 2.01 2.03l-.01.97v-10c0-1.1.9-2 2-2h0a2 2 0 0 1 2 2V11Z"
-          ></path>
-        </svg>
+        <img src="/cursors/pointer.svg" width="36" height="36" />
       </div>
     </>
   )
