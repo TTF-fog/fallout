@@ -597,7 +597,7 @@ export default function LandingIndex() {
             </div>
           </section>
           <section className="px-6 md:px-8 lg:px-18 xl:px-36 2xl:px-54 py-20 bg-beige text-dark-brown text-2xl">
-            <div className="w-full bg-white border-2 border-black p-6  rounded-sm">
+            <div className="w-full bg-white border-2 border-black p-6 my-2 rounded-sm">
               <span className="font-semibold text-2xl">Hack Club is recognized by:</span>
               <ul className="flex gap-2 md:gap-4 w-full items-center justify-center py-6 px-4 flex-wrap lg:flex-nowrap">
                 <li><img src="/landing/logos/gwc.webp" className="h-10 md:h-18 object-contain" alt="Girls Who Code" /></li>
@@ -606,8 +606,9 @@ export default function LandingIndex() {
                 <li><img src="/landing/logos/cac.webp" className="h-10 md:h-16 object-contain" alt="Congressional App Challenge" /></li>
                 <li><img src="/landing/logos/amd.webp" className="h-10 md:h-16 object-contain" alt="AMD" /></li>
               </ul>
-              <span className="text-xl">Upon the completion of 60h, we will issue you a certificate.</span>
             </div>
+            <span className="text-2xl">Upon the completion of 60h, we will issue you a certificate.</span>
+
           </section>
           <section className="px-6 md:px-8 lg:px-18 xl:px-36 2xl:px-54 py-20 bg-beige text-dark-brown">
             <h2 className="text-6xl font-semibold mb-10 font-outfit">FAQ</h2>
