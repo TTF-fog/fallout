@@ -65,6 +65,7 @@
   /* Override lookout-react theme.ts which injects SF Pro on :root */
   font-family: var(--font-sans) !important;
   scroll-behavior: smooth;
+  overflow-x: hidden;
 }
 
 /* macOS-style thin translucent scrollbars */

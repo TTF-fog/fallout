@@ -233,22 +233,10 @@ export default function LandingIndex() {
       window.addEventListener('mousemove', onCursorMove)
       stickerCleanups.push(() => window.removeEventListener('mousemove', onCursorMove))
 
-      const onDocumentLeave = (e: MouseEvent) => {
-        const { clientX, clientY } = e
-        const { innerWidth, innerHeight } = window
-        const dLeft = clientX,
-          dRight = innerWidth - clientX,
-          dTop = clientY,
-          dBottom = innerHeight - clientY
-        const min = Math.min(dLeft, dRight, dTop, dBottom)
-        let tx = clientX - 8,
-          ty = clientY - 5
-        if (min === dLeft) tx = -40
-        else if (min === dRight) tx = innerWidth + 8
-        else if (min === dTop) ty = -52
-        else ty = innerHeight + 6
-        gsap.to(customCursor, { x: tx, y: ty, duration: 0.3, ease: 'power2.in' })
-        if (pointerCursor) gsap.to(pointerCursor, { x: tx - 7, y: ty + 7, duration: 0.3, ease: 'power2.in' })
+      const onDocumentLeave = () => {
+        cursorVisible = false
+        gsap.set(customCursor, { opacity: 0 })
+        if (pointerCursor) gsap.set(pointerCursor, { opacity: 0 })
       }
       document.addEventListener('mouseleave', onDocumentLeave)
       stickerCleanups.push(() => document.removeEventListener('mouseleave', onDocumentLeave))
@@ -469,11 +457,11 @@ export default function LandingIndex() {
         </section>
 
         <div ref={belowFoldRef} className="relative">
-          <div className="w-screen bg-transparent -mt-10">
+          <div className="w-full bg-transparent -mt-10">
             <img src="/landing/clouds/banner.png" className="object-cover object-bottom select-none" />
           </div>
 
-          <div className="w-screen bg-beige px-3 sm:px-6 md:px-8 lg:px-18 xl:px-36 2xl:px-54 ">
+          <div className="w-full bg-beige px-3 sm:px-6 md:px-8 lg:px-18 xl:px-36 2xl:px-54 ">
             <section className="bg-dark-brown border-2 border-dark-brown text-beige p-6 md:p-10 flex flex-col md:flex-row justify-center items-center gap-4 relative lg:items-stretch rounded-sm">
               <div className="flex flex-col font-normal">
                 <span className="text-3xl sm:text-5xl font-semibold font-outfit">WHAT IS</span>
@@ -514,7 +502,7 @@ export default function LandingIndex() {
                   for help!
                 </p>
               </div>
-              <div className="flex flex-col items-center w-220 space-y-6">
+              <div className="flex flex-col items-center w-full max-w-220 space-y-6">
                 <div
                   className="clickme group grid lg:max-w-220 w-full h-70 lg:h-110 grid-cols-1 grid-rows-1 place-items-center cursor-none"
                   onClick={() => setCardOrder((prev) => [...prev.slice(1), prev[0]])}
@@ -686,7 +674,7 @@ export default function LandingIndex() {
                   q: 'What is Hack Club?',
                   a: (
                     <>
-                      <a href="" target="_self">
+                      <a href="https://hackclub.com" target="_self">
                         Hack Club
                       </a>{' '}
                       is a <strong>501(c)(3) nonprofit</strong> (EIN: 81-2908499) that helps high school students learn
