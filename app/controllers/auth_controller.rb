@@ -50,16 +50,13 @@ class AuthController < ApplicationController
 
       if trial_conversion && user.slack_id.present?
         welcome_message = <<~MSG.strip
-          Hey #{user.display_name}!
+          hey #{user.display_name}!
 
-          Thanks for signing up. I'd added you the Fallout slack channels.
-          Have fun exploring the platform :D
+          thanks for signing up. i've added you the fallout slack channels.
+          remember to check out the documentation & resources at: https://fallout.hackclub.com/docs
 
-          We have a kickoff call this Friday @ 9PM EST / 6PM PST: https://luma.com/fallout
-          You should come!
-
-          Cheers-
-          Soup
+          cheers-
+          soup
         MSG
         SlackMsgJob.perform_later(user.slack_id, welcome_message)
         SlackChannelInviteJob.perform_later(user.slack_id, User::SLACK_WELCOME_CHANNELS)
