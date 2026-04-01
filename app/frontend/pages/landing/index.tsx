@@ -154,7 +154,6 @@ export default function LandingIndex() {
       })
     })
 
-    // Sticker behavior: proximity drift — sticker drifts in the direction the cursor is moving when nearby, springs back on leave
     const stickerCleanups: (() => void)[] = []
     document.querySelectorAll<HTMLElement>('.sticker').forEach((el) => {
       let ox = 0,
@@ -196,7 +195,6 @@ export default function LandingIndex() {
       stickerCleanups.push(() => document.removeEventListener('mousemove', onDocMove))
     })
 
-    // Magnetic letters — each letter drifts toward cursor while hovered, springs back on leave
     falloutLettersRef.current?.querySelectorAll<HTMLElement>('span').forEach((span) => {
       const springBack = () => {
         if (falloutFallenRef.current) return
@@ -228,10 +226,8 @@ export default function LandingIndex() {
       let cursorVisible = false
       const onCursorMove = (e: MouseEvent) => {
         const isClickable = !!(e.target as Element)?.closest('.clickme, a, button, [role="button"]')
-        // Arrow: tip at viewBox (5.5,3.21) → rendered (8,5) at 36x36
         gsap.set(customCursor, { x: e.clientX - 8, y: e.clientY - 5, opacity: cursorVisible && !isClickable ? 1 : 0 })
         if (pointerCursor) {
-          // Hand: index finger tip at viewBox (10,9) → rendered (15,14) at 36x36
           gsap.set(pointerCursor, {
             x: e.clientX - 15,
             y: e.clientY - 14,
@@ -251,7 +247,6 @@ export default function LandingIndex() {
       document.addEventListener('mouseleave', onDocumentLeave)
       stickerCleanups.push(() => document.removeEventListener('mouseleave', onDocumentLeave))
 
-      // Hide cursor when mouse enters iframe (window loses focus); it reappears on next mousemove
       const onWindowBlur = () => {
         cursorVisible = false
         gsap.set(customCursor, { opacity: 0 })
@@ -574,7 +569,7 @@ export default function LandingIndex() {
                   <a
                     className="text-light-brown text-lg underline text-sm md:text-base"
                     href={cardCaptions[cardOrder[cardOrder.length - 1]].href}
-                    target="_self"
+                    
                   >
                     {cardCaptions[cardOrder[cardOrder.length - 1]].label}
                   </a>
@@ -815,7 +810,7 @@ export default function LandingIndex() {
           </section>
           <section className="px-6 md:px-8 lg:px-18 xl:px-36 2xl:px-54 py-20 bg-beige text-dark-brown flex flex-col items-center gap-6 font-bold">
             <span className="text-2xl text-brown">My parents are worried!</span>
-            <div className="space-y-4 sm:space-x-10 text-beige flex flex-col sm:flex-row items-center text-center">
+            <div className="gap-4 sm:gap-10 text-beige flex flex-col sm:flex-row items-center text-center">
               <a href="https://hack.club/renran" className="inline-block bg-brown w-60 py-4 text-xl rounded-xs hover:bg-dark-brown transition-all">Book a call with us</a>
               <a href="https://docs.google.com/document/d/1dXDIBm7SWui5rbK3zh7188UmLC0cv_dsMj7ynr3POho/edit?tab=t.q4hvz46um9np" className="inline-block bg-brown w-60 py-4 text-xl rounded-xs hover:bg-dark-brown transition-all">Parent Guide</a>
             </div>
@@ -866,7 +861,7 @@ export default function LandingIndex() {
                   q: 'What is Hack Club?',
                   a: (
                     <>
-                      <a href="https://hackclub.com" target="_self">
+                      <a href="https://hackclub.com">
                         Hack Club
                       </a>{' '}
                       is a <strong>501(c)(3) nonprofit</strong> (EIN: 81-2908499) that helps high school students learn
@@ -875,13 +870,13 @@ export default function LandingIndex() {
                       of our past events include:
                       <ul className="list-disc ml-5 mt-1">
                         <li>
-                          <a href="https://www.youtube.com/watch?v=fuTlToZ1SX8" target="_self" className="font-bold">
+                          <a href="https://www.youtube.com/watch?v=fuTlToZ1SX8" className="font-bold">
                             Juice
                           </a>
                           : a 2 month game jam leading to a pop-up cafe in Shanghai, China!
                         </li>
                         <li>
-                          <a href="https://blueprint.hackclub.com/prototype" target="_self" className="font-bold">
+                          <a href="https://blueprint.hackclub.com/prototype" className="font-bold">
                             Prototype
                           </a>
                           : a 48-hour hardware hackathon in San Francisco, California.
@@ -889,7 +884,6 @@ export default function LandingIndex() {
                         <li>
                           <a
                             href="https://youtu.be/kaEFv7e49mo?si=9gATZE-c3CqwsJF2"
-                            target="_self"
                             className="font-bold"
                           >
                             Undercity
@@ -916,13 +910,12 @@ export default function LandingIndex() {
                       Ask us in{' '}
                       <a
                         href="https://hackclub.enterprise.slack.com/archives/C0ACJ290090"
-                        target="_self"
                         className="font-bold"
                       >
                         #fallout-help
                       </a>{' '}
                       on the{' '}
-                      <a href="http://slack.hackclub.com/" target="_self">
+                      <a href="http://slack.hackclub.com/">
                         Hack Club Slack
                       </a>
                       , or email us at{' '}
@@ -957,7 +950,6 @@ export default function LandingIndex() {
               ))}
             </div>
           </section>
-
           <footer className="px-6 md:px-8 lg:px-18 xl:px-36 2xl:px-54 bg-beige text-dark-brown pb-8 relative flex items-end gap-4">
             <div className="space-y-2 text-xl xl:text-2xl">
               <p className="font-medium mt-2 leading-6 ">Fallout is made with ♡ by teenagers, for teenagers</p>
@@ -970,23 +962,10 @@ export default function LandingIndex() {
                 </a>
               </div>
             </div>
-            {/* <div className="ml-auto flex items-end gap-4">
-          <div className="bg-white outline-2 outline-dark-brown h-24 aspect-5/3">
-            <p className="text-center">07-01-2026</p>
-          </div>
-          <div className="flex flex-col gap-2">
-            <a href="mailto:fallout@hackclub.com" className="underline ml-auto text-xl">
-              fallout@hackclub.com
-            </a>
-            <div className="outline-2 outline-dark-brown h-34 aspect-2/1 border-4 border-green bg-light-green flex items-center justify-center overflow-hidden">
-              <img src="/koifish.webp" className="p-2 h-full w-full object-contain cursor-pointer" />
-            </div>
-          </div>
-        </div> */}
           </footer>
         </div>
       </div>
-      <div className="fixed bottom-10 right-10 w-[80%] xs:w-100 h-auto rounded-sm overflow-hidden bg-white z-50 flex flex-col border-2 border-dark-brown [transform:translateZ(0)]">
+      <div className="fixed bottom-4 right-1/2 translate-x-1/2 xs:translate-x-0  xs:bottom-4 xs:right-4 w-[80%] xs:w-100 h-auto rounded-sm overflow-hidden bg-white z-50 flex flex-col border-2 border-dark-brown [transform:translateZ(0)]">
         <div
           className="w-full flex justify-between items-center px-4 py-2 cursor-pointer"
           onClick={() => {
