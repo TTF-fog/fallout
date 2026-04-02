@@ -46,9 +46,6 @@ module YouTubeService
 
   def fetch_video_data(video_id, url: nil)
     fetch_video_data_from_api(video_id) || fetch_video_data_from_oembed(video_id, url: url)
-  rescue StandardError => e
-    ErrorReporter.capture_exception(e, level: :warning, contexts: { youtube: { action: "fetch_video_data", video_id: video_id } })
-    nil
   end
 
   def fetch_video_data_from_api(video_id)
@@ -97,6 +94,9 @@ module YouTubeService
       tags: snippet["tags"],
       category_id: snippet["categoryId"]
     }
+  rescue StandardError => e
+    ErrorReporter.capture_exception(e, level: :warning, contexts: { youtube: { action: "fetch_video_data_from_api", video_id: video_id } })
+    nil
   end
 
   def fetch_video_data_from_oembed(video_id, url: nil)
@@ -132,6 +132,9 @@ module YouTubeService
       tags: nil,
       category_id: nil
     }
+  rescue StandardError => e
+    ErrorReporter.capture_exception(e, level: :warning, contexts: { youtube: { action: "fetch_video_data_from_oembed", video_id: video_id } })
+    nil
   end
 
   def parse_iso8601_duration(duration_string)
