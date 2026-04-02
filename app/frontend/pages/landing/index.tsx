@@ -576,8 +576,14 @@ export default function LandingIndex() {
                 </p>
               </div>
             </section>
-
-            <div className="md:pt-40 md:qualify-outer">
+            <section className="w-full md:px-8 lg:px-18 xl:px-36 2xl:px-54 py-20 md:pt-60 md:pb-40 text-dark-brown flex flex-col items-center justify-center gap-6 font-bold text-center">
+              <span className="text-2xl xs:text-3xl text-brown">My parents are worried!</span>
+              <div className="gap-4 sm:gap-10 text-beige flex flex-col sm:flex-row items-center justify-center w-full">
+                <a href="https://hack.club/renran" className="inline-block bg-brown w-full max-w-70 py-4 text-2xl rounded-sm hover:bg-dark-brown transition-all">Book a call with us</a>
+                <a href="https://docs.google.com/document/d/1dXDIBm7SWui5rbK3zh7188UmLC0cv_dsMj7ynr3POho/edit?tab=t.q4hvz46um9np" className="inline-block bg-brown w-full max-w-70 py-4 text-2xl rounded-sm hover:bg-dark-brown transition-all">Parent Guide</a>
+              </div>
+            </section>
+            <div className="md:pt-0 md:qualify-outer">
               <section className="md:qualify-section md:sticky md:top-[calc(50svh-15rem)] flex flex-col md:flex-row justify-between w-full text-beige gap-4 md:min-h-120">
                 <div className="flex-3/4 lg:flex-3/4 w-full flex justify-center md:block">
                   <div className="md:qualify-scroll-wrapper w-full flex flex-col md:block gap-2 md:gap-0">
@@ -806,13 +812,6 @@ export default function LandingIndex() {
                   </div>
                 </div>
               </div>
-            </div>
-          </section>
-          <section className="px-6 md:px-8 lg:px-18 xl:px-36 2xl:px-54 py-20 bg-beige text-dark-brown flex flex-col items-center gap-6 font-bold">
-            <span className="text-2xl text-brown">My parents are worried!</span>
-            <div className="gap-4 sm:gap-10 text-beige flex flex-col sm:flex-row items-center text-center">
-              <a href="https://hack.club/renran" className="inline-block bg-brown w-60 py-4 text-xl rounded-xs hover:bg-dark-brown transition-all">Book a call with us</a>
-              <a href="https://docs.google.com/document/d/1dXDIBm7SWui5rbK3zh7188UmLC0cv_dsMj7ynr3POho/edit?tab=t.q4hvz46um9np" className="inline-block bg-brown w-60 py-4 text-xl rounded-xs hover:bg-dark-brown transition-all">Parent Guide</a>
             </div>
           </section>
           <section className="px-6 md:px-8 lg:px-18 xl:px-36 2xl:px-54 py-20 bg-beige text-dark-brown">
