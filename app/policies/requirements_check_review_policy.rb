@@ -10,13 +10,17 @@ class RequirementsCheckReviewPolicy < ApplicationPolicy
   end
 
   def update?
-    admin? || staff_reviewer? || assigned_reviewer?
+    admin? || active_claimer?
+  end
+
+  def heartbeat?
+    admin? || active_claimer?
   end
 
   private
 
-  def assigned_reviewer?
-    record.reviewer == user
+  def active_claimer?
+    record.claimed_by?(user)
   end
 
   def staff_reviewer?

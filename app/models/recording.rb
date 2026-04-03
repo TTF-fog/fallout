@@ -32,7 +32,14 @@ class Recording < ApplicationRecord
   validates :recordable_type, uniqueness: { scope: :recordable_id, message: "is already claimed by another journal" } # DB unique index enforces this too
   validate :user_must_match_journal_user
 
+  # Enqueue activity analysis when a recording is attached to a journal entry
+  after_create_commit :enqueue_activity_check
+
   private
+
+  def enqueue_activity_check
+    TimelapseActivityCheckJob.perform_later(recordable)
+  end
 
   def user_must_match_journal_user
     errors.add(:journal_entry, "must belong to the same user") if journal_entry && journal_entry.user_id != user_id

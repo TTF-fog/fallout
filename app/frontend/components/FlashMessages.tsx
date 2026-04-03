@@ -51,7 +51,7 @@ export default function FlashMessages() {
   if (notifications.length === 0) return null
 
   return (
-    <div className="fixed top-6 inset-x-0 flex flex-col items-center gap-2 z-50 pointer-events-none">
+    <div className="fixed top-6 inset-x-0 flex flex-col items-center gap-2 z-60 pointer-events-none">
       {notifications.map((n) =>
         isAdmin ? (
           <Alert

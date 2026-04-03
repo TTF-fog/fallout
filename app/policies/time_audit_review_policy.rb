@@ -10,13 +10,19 @@ class TimeAuditReviewPolicy < ApplicationPolicy
   end
 
   def update?
-    admin? || staff_reviewer? || assigned_reviewer?
+    admin? || active_claimer?
+  end
+
+  # Heartbeat extends the claim — only the active claimer (or admin) can call it
+  def heartbeat?
+    admin? || active_claimer?
   end
 
   private
 
-  def assigned_reviewer?
-    record.reviewer == user
+  # Requires an active (non-expired) claim, not just reviewer_id match
+  def active_claimer?
+    record.claimed_by?(user)
   end
 
   def staff_reviewer?

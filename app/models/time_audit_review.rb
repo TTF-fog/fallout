@@ -5,6 +5,7 @@
 #  id               :bigint           not null, primary key
 #  annotations      :jsonb
 #  approved_seconds :integer
+#  claim_expires_at :datetime
 #  feedback         :text
 #  lock_version     :integer          default(0), not null
 #  status           :integer          default("pending"), not null
@@ -15,9 +16,10 @@
 #
 # Indexes
 #
-#  index_time_audit_reviews_on_reviewer_id  (reviewer_id)
-#  index_time_audit_reviews_on_ship_id      (ship_id) UNIQUE
-#  index_time_audit_reviews_on_status       (status)
+#  index_time_audit_reviews_on_reviewer_id                  (reviewer_id)
+#  index_time_audit_reviews_on_ship_id                      (ship_id) UNIQUE
+#  index_time_audit_reviews_on_status                       (status)
+#  index_time_audit_reviews_on_status_and_claim_expires_at  (status,claim_expires_at)
 #
 # Foreign Keys
 #

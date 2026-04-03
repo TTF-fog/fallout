@@ -118,10 +118,22 @@ Rails.application.routes.draw do
 
       # Per-type review queues must be defined before the catch-all ships resource
       namespace :reviews do
-        resources :time_audits, only: [ :index, :show, :update ]
-        resources :requirements_checks, only: [ :index, :show, :update ]
-        resources :design_reviews, only: [ :index, :show, :update ]
-        resources :build_reviews, only: [ :index, :show, :update ]
+        resources :time_audits, only: [ :index, :show, :update ] do
+          member { post :heartbeat }
+          collection { get :next }
+        end
+        resources :requirements_checks, only: [ :index, :show, :update ] do
+          member { post :heartbeat }
+          collection { get :next }
+        end
+        resources :design_reviews, only: [ :index, :show, :update ] do
+          member { post :heartbeat }
+          collection { get :next }
+        end
+        resources :build_reviews, only: [ :index, :show, :update ] do
+          member { post :heartbeat }
+          collection { get :next }
+        end
       end
 
       resources :ships, only: [ :index, :show, :edit, :update ], path: "reviews"

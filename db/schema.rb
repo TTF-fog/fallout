@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_04_02_221918) do
+ActiveRecord::Schema[8.1].define(version: 2026_04_03_195424) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -98,6 +98,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_02_221918) do
 
   create_table "build_reviews", force: :cascade do |t|
     t.jsonb "annotations"
+    t.datetime "claim_expires_at"
     t.datetime "created_at", null: false
     t.text "feedback"
     t.text "internal_reason"
@@ -108,6 +109,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_02_221918) do
     t.datetime "updated_at", null: false
     t.index ["reviewer_id"], name: "index_build_reviews_on_reviewer_id"
     t.index ["ship_id"], name: "index_build_reviews_on_ship_id", unique: true
+    t.index ["status", "claim_expires_at"], name: "index_build_reviews_on_status_and_claim_expires_at"
     t.index ["status"], name: "index_build_reviews_on_status"
   end
 
@@ -170,6 +172,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_02_221918) do
 
   create_table "design_reviews", force: :cascade do |t|
     t.jsonb "annotations"
+    t.datetime "claim_expires_at"
     t.datetime "created_at", null: false
     t.text "feedback"
     t.text "internal_reason"
@@ -180,6 +183,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_02_221918) do
     t.datetime "updated_at", null: false
     t.index ["reviewer_id"], name: "index_design_reviews_on_reviewer_id"
     t.index ["ship_id"], name: "index_design_reviews_on_ship_id", unique: true
+    t.index ["status", "claim_expires_at"], name: "index_design_reviews_on_status_and_claim_expires_at"
     t.index ["status"], name: "index_design_reviews_on_status"
   end
 
@@ -337,6 +341,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_02_221918) do
   end
 
   create_table "requirements_check_reviews", force: :cascade do |t|
+    t.datetime "claim_expires_at"
     t.datetime "created_at", null: false
     t.text "feedback"
     t.text "internal_reason"
@@ -347,6 +352,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_02_221918) do
     t.datetime "updated_at", null: false
     t.index ["reviewer_id"], name: "index_requirements_check_reviews_on_reviewer_id"
     t.index ["ship_id"], name: "index_requirements_check_reviews_on_ship_id", unique: true
+    t.index ["status", "claim_expires_at"], name: "idx_on_status_claim_expires_at_8572608249"
     t.index ["status"], name: "index_requirements_check_reviews_on_status"
   end
 
@@ -497,6 +503,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_02_221918) do
   create_table "time_audit_reviews", force: :cascade do |t|
     t.jsonb "annotations"
     t.integer "approved_seconds"
+    t.datetime "claim_expires_at"
     t.datetime "created_at", null: false
     t.text "feedback"
     t.integer "lock_version", default: 0, null: false
@@ -506,6 +513,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_02_221918) do
     t.datetime "updated_at", null: false
     t.index ["reviewer_id"], name: "index_time_audit_reviews_on_reviewer_id"
     t.index ["ship_id"], name: "index_time_audit_reviews_on_ship_id", unique: true
+    t.index ["status", "claim_expires_at"], name: "index_time_audit_reviews_on_status_and_claim_expires_at"
     t.index ["status"], name: "index_time_audit_reviews_on_status"
   end
 

@@ -1,6 +1,7 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react'
 import type { ReactNode } from 'react'
 import { Link, router } from '@inertiajs/react'
+import { useReviewHeartbeat } from '@/hooks/useReviewHeartbeat'
 import ReviewLayout from '@/layouts/ReviewLayout'
 import { Badge } from '@/components/admin/ui/badge'
 import { Button } from '@/components/admin/ui/button'
@@ -35,7 +36,6 @@ import type {
   TimeAuditSegment,
   ReviewJournalEntry,
   ReviewRecording,
-  ReviewShipContext,
   ReviewProjectContext,
   SiblingStatuses,
 } from '@/types'
@@ -87,21 +87,21 @@ const DEFLATED_REASONS = [
 
 function ReviewTopBar({
   project,
-  ship,
-  review,
-  totalDuration,
+  totalEntries,
   approvedSeconds,
+  totalDuration,
   submitting,
   allReviewed,
+  onSkip,
   onSubmit,
 }: {
   project: ReviewProjectContext
-  ship: ReviewShipContext
-  review: TimeAuditReviewDetail
-  totalDuration: number
+  totalEntries: number
   approvedSeconds: number
+  totalDuration: number
   submitting: boolean
   allReviewed: boolean
+  onSkip: () => void
   onSubmit: () => void
 }) {
   return (
@@ -109,26 +109,28 @@ function ReviewTopBar({
       <Button variant="outline" size="sm" asChild>
         <Link href="/admin/reviews/time_audits">End Session</Link>
       </Button>
+      <Button variant="ghost" size="sm" onClick={onSkip}>
+        Skip
+      </Button>
 
       <Separator orientation="vertical" className="h-6" />
 
-      <div className="flex items-center gap-2 min-w-0">
-        <span className="font-semibold truncate">{project.name}</span>
-        <span className="text-muted-foreground text-sm">(#{ship.id})</span>
-        <Badge variant="secondary" className="capitalize text-xs">
-          {review.status}
-        </Badge>
-        <span className="text-xs text-muted-foreground">
-          {formatDuration(approvedSeconds)} / {formatDuration(totalDuration)}
-        </span>
-      </div>
+      <a href={`/admin/projects/${project.id}`} target="_blank" rel="noopener noreferrer" className="font-semibold truncate hover:underline">
+        {project.name}
+      </a>
+      <a href={`/admin/projects/${project.id}`} target="_blank" rel="noopener noreferrer" className="text-muted-foreground text-sm hover:underline">
+        (#{project.id})
+      </a>
+      <span className="text-sm text-muted-foreground">
+        {totalEntries} {totalEntries === 1 ? 'entry' : 'entries'} to review ({formatDuration(approvedSeconds)} / {formatDuration(totalDuration)})
+      </span>
 
       <div className="flex items-center gap-2 ml-auto">
         <Button variant="outline" size="sm" asChild>
-          <Link href={`/admin/users/${project.user_id}`}>
+          <a href={`/admin/users/${project.user_id}`} target="_blank" rel="noopener noreferrer">
             <UserIcon data-icon="inline-start" />
             See User
-          </Link>
+          </a>
         </Button>
         {isSafeUrl(project.repo_link) && (
           <Button variant="outline" size="sm" asChild>
@@ -141,7 +143,12 @@ function ReviewTopBar({
 
         <Separator orientation="vertical" className="h-6" />
 
-        <Button size="sm" disabled={submitting || !allReviewed} onClick={onSubmit} title={!allReviewed ? 'Review all entries before submitting' : undefined}>
+        <Button
+          size="sm"
+          disabled={submitting || !allReviewed}
+          onClick={onSubmit}
+          title={!allReviewed ? 'Review all entries before submitting' : undefined}
+        >
           <CheckIcon data-icon="inline-start" />
           Submit
         </Button>
@@ -278,9 +285,7 @@ function AnnotationTimeline({
           {preview && preview.start < preview.end && (
             <div
               className={`absolute top-0 h-full border-2 border-dashed ${
-                preview.type === 'removed'
-                  ? 'bg-red-500/20 border-red-500/60'
-                  : 'bg-amber-500/20 border-amber-500/60'
+                preview.type === 'removed' ? 'bg-red-500/20 border-red-500/60' : 'bg-amber-500/20 border-amber-500/60'
               }`}
               style={{
                 left: `${(preview.start / totalDuration) * 100}%`,
@@ -365,7 +370,7 @@ function DeflationInputs({
   onChange: (pct: number) => void
 }) {
   const rangeMin = rangeSec // video seconds ≈ real minutes
-  const initRemaining = Math.round(rangeMin * (100 - deflatedPercent) / 100 * 100) / 100
+  const initRemaining = Math.round(((rangeMin * (100 - deflatedPercent)) / 100) * 100) / 100
 
   const [minText, setMinText] = useState(String(initRemaining))
   const [pctText, setPctText] = useState(String(Math.round((100 - deflatedPercent) * 100) / 100))
@@ -385,7 +390,7 @@ function DeflationInputs({
     const pct = Number(val)
     if (!isNaN(pct)) {
       const remainPct = Math.min(100, Math.max(0, pct))
-      const mins = Math.round(rangeMin * remainPct / 100 * 100) / 100
+      const mins = Math.round(((rangeMin * remainPct) / 100) * 100) / 100
       setMinText(String(mins))
       onChange(Math.round((100 - remainPct) * 100) / 100)
     }
@@ -521,8 +526,12 @@ function SegmentEditor({
         <span className="text-muted-foreground">
           Approved: <span className="font-medium text-foreground">{formatDuration(Math.round(approvedSec))}</span>
         </span>
-        {removedRealSec > 0 && <span className="text-red-600">−{formatDuration(Math.round(removedRealSec))} removed</span>}
-        {deflatedRealSec > 0 && <span className="text-amber-600">−{formatDuration(Math.round(deflatedRealSec))} deflated</span>}
+        {removedRealSec > 0 && (
+          <span className="text-red-600">−{formatDuration(Math.round(removedRealSec))} removed</span>
+        )}
+        {deflatedRealSec > 0 && (
+          <span className="text-amber-600">−{formatDuration(Math.round(deflatedRealSec))} deflated</span>
+        )}
       </div>
 
       {/* Existing segments */}
@@ -531,9 +540,10 @@ function SegmentEditor({
           {segments.map((seg, i) => {
             const videoRange = seg.end_seconds - seg.start_seconds
             const rangeMin = Math.round(videoRange * 10) / 10 // 1 video sec ≈ 1 real min
-            const deflatedToMin = seg.type === 'deflated' && seg.deflated_percent
-              ? Math.round(rangeMin * (100 - seg.deflated_percent) / 100 * 10) / 10
-              : null
+            const deflatedToMin =
+              seg.type === 'deflated' && seg.deflated_percent
+                ? Math.round(((rangeMin * (100 - seg.deflated_percent)) / 100) * 10) / 10
+                : null
             return (
               <div
                 key={i}
@@ -547,7 +557,9 @@ function SegmentEditor({
                 </span>
                 <span className="flex-1 truncate">{seg.reason}</span>
                 {deflatedToMin !== null && (
-                  <span className="font-medium shrink-0">{rangeMin}m → {deflatedToMin}m</span>
+                  <span className="font-medium shrink-0">
+                    {rangeMin}m → {deflatedToMin}m
+                  </span>
                 )}
                 <button onClick={() => onRemove(i)} className="text-muted-foreground hover:text-foreground">
                   <Trash2Icon className="size-3" />
@@ -591,12 +603,18 @@ function SegmentEditor({
                   max={Math.round(recording.duration * 10) / 10}
                   step={0.5}
                   value={Math.round(startSec * 10) / 10}
-                  onChange={(e) => { setStartSec(Number(e.target.value)); setOverlapError(false) }}
+                  onChange={(e) => {
+                    setStartSec(Number(e.target.value))
+                    setOverlapError(false)
+                  }}
                   className="w-full h-8 rounded border border-input bg-background px-2 text-sm"
                 />
                 <button
                   type="button"
-                  onClick={() => { setStartSec(Math.round(currentTime * 10) / 10); setOverlapError(false) }}
+                  onClick={() => {
+                    setStartSec(Math.round(currentTime * 10) / 10)
+                    setOverlapError(false)
+                  }}
                   className="shrink-0 size-8 flex items-center justify-center rounded border border-input hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
                   title="Set to current playback time"
                 >
@@ -614,12 +632,18 @@ function SegmentEditor({
                   max={Math.round(recording.duration * 10) / 10}
                   step={0.5}
                   value={Math.round(endSec * 10) / 10}
-                  onChange={(e) => { setEndSec(Number(e.target.value)); setOverlapError(false) }}
+                  onChange={(e) => {
+                    setEndSec(Number(e.target.value))
+                    setOverlapError(false)
+                  }}
                   className="w-full h-8 rounded border border-input bg-background px-2 text-sm"
                 />
                 <button
                   type="button"
-                  onClick={() => { setEndSec(Math.round(currentTime * 10) / 10); setOverlapError(false) }}
+                  onClick={() => {
+                    setEndSec(Math.round(currentTime * 10) / 10)
+                    setOverlapError(false)
+                  }}
                   className="shrink-0 size-8 flex items-center justify-center rounded border border-input hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
                   title="Set to current playback time"
                 >
@@ -658,23 +682,32 @@ function SegmentEditor({
           </div>
 
           {/* Deflation — linked "deflate to" minutes & percentage (what remains) */}
-          {adding === 'deflated' && <DeflationInputs
-            rangeSec={Math.max(endSec - startSec, 1)}
-            deflatedPercent={deflatedPercent}
-            onChange={setDeflatedPercent}
-          />}
+          {adding === 'deflated' && (
+            <DeflationInputs
+              rangeSec={Math.max(endSec - startSec, 1)}
+              deflatedPercent={deflatedPercent}
+              onChange={setDeflatedPercent}
+            />
+          )}
 
           {/* Overlap error */}
-          {overlapError && (
-            <p className="text-xs text-red-600">This range overlaps with an existing segment.</p>
-          )}
+          {overlapError && <p className="text-xs text-red-600">This range overlaps with an existing segment.</p>}
 
           {/* Actions */}
           <div className="flex gap-2">
             <Button size="sm" className="text-xs" disabled={!reason || startSec >= endSec} onClick={handleAdd}>
               Add
             </Button>
-            <Button variant="ghost" size="sm" className="text-xs" onClick={() => { setAdding(null); setOverlapError(false); onPreviewChange(null) }}>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-xs"
+              onClick={() => {
+                setAdding(null)
+                setOverlapError(false)
+                onPreviewChange(null)
+              }}
+            >
               Cancel
             </Button>
           </div>
@@ -726,11 +759,11 @@ function RecordingBlock({
   // Timeline operates in video seconds
   const timelineDuration = videoDuration ?? apiTime / 60 // fallback before video loads
   const granularity = useMemo(() => 1, []) // 1 video second
-  const snapPoints = useMemo(() => computeSnapPoints(recording, segments, timelineDuration), [recording, segments, timelineDuration])
-  const snapThreshold = useMemo(
-    () => Math.max(timelineDuration * 0.015, 3),
-    [timelineDuration],
+  const snapPoints = useMemo(
+    () => computeSnapPoints(recording, segments, timelineDuration),
+    [recording, segments, timelineDuration],
   )
+  const snapThreshold = useMemo(() => Math.max(timelineDuration * 0.015, 3), [timelineDuration])
 
   const handleLoadedMetadata = useCallback(() => {
     const vid = videoRef.current
@@ -798,7 +831,11 @@ function RecordingBlock({
           }`}
           variant="outline"
         >
-          {recording.type === 'LookoutTimelapse' ? 'Lookout' : recording.type === 'LapseTimelapse' ? 'Lapse' : 'YouTube'}
+          {recording.type === 'LookoutTimelapse'
+            ? 'Lookout'
+            : recording.type === 'LapseTimelapse'
+              ? 'Lapse'
+              : 'YouTube'}
         </Badge>
         {hasInactiveData && inactivePct > 0 && (
           <Badge variant={inactivePct > 30 ? 'destructive' : 'outline'} className="text-xs">
@@ -953,9 +990,13 @@ function EntrySection({
         <span className="text-xs text-muted-foreground">{entry.created_at}</span>
         <span className="text-xs text-muted-foreground flex items-center gap-1">
           <ClockIcon className="size-3" />
-          {hasDeductions
-            ? <>{formatDuration(entryApprovedSeconds)} / {formatDuration(entry.total_duration)}</>
-            : formatDuration(entry.total_duration)}
+          {hasDeductions ? (
+            <>
+              {formatDuration(entryApprovedSeconds)} / {formatDuration(entry.total_duration)}
+            </>
+          ) : (
+            formatDuration(entry.total_duration)
+          )}
         </span>
         <span className="text-xs text-muted-foreground">
           · {entry.recordings.length} recording{entry.recordings.length !== 1 ? 's' : ''}
@@ -1004,16 +1045,16 @@ function EntrySection({
           <div className="w-1.5 shrink-0 bg-border" />
 
           {/* Right — journal */}
-          <div className="w-1/2 overflow-y-auto p-4">
+          <div className="w-1/2 overflow-y-auto p-4 text-xs">
             <div
-              className="markdown-content prose prose-sm max-w-none"
+              className="markdown-content prose prose-xs max-w-none"
               dangerouslySetInnerHTML={{ __html: entry.content_html }}
             />
             {entry.images.length > 0 && (
               <div className="grid grid-cols-2 gap-2 mt-4">
                 {entry.images.map((img, j) => (
                   <a key={j} href={img} target="_blank" rel="noopener noreferrer">
-                    <img src={img} alt="" className="rounded border border-border object-cover w-full aspect-video" />
+                    <img src={img} alt="" className="rounded border border-border object-cover w-full max-h-32" />
                   </a>
                 ))}
               </div>
@@ -1029,15 +1070,26 @@ function EntrySection({
 
 interface PageProps {
   review: TimeAuditReviewDetail
-  ship: ReviewShipContext
   project: ReviewProjectContext
   new_entries: ReviewJournalEntry[]
   previous_entries: ReviewJournalEntry[]
   sibling_statuses: SiblingStatuses
   can: { update: boolean }
+  skip: string | null
+  heartbeat_path: string
+  next_path: string
+  index_path: string
 }
 
-export default function TimeAuditsShow({ review, ship, project, new_entries, previous_entries }: PageProps) {
+export default function TimeAuditsShow({
+  review,
+  project,
+  new_entries,
+  previous_entries,
+  skip,
+  heartbeat_path,
+  next_path,
+}: PageProps) {
   const allEntries = useMemo(
     () => [
       ...new_entries.map((e) => ({ ...e, isNew: true })),
@@ -1045,6 +1097,14 @@ export default function TimeAuditsShow({ review, ship, project, new_entries, pre
     ],
     [new_entries, previous_entries],
   )
+
+  useReviewHeartbeat(heartbeat_path)
+
+  const handleSkip = useCallback(() => {
+    const skipIds = skip ? skip.split(',') : []
+    skipIds.push(String(review.id))
+    router.visit(`${next_path}?skip=${skipIds.join(',')}`)
+  }, [skip, review.id, next_path])
 
   const [annotations, setAnnotations] = useState<TimeAuditAnnotations>(review.annotations ?? { recordings: {} })
   const [savedRecordings, setSavedRecordings] = useState<Set<string>>(() => {
@@ -1077,33 +1137,6 @@ export default function TimeAuditsShow({ review, ship, project, new_entries, pre
   // Segments are in video seconds. Deductions are proportional: (videoRange / videoDuration) * apiTime.
   // Since we don't have videoDuration here, we use the fact that the segment's recording_id
   // gives us apiTime, and the proportional deduction = videoRange * (apiTime / videoDuration).
-  // Without videoDuration per-recording in this scope, we approximate with the 60x multiplier
-  // (which is correct for most recordings). The RecordingBlock computes exact per-recording totals.
-  // For the top-bar summary, we use apiTime directly since segments store video-time but
-  // the multiplier converts: videoSec * multiplier = realSec.
-  // We pass multiplier = 60 as default (1 video sec = 1 real min = 60 real sec).
-  const approvedSeconds = useMemo(() => {
-    let total = totalDuration
-    const recs = annotations.recordings
-    if (!recs) return total
-    for (const [recId, data] of Object.entries(recs)) {
-      const apiDur = recordingDurations[recId]
-      if (!apiDur) continue
-      // Assume 60x for top-bar estimate; per-video the RecordingBlock knows the exact multiplier
-      const multiplier = 60
-      for (const seg of data.segments ?? []) {
-        const videoRange = seg.end_seconds - seg.start_seconds
-        const realRange = videoRange * multiplier
-        if (seg.type === 'removed') {
-          total -= realRange
-        } else if (seg.type === 'deflated') {
-          total -= (realRange * (seg.deflated_percent ?? 0)) / 100
-        }
-      }
-    }
-    return Math.max(0, Math.round(total))
-  }, [totalDuration, annotations, recordingDurations])
-
   const annotationsRef = useRef(annotations)
   annotationsRef.current = annotations
 
@@ -1194,43 +1227,80 @@ export default function TimeAuditsShow({ review, ship, project, new_entries, pre
     [review.id],
   )
 
-  const allReviewed = useMemo(() => {
-    return new_entries.every((entry) =>
+  const entryReviewedCheck = useCallback(
+    (entry: ReviewJournalEntry) =>
       entry.recordings.length === 0 ||
       entry.recordings.every((r) => {
         const recId = String(r.id)
         return savedRecordings.has(recId) && (annotations.recordings?.[recId]?.description?.trim() ?? '').length > 0
       }),
-    )
-  }, [new_entries, savedRecordings, annotations])
+    [savedRecordings, annotations],
+  )
+
+  const reviewedEntries = useMemo(
+    () => new_entries.filter(entryReviewedCheck).length,
+    [new_entries, entryReviewedCheck],
+  )
+  const allReviewed = reviewedEntries === new_entries.length
+
+  const approvedSeconds = useMemo(() => {
+    let total = 0
+    for (const entry of new_entries) {
+      if (!entryReviewedCheck(entry)) continue
+      let entryTime = entry.total_duration
+      const recs = annotations.recordings
+      if (recs) {
+        const multiplier = 60
+        for (const rec of entry.recordings) {
+          const data = recs[String(rec.id)]
+          if (!data?.segments) continue
+          for (const seg of data.segments) {
+            const videoRange = seg.end_seconds - seg.start_seconds
+            const realRange = videoRange * multiplier
+            if (seg.type === 'removed') {
+              entryTime -= realRange
+            } else if (seg.type === 'deflated') {
+              entryTime -= (realRange * (seg.deflated_percent ?? 0)) / 100
+            }
+          }
+        }
+      }
+      total += Math.max(0, entryTime)
+    }
+    return Math.round(total)
+  }, [new_entries, annotations, entryReviewedCheck])
 
   const handleSubmit = useCallback(() => {
     setSubmitting(true)
+    const url = skip
+      ? `/admin/reviews/time_audits/${review.id}?skip=${skip}`
+      : `/admin/reviews/time_audits/${review.id}`
     router.patch(
-      `/admin/reviews/time_audits/${review.id}`,
+      url,
       {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         time_audit_review: {
           status: 'approved',
           annotations: annotationsRef.current,
           approved_seconds: approvedSeconds,
-        },
+        } as any,
       },
       {
         onFinish: () => setSubmitting(false),
       },
     )
-  }, [review.id, approvedSeconds])
+  }, [review.id, approvedSeconds, skip])
 
   return (
     <>
       <ReviewTopBar
         project={project}
-        ship={ship}
-        review={review}
-        totalDuration={totalDuration}
+        totalEntries={new_entries.length}
         approvedSeconds={approvedSeconds}
+        totalDuration={totalDuration}
         submitting={submitting}
         allReviewed={allReviewed}
+        onSkip={handleSkip}
         onSubmit={handleSubmit}
       />
 

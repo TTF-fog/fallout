@@ -7,7 +7,8 @@ class Admin::Reviews::BuildReviewsController < Admin::Reviews::BaseController
 
     render inertia: {
       reviews: @reviews.map { |r| serialize_review_row(r) },
-      pagy: pagy_props(@pagy)
+      pagy: pagy_props(@pagy),
+      start_reviewing_path: next_admin_reviews_build_reviews_path
     }
   end
 
@@ -16,7 +17,11 @@ class Admin::Reviews::BuildReviewsController < Admin::Reviews::BaseController
 
     render inertia: {
       review: serialize_review_detail(@review),
-      can: { update: policy(@review).update? }
+      can: { update: policy(@review).update? },
+      skip: params[:skip],
+      heartbeat_path: heartbeat_admin_reviews_build_review_path(@review),
+      next_path: next_admin_reviews_build_reviews_path,
+      index_path: admin_reviews_build_reviews_path
     }
   end
 
@@ -24,7 +29,11 @@ class Admin::Reviews::BuildReviewsController < Admin::Reviews::BaseController
     authorize @review
 
     if @review.update(review_params)
-      redirect_to admin_reviews_build_review_path(@review), notice: "Build review updated."
+      if @review.approved? || @review.returned? || @review.rejected?
+        redirect_to_next_or_index(notice: "Build review #{@review.status}.")
+      else
+        redirect_to admin_reviews_build_review_path(@review, skip: params[:skip]), notice: "Build review updated."
+      end
     else
       redirect_back fallback_location: admin_reviews_build_review_path(@review),
                     inertia: { errors: @review.errors.messages }

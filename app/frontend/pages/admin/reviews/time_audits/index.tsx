@@ -3,6 +3,7 @@ import { Link } from '@inertiajs/react'
 import type { ColumnDef } from '@tanstack/react-table'
 import AdminLayout from '@/layouts/AdminLayout'
 import { Badge } from '@/components/admin/ui/badge'
+import { Button } from '@/components/admin/ui/button'
 import { DataTable } from '@/components/admin/DataTable'
 import type { ReviewRow, PagyProps } from '@/types'
 
@@ -31,7 +32,16 @@ const pendingColumns: ColumnDef<ReviewRow>[] = [
   {
     accessorKey: 'reviewer_display_name',
     header: 'Reviewer',
-    cell: ({ row }) => row.original.reviewer_display_name ?? <span className="text-muted-foreground">Unassigned</span>,
+    cell: ({ row }) => {
+      if (row.original.is_claimed) {
+        return (
+          <Badge variant="outline" className="text-xs">
+            Claimed by {row.original.claimed_by_display_name}
+          </Badge>
+        )
+      }
+      return row.original.reviewer_display_name ?? <span className="text-muted-foreground">Unassigned</span>
+    },
   },
   {
     accessorKey: 'created_at',
@@ -69,8 +79,9 @@ const allColumns: ColumnDef<ReviewRow>[] = [
   },
   {
     accessorKey: 'reviewer_display_name',
-    header: 'Reviewer',
-    cell: ({ row }) => row.original.reviewer_display_name ?? <span className="text-muted-foreground">Unassigned</span>,
+    header: 'Reviewed By',
+    cell: ({ row }) =>
+      row.original.reviewer_display_name ?? <span className="text-muted-foreground">—</span>,
   },
   {
     accessorKey: 'created_at',
@@ -82,22 +93,31 @@ export default function TimeAuditsIndex({
   pending_reviews,
   all_reviews,
   pagy,
+  start_reviewing_path,
 }: {
   pending_reviews: ReviewRow[]
   all_reviews: ReviewRow[]
   pagy: PagyProps
+  start_reviewing_path: string
 }) {
   return (
     <div className="space-y-8">
       <div>
-        <h2 className="text-lg font-semibold tracking-tight mb-3">
-          Pending Time Audits
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-lg font-semibold tracking-tight">
+            Pending Time Audits
+            {pending_reviews.length > 0 && (
+              <Badge variant="secondary" className="ml-2 text-xs">
+                {pending_reviews.length}
+              </Badge>
+            )}
+          </h2>
           {pending_reviews.length > 0 && (
-            <Badge variant="secondary" className="ml-2 text-xs">
-              {pending_reviews.length}
-            </Badge>
+            <Button asChild size="sm">
+              <Link href={start_reviewing_path}>Start Reviewing</Link>
+            </Button>
           )}
-        </h2>
+        </div>
         <DataTable columns={pendingColumns} data={pending_reviews} noun="pending reviews" />
       </div>
 

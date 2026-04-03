@@ -260,6 +260,8 @@ export interface ReviewRow {
   status: string
   reviewer_display_name: string | null
   created_at: string
+  is_claimed: boolean
+  claimed_by_display_name: string | null
 }
 
 export interface TimeAuditReviewDetail {

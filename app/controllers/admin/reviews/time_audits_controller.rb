@@ -10,7 +10,8 @@ class Admin::Reviews::TimeAuditsController < Admin::Reviews::BaseController
     render inertia: {
       pending_reviews: pending_reviews.map { |r| serialize_review_row(r) },
       all_reviews: @all_reviews.map { |r| serialize_review_row(r) },
-      pagy: pagy_props(@pagy)
+      pagy: pagy_props(@pagy),
+      start_reviewing_path: next_admin_reviews_time_audits_path
     }
   end
 
@@ -35,7 +36,11 @@ class Admin::Reviews::TimeAuditsController < Admin::Reviews::BaseController
       new_entries: new_entries.map { |je| serialize_journal_entry(je) },
       previous_entries: previous_entries.map { |je| serialize_journal_entry(je) },
       sibling_statuses: serialize_sibling_statuses(ship),
-      can: { update: policy(@review).update? }
+      can: { update: policy(@review).update? },
+      skip: params[:skip],
+      heartbeat_path: heartbeat_admin_reviews_time_audit_path(@review),
+      next_path: next_admin_reviews_time_audits_path,
+      index_path: admin_reviews_time_audits_path
     }
   end
 
@@ -47,9 +52,9 @@ class Admin::Reviews::TimeAuditsController < Admin::Reviews::BaseController
         format.json { render json: { ok: true } }
         format.html do
           if @review.approved? || @review.returned? || @review.rejected?
-            redirect_to admin_reviews_time_audits_path, notice: "Time audit #{@review.status}."
+            redirect_to_next_or_index(notice: "Time audit #{@review.status}.")
           else
-            redirect_to admin_reviews_time_audit_path(@review), notice: "Time audit updated."
+            redirect_to admin_reviews_time_audit_path(@review, skip: params[:skip]), notice: "Time audit updated."
           end
         end
       end
