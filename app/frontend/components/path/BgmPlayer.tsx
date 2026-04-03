@@ -4,6 +4,9 @@ import Frame from '@/components/shared/Frame'
 const TRACKS = [
   { src: '/bgm/falling_into_the_sky__kale_wu.mp3', title: 'Falling Into The Sky', artist: 'Kale Wu' },
   { src: '/bgm/an_object_at_rest_jocy_lau.mp3', title: 'An Object at Rest', artist: 'Jocy Lau' },
+  { src: '/bgm/lights_go_off_cisco.mp3', title: 'Lights Go Off', artist: 'Cisco' },
+  { src: '/bgm/untitled_1_cisco.mp3', title: 'Untitled 1', artist: 'Cisco' },
+  { src: '/bgm/untitled_2_cisco.mp3', title: 'Untitled 2', artist: 'Cisco' },
 ]
 const STORAGE_KEY = 'bgm-want'
 const VOLUME_KEY = 'bgm-volume'
