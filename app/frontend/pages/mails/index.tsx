@@ -33,81 +33,80 @@ function MailsIndex({ mails, is_modal }: PageProps) {
       </div>
 
       <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-4 md:px-4 md:pb-4">
+        {mails.length === 0 ? (
+          <p className="text-brown text-center py-12">You don't have any mail yet! Check back later!</p>
+        ) : (
+          <div className="flex flex-col gap-2">
+            {mails.map((mail) => {
+              const isInvite = mail.source_type === 'CollaborationInvite' && mail.invite_id
+              const showUnread = isInvite || !mail.is_read
 
-      {mails.length === 0 ? (
-        <p className="text-brown text-center py-12">You don't have any mail yet! Check back later!</p>
-      ) : (
-        <div className="flex flex-col gap-2">
-          {mails.map((mail) => {
-            const isInvite = mail.source_type === 'CollaborationInvite' && mail.invite_id
-            const showUnread = isInvite || !mail.is_read
-
-            return (
-              <div
-                key={mail.id}
-                className={`text-left p-4 border-2 bg-beige border-dark-brown ${isInvite ? '' : 'cursor-pointer hover:brightness-95 transition-all'}`}
-                onClick={isInvite ? undefined : () => visitModal(`/mails/${mail.id}`)}
-              >
-                <div className="flex items-start gap-3">
-                  {showUnread ? (
-                    <span className="mt-1.5 shrink-0 size-2.5 rounded-full bg-coral" />
-                  ) : (
-                    <span className="mt-1.5 shrink-0 size-2.5" />
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      {mail.pinned && <span className="text-xs text-coral font-bold uppercase">Pinned</span>}
-                      <span className={`truncate ${showUnread ? 'text-dark-brown font-bold' : 'text-brown'}`}>
-                        {mail.summary}
-                      </span>
-                    </div>
-                    <span className="text-xs text-brown mt-1 block">{mail.created_at}</span>
-
-                    {isInvite && (
-                      <div className="flex gap-2 mt-3">
-                        <Button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            router.post(
-                              `/collaboration_invites/${mail.invite_id}/accept`,
-                              {},
-                              {
-                                preserveScroll: true,
-                                onSuccess: () => modal?.reload(),
-                              },
-                            )
-                          }}
-                          className="text-sm py-1 px-3"
-                        >
-                          Accept
-                        </Button>
-                        <Button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            router.post(
-                              `/collaboration_invites/${mail.invite_id}/decline`,
-                              {},
-                              {
-                                preserveScroll: true,
-                                onSuccess: () => modal?.reload(),
-                              },
-                            )
-                          }}
-                          className="text-sm py-1 px-3 bg-light-brown text-dark-brown"
-                        >
-                          Ignore
-                        </Button>
-                      </div>
+              return (
+                <div
+                  key={mail.id}
+                  className={`text-left p-4 border-2 bg-beige border-dark-brown ${isInvite ? '' : 'cursor-pointer hover:brightness-95 transition-all'}`}
+                  onClick={isInvite ? undefined : () => visitModal(`/mails/${mail.id}`)}
+                >
+                  <div className="flex items-start gap-3">
+                    {showUnread ? (
+                      <span className="mt-1.5 shrink-0 size-2.5 rounded-full bg-coral" />
+                    ) : (
+                      <span className="mt-1.5 shrink-0 size-2.5" />
                     )}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        {mail.pinned && <span className="text-xs text-coral font-bold uppercase">Pinned</span>}
+                        <span className={`truncate ${showUnread ? 'text-dark-brown font-bold' : 'text-brown'}`}>
+                          {mail.summary}
+                        </span>
+                      </div>
+                      <span className="text-xs text-brown mt-1 block">{mail.created_at}</span>
+
+                      {isInvite && (
+                        <div className="flex gap-2 mt-3">
+                          <Button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              router.post(
+                                `/collaboration_invites/${mail.invite_id}/accept`,
+                                {},
+                                {
+                                  preserveScroll: true,
+                                  onSuccess: () => modal?.reload(),
+                                },
+                              )
+                            }}
+                            className="text-sm py-1 px-3"
+                          >
+                            Accept
+                          </Button>
+                          <Button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              router.post(
+                                `/collaboration_invites/${mail.invite_id}/decline`,
+                                {},
+                                {
+                                  preserveScroll: true,
+                                  onSuccess: () => modal?.reload(),
+                                },
+                              )
+                            }}
+                            className="text-sm py-1 px-3 bg-light-brown text-dark-brown"
+                          >
+                            Ignore
+                          </Button>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            )
-          })}
-        </div>
-      )}
+              )
+            })}
+          </div>
+        )}
       </div>
     </div>
   )

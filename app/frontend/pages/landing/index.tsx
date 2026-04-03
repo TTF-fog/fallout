@@ -10,13 +10,41 @@ import { gsap } from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 
 const PROJECTS = [
-  { image: '/landing/projects/cyberpad.webp', description: 'A sleek, cyberpunk inspired macropad', credit: 'By Kai, a 17-year-old from Canada' },
-  { image: '/landing/projects/glowpad.webp', description: 'A glowing macropad', credit: 'By Raygen, a 17-year-old from the US' },
-  { image: '/landing/projects/angel.webp', description: 'A biblically accurate angel, as a macropad', credit: 'By Alex, a 15-year-old from the US' },
-  { image: '/landing/projects/meko.webp', description: 'A high definition music player', credit: 'By Marcell, a 17-year-old from Romania' },
-  { image: '/landing/projects/bitlace.webp', description: 'A cool looking retro accessory with an 8x8 monochrome screen', credit: 'By Vladislav, a 17-year-old from Russia' },
-  { image: '/landing/projects/3dpmotherboard.webp', description: 'A powerful, yet affordable 3D printer motherboard', credit: 'By Kai, a 17-year-old from Canada' },
-  { image: '/landing/projects/twoswap.webp', description: 'An epic wearable TV head', credit: 'By Nick, an 18-year-old from the US' },
+  {
+    image: '/landing/projects/cyberpad.webp',
+    description: 'A sleek, cyberpunk inspired macropad',
+    credit: 'By Kai, a 17-year-old from Canada',
+  },
+  {
+    image: '/landing/projects/glowpad.webp',
+    description: 'A glowing macropad',
+    credit: 'By Raygen, a 17-year-old from the US',
+  },
+  {
+    image: '/landing/projects/angel.webp',
+    description: 'A biblically accurate angel, as a macropad',
+    credit: 'By Alex, a 15-year-old from the US',
+  },
+  {
+    image: '/landing/projects/meko.webp',
+    description: 'A high definition music player',
+    credit: 'By Marcell, a 17-year-old from Romania',
+  },
+  {
+    image: '/landing/projects/bitlace.webp',
+    description: 'A cool looking retro accessory with an 8x8 monochrome screen',
+    credit: 'By Vladislav, a 17-year-old from Russia',
+  },
+  {
+    image: '/landing/projects/3dpmotherboard.webp',
+    description: 'A powerful, yet affordable 3D printer motherboard',
+    credit: 'By Kai, a 17-year-old from Canada',
+  },
+  {
+    image: '/landing/projects/twoswap.webp',
+    description: 'An epic wearable TV head',
+    credit: 'By Nick, an 18-year-old from the US',
+  },
 ]
 
 export default function LandingIndex() {
@@ -327,9 +355,15 @@ export default function LandingIndex() {
 
     rafId = requestAnimationFrame(animate)
 
-    const onWheel = (e: WheelEvent) => { carouselDirectionRef.current = e.deltaY > 0 ? 1 : -1 }
-    const onEnter = () => { carouselTargetSpeedRef.current = 0 }
-    const onLeave = () => { carouselTargetSpeedRef.current = BASE_SPEED }
+    const onWheel = (e: WheelEvent) => {
+      carouselDirectionRef.current = e.deltaY > 0 ? 1 : -1
+    }
+    const onEnter = () => {
+      carouselTargetSpeedRef.current = 0
+    }
+    const onLeave = () => {
+      carouselTargetSpeedRef.current = BASE_SPEED
+    }
     const section = carouselSectionRef.current
 
     section?.addEventListener('wheel', onWheel, { passive: true })
@@ -569,7 +603,6 @@ export default function LandingIndex() {
                   <a
                     className="text-light-brown text-lg underline text-sm md:text-base"
                     href={cardCaptions[cardOrder[cardOrder.length - 1]].href}
-                    
                   >
                     {cardCaptions[cardOrder[cardOrder.length - 1]].label}
                   </a>
@@ -579,8 +612,18 @@ export default function LandingIndex() {
             <section className="w-full md:px-8 lg:px-18 xl:px-36 2xl:px-54 py-20 md:pt-60 md:pb-40 text-dark-brown flex flex-col items-center justify-center gap-6 font-bold text-center">
               <span className="text-2xl xs:text-3xl text-brown">My parents are worried!</span>
               <div className="gap-4 sm:gap-10 text-beige flex flex-col sm:flex-row items-center justify-center w-full">
-                <a href="https://hack.club/renran" className="inline-block bg-brown w-full max-w-70 py-4 text-2xl rounded-sm hover:bg-dark-brown transition-all">Book a call with us</a>
-                <a href="https://docs.google.com/document/d/1dXDIBm7SWui5rbK3zh7188UmLC0cv_dsMj7ynr3POho/edit?tab=t.q4hvz46um9np" className="inline-block bg-brown w-full max-w-70 py-4 text-2xl rounded-sm hover:bg-dark-brown transition-all">Parent Guide</a>
+                <a
+                  href="https://hack.club/renran"
+                  className="inline-block bg-brown w-full max-w-70 py-4 text-2xl rounded-sm hover:bg-dark-brown transition-all"
+                >
+                  Book a call with us
+                </a>
+                <a
+                  href="https://docs.google.com/document/d/1dXDIBm7SWui5rbK3zh7188UmLC0cv_dsMj7ynr3POho/edit?tab=t.q4hvz46um9np"
+                  className="inline-block bg-brown w-full max-w-70 py-4 text-2xl rounded-sm hover:bg-dark-brown transition-all"
+                >
+                  Parent Guide
+                </a>
               </div>
             </section>
             <div className="md:pt-0 md:qualify-outer">
@@ -636,9 +679,15 @@ export default function LandingIndex() {
             </div>
           </div>
           <section ref={carouselSectionRef} className="w-full h-120 lg:pt-30 py-20 overflow-hidden">
-            <ul ref={carouselTrackRef} className="w-max h-full flex gap-4 text-base leading-tight will-change-transform">
+            <ul
+              ref={carouselTrackRef}
+              className="w-max h-full flex gap-4 text-base leading-tight will-change-transform"
+            >
               {[...PROJECTS, ...PROJECTS].map((project, i) => (
-                <li key={i} className="border-2 border-dark-brown h-full aspect-3/4 bg-light-brown rounded-xs text-dark-brown font-bold p-2 flex flex-col transition-transform duration-300 hover:scale-110 hover:-rotate-3 hover:z-10">
+                <li
+                  key={i}
+                  className="border-2 border-dark-brown h-full aspect-3/4 bg-light-brown rounded-xs text-dark-brown font-bold p-2 flex flex-col transition-transform duration-300 hover:scale-110 hover:-rotate-3 hover:z-10"
+                >
                   <div
                     className="w-full h-[70%] bg-beige rounded-xs bg-center bg-cover opacity-90 border-beige border-6"
                     style={{ backgroundImage: `url(${project.image})` }}
@@ -860,13 +909,10 @@ export default function LandingIndex() {
                   q: 'What is Hack Club?',
                   a: (
                     <>
-                      <a href="https://hackclub.com">
-                        Hack Club
-                      </a>{' '}
-                      is a <strong>501(c)(3) nonprofit</strong> (EIN: 81-2908499) that helps high school students learn
-                      to code and build projects. We&apos;re the largest teen-led coding community, with over{' '}
-                      <strong>50,000 students</strong> building projects with their friends in Hack Club each year. Some
-                      of our past events include:
+                      <a href="https://hackclub.com">Hack Club</a> is a <strong>501(c)(3) nonprofit</strong> (EIN:
+                      81-2908499) that helps high school students learn to code and build projects. We&apos;re the
+                      largest teen-led coding community, with over <strong>50,000 students</strong> building projects
+                      with their friends in Hack Club each year. Some of our past events include:
                       <ul className="list-disc ml-5 mt-1">
                         <li>
                           <a href="https://www.youtube.com/watch?v=fuTlToZ1SX8" className="font-bold">
@@ -881,10 +927,7 @@ export default function LandingIndex() {
                           : a 48-hour hardware hackathon in San Francisco, California.
                         </li>
                         <li>
-                          <a
-                            href="https://youtu.be/kaEFv7e49mo?si=9gATZE-c3CqwsJF2"
-                            className="font-bold"
-                          >
+                          <a href="https://youtu.be/kaEFv7e49mo?si=9gATZE-c3CqwsJF2" className="font-bold">
                             Undercity
                           </a>
                           : a 4-day hardware hackathon at GitHub HQ!
@@ -907,17 +950,10 @@ export default function LandingIndex() {
                   a: (
                     <>
                       Ask us in{' '}
-                      <a
-                        href="https://hackclub.enterprise.slack.com/archives/C0ACJ290090"
-                        className="font-bold"
-                      >
+                      <a href="https://hackclub.enterprise.slack.com/archives/C0ACJ290090" className="font-bold">
                         #fallout-help
                       </a>{' '}
-                      on the{' '}
-                      <a href="http://slack.hackclub.com/">
-                        Hack Club Slack
-                      </a>
-                      , or email us at{' '}
+                      on the <a href="http://slack.hackclub.com/">Hack Club Slack</a>, or email us at{' '}
                       <a href="mailto:fallout@hackclub.com" className="underline">
                         fallout@hackclub.com
                       </a>
