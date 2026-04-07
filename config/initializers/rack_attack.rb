@@ -2,11 +2,6 @@ class Rack::Attack
   # Cache store for tracking requests
   Rack::Attack.cache.store = Rails.cache
 
-  # Throttle all requests by IP (300 requests per 5 minutes)
-  throttle("req/ip", limit: 300, period: 5.minutes) do |req|
-    req.ip
-  end
-
   # Throttle GET /auth/hca/start (signin) by IP (10 per minute)
   throttle("auth/hca/start/ip", limit: 10, period: 1.minute) do |req|
     req.ip if req.path == "/auth/hca/start" && req.get?

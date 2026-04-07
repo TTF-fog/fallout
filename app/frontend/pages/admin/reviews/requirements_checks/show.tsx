@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import { Link, router } from '@inertiajs/react'
 import { useReviewHeartbeat } from '@/hooks/useReviewHeartbeat'
 import ReviewLayout from '@/layouts/ReviewLayout'
+import HoursDisplay from '@/components/admin/HoursDisplay'
 import { Badge } from '@/components/admin/ui/badge'
 import { Button } from '@/components/admin/ui/button'
 import { Separator } from '@/components/admin/ui/separator'
@@ -283,7 +284,7 @@ function TopBar({
   const [flagReason, setFlagReason] = useState('')
 
   return (
-    <div className="z-50 bg-background border-b border-border px-4 py-2 flex items-center gap-3 shrink-0">
+    <div className="z-50 bg-muted/40 border-b border-border px-4 py-2 flex items-center gap-3 shrink-0">
       <Button variant="outline" size="sm" asChild>
         <Link href="/admin/reviews/requirements_checks">End Session</Link>
       </Button>
@@ -500,7 +501,6 @@ export default function RequirementsChecksShow({
             status,
             feedback: feedback.trim() || null,
             internal_reason: internalReason.trim() || null,
-            lock_version: review.lock_version,
           } as any,
         },
         { onFinish: () => setSubmitting(false) },
@@ -573,15 +573,12 @@ export default function RequirementsChecksShow({
                 <p className="text-sm font-medium capitalize">{project.ship_type}</p>
               </div>
               <div className="px-3 py-2">
-                <p className="text-xs text-muted-foreground mb-0.5">Hours</p>
-                <p className="text-sm font-mono">
-                  {project.approved_hours != null ? (
-                    <>
-                      {project.approved_hours}h <span className="text-muted-foreground">/ {project.total_hours}h</span>
-                    </>
-                  ) : (
-                    <>{project.total_hours}h</>
-                  )}
+                <p className="text-xs text-muted-foreground mb-0.5">Hours Approved</p>
+                <p className="text-sm">
+                  <HoursDisplay
+                    publicHours={project.approved_public_hours}
+                    internalHours={project.approved_internal_hours}
+                  />
                 </p>
               </div>
               <div className="px-3 py-2">
@@ -733,7 +730,7 @@ export default function RequirementsChecksShow({
                               <span className="text-muted-foreground">{formatDuration(rec.duration)}</span>
                               {rec.removed_seconds > 0 && (
                                 <span className="text-red-600 dark:text-red-400">
-                                  −{formatDuration(rec.removed_seconds)}
+                                  → {formatDuration(rec.duration - rec.removed_seconds)}
                                 </span>
                               )}
                             </div>

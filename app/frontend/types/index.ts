@@ -220,14 +220,15 @@ export interface AdminShipRow {
 export interface AdminShipDetail {
   id: number
   status: string
-  reviewer_display_name: string | null
-  approved_seconds: number | null
+  approved_public_hours: number | null
+  approved_internal_hours: number | null
   feedback: string | null
   justification: string | null
   frozen_demo_link: string | null
   frozen_repo_link: string | null
   project_name: string
   user_display_name: string
+  review_statuses: SiblingStatuses
   created_at: string
 }
 
@@ -298,6 +299,7 @@ export interface ReviewRow {
   project_name: string
   user_display_name: string
   status: string
+  project_flagged: boolean
   reviewer_display_name: string | null
   created_at: string
   is_claimed: boolean
@@ -311,7 +313,6 @@ export interface TimeAuditReviewDetail {
   feedback: string | null
   approved_seconds: number | null
   annotations: TimeAuditAnnotations | null
-  lock_version: number
   reviewer_display_name: string | null
   created_at: string
 }
@@ -387,8 +388,9 @@ export interface ReviewProjectContext {
 export interface RequirementsCheckProjectContext extends ReviewProjectContext {
   tags: string[]
   created_at: string
-  total_hours: number
-  approved_hours: number | null
+  logged_hours: number
+  approved_public_hours: number | null
+  approved_internal_hours: number | null
   entry_count: number
   ship_type: string
   frozen_repo_link: string | null
@@ -431,7 +433,6 @@ export interface RequirementsCheckReviewDetail {
   status: string
   feedback: string | null
   internal_reason: string | null
-  lock_version: number
   reviewer_display_name: string | null
   project_name: string
   user_display_name: string
@@ -445,11 +446,13 @@ export interface DesignReviewDetail {
   status: string
   feedback: string | null
   internal_reason: string | null
-  lock_version: number
+  hours_adjustment: number | null
+  koi_adjustment: number | null
   annotations: Record<string, unknown> | null
   reviewer_display_name: string | null
   project_name: string
   user_display_name: string
+  preflight_results: PreflightCheck[] | null
   created_at: string
 }
 
@@ -459,10 +462,12 @@ export interface BuildReviewDetail {
   status: string
   feedback: string | null
   internal_reason: string | null
-  lock_version: number
+  hours_adjustment: number | null
+  koi_adjustment: number | null
   annotations: Record<string, unknown> | null
   reviewer_display_name: string | null
   project_name: string
   user_display_name: string
+  preflight_results: PreflightCheck[] | null
   created_at: string
 }

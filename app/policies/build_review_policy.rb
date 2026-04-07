@@ -6,7 +6,9 @@ class BuildReviewPolicy < ApplicationPolicy
   end
 
   def show?
-    admin? || staff_reviewer?
+    return true if admin?
+    return false if record.ship.project.flagged? # Only admins can view flagged reviews
+    staff_reviewer?
   end
 
   def update?
@@ -30,7 +32,7 @@ class BuildReviewPolicy < ApplicationPolicy
   class Scope < ApplicationPolicy::Scope
     def resolve
       if user&.can_review?(:build_review)
-        scope.where.not(ship_id: Ship.where(project_id: ProjectFlag.select(:project_id)).select(:id))
+        scope.all
       else
         scope.none
       end

@@ -3,12 +3,13 @@ class Admin::Reviews::TimeAuditsController < Admin::Reviews::BaseController
     base = policy_scope(TimeAuditReview)
       .includes(ship: [ :project, project: :user ], reviewer: [])
 
-    pending_reviews = base.pending.order(created_at: :asc).load
+    pending_reviews = base.pending.where.not(ship_id: flagged_ship_ids).order(created_at: :asc).load
     @pagy, @all_reviews = pagy(base.order(created_at: :desc))
+    flagged_ids = ProjectFlag.distinct.pluck(:project_id).to_set
 
     render inertia: {
       pending_reviews: pending_reviews.map { |r| serialize_review_row(r) },
-      all_reviews: @all_reviews.map { |r| serialize_review_row(r) },
+      all_reviews: @all_reviews.map { |r| serialize_review_row(r, flagged_project_ids: flagged_ids) },
       pagy: pagy_props(@pagy),
       start_reviewing_path: next_admin_reviews_time_audits_path
     }
@@ -78,7 +79,7 @@ class Admin::Reviews::TimeAuditsController < Admin::Reviews::BaseController
   end
 
   def review_params
-    permitted = params.require(:time_audit_review).permit(:status, :feedback, :approved_seconds, :lock_version)
+    permitted = params.require(:time_audit_review).permit(:status, :feedback, :approved_seconds)
     if params.dig(:time_audit_review, :annotations)
       raw = params[:time_audit_review][:annotations]&.to_unsafe_h
       # Only allow the expected { "recordings" => { "<id>" => { ... } } } structure
@@ -95,7 +96,6 @@ class Admin::Reviews::TimeAuditsController < Admin::Reviews::BaseController
       feedback: review.feedback,
       approved_seconds: review.approved_seconds,
       annotations: review.annotations,
-      lock_version: review.lock_version,
       reviewer_display_name: review.reviewer&.display_name,
       created_at: review.created_at.strftime("%B %d, %Y")
     }

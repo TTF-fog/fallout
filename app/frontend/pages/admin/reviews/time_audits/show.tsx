@@ -43,6 +43,7 @@ import {
   MessageSquareTextIcon,
   FlagIcon,
 } from 'lucide-react'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/admin/ui/tooltip'
 import ProjectNotesWindow from '@/components/admin/ProjectNotesWindow'
 import type {
   TimeAuditReviewDetail,
@@ -135,7 +136,7 @@ function ReviewTopBar({
   const [flagReason, setFlagReason] = useState('')
 
   return (
-    <div className="z-50 bg-background border-b border-border px-4 py-2 flex items-center gap-3 shrink-0">
+    <div className="z-50 bg-muted/40 border-b border-border px-4 py-2 flex items-center gap-3 shrink-0">
       <Button variant="outline" size="sm" asChild>
         <Link href="/admin/reviews/time_audits">End Session</Link>
       </Button>
@@ -310,6 +311,7 @@ function AnnotationTimeline({
   granularity,
   onInteractionEnd,
   preview,
+  readOnly,
 }: {
   recording: ReviewRecording
   segments: TimeAuditSegment[]
@@ -320,6 +322,7 @@ function AnnotationTimeline({
   granularity: number
   onInteractionEnd?: () => void
   preview?: { start: number; end: number; type: 'removed' | 'deflated' } | null
+  readOnly?: boolean
 }) {
   const totalDuration = recording.duration
   if (!totalDuration) return null
@@ -373,13 +376,36 @@ function AnnotationTimeline({
             const startPct = (seg.start_seconds / totalDuration) * 100
             const widthPct = ((seg.end_seconds - seg.start_seconds) / totalDuration) * 100
             const isRemoved = seg.type === 'removed'
-            return (
+            const segDiv = (
               <div
-                key={`seg-${i}`}
-                className={`absolute top-0 h-full ${isRemoved ? 'bg-red-500/70' : 'bg-amber-500/70'}`}
+                className={`absolute top-0 h-full ${readOnly ? 'z-20 pointer-events-auto' : ''} ${isRemoved ? 'bg-red-500/70' : 'bg-amber-500/70'}`}
                 style={{ left: `${startPct}%`, width: `${Math.max(widthPct, 0.5)}%` }}
-                title={`${seg.type}: ${formatTimestamp(seg.start_seconds)} – ${formatTimestamp(seg.end_seconds)} (${seg.reason})`}
               />
+            )
+            if (!readOnly) return <span key={`seg-${i}`}>{segDiv}</span>
+            const rangeMin = Math.round(((seg.end_seconds - seg.start_seconds) * 60) / 60)
+            return (
+              <TooltipProvider key={`seg-${i}`}>
+                <Tooltip>
+                  <TooltipTrigger asChild>{segDiv}</TooltipTrigger>
+                  <TooltipContent className="max-w-xs">
+                    {isRemoved ? (
+                      <span>
+                        <span className="text-red-400">−{rangeMin}m</span>
+                        {seg.reason && <>: {seg.reason}</>}
+                      </span>
+                    ) : (
+                      <span>
+                        {rangeMin}m{' '}
+                        <span className="text-amber-400">
+                          → {Math.round((rangeMin * (100 - (seg.deflated_percent ?? 0))) / 100)}m
+                        </span>
+                        {seg.reason && <>: {seg.reason}</>}
+                      </span>
+                    )}
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             )
           })}
 
@@ -422,13 +448,15 @@ function AnnotationTimeline({
           style={{ left: `${cursorPct}%` }}
         />
 
-        {/* Interaction layer */}
-        <div
-          className="absolute inset-0 cursor-pointer"
-          onPointerDown={handlePointerDown}
-          onPointerMove={handlePointerMove}
-          onPointerUp={handlePointerUp}
-        />
+        {/* Interaction layer — hidden in read-only mode so segment tooltips work */}
+        {!readOnly && (
+          <div
+            className="absolute inset-0 cursor-pointer"
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+          />
+        )}
       </div>
 
       {/* Legend */}
@@ -979,6 +1007,7 @@ function RecordingBlock({
         granularity={granularity}
         onInteractionEnd={() => videoRef.current?.focus({ preventScroll: true })}
         preview={preview}
+        readOnly={readOnly}
       />
 
       {/* Segment editor — operates in video time, multiplier converts to API time */}
@@ -1455,7 +1484,6 @@ export default function TimeAuditsShow({
           status: 'approved',
           annotations: annotationsRef.current,
           approved_seconds: approvedSeconds,
-          lock_version: review.lock_version,
         } as any,
       },
       {

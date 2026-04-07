@@ -3,12 +3,13 @@ class Admin::Reviews::BuildReviewsController < Admin::Reviews::BaseController
     base = policy_scope(BuildReview)
       .includes(ship: [ :project, project: :user ], reviewer: [])
 
-    pending_reviews = base.pending.order(created_at: :asc).load
+    pending_reviews = base.pending.where.not(ship_id: flagged_ship_ids).order(created_at: :asc).load
     @pagy, @all_reviews = pagy(base.order(created_at: :desc))
+    flagged_ids = ProjectFlag.distinct.pluck(:project_id).to_set
 
     render inertia: {
       pending_reviews: pending_reviews.map { |r| serialize_review_row(r) },
-      all_reviews: @all_reviews.map { |r| serialize_review_row(r) },
+      all_reviews: @all_reviews.map { |r| serialize_review_row(r, flagged_project_ids: flagged_ids) },
       pagy: pagy_props(@pagy),
       start_reviewing_path: next_admin_reviews_build_reviews_path
     }
@@ -69,7 +70,7 @@ class Admin::Reviews::BuildReviewsController < Admin::Reviews::BaseController
   end
 
   def review_params
-    params.expect(build_review: [ :status, :feedback, :internal_reason, :lock_version ])
+    params.expect(build_review: [ :status, :feedback, :internal_reason, :hours_adjustment, :koi_adjustment ])
   end
 
   def serialize_review_detail(review)
@@ -80,7 +81,8 @@ class Admin::Reviews::BuildReviewsController < Admin::Reviews::BaseController
       status: review.status,
       feedback: review.feedback,
       internal_reason: review.internal_reason,
-      lock_version: review.lock_version,
+      hours_adjustment: review.hours_adjustment,
+      koi_adjustment: review.koi_adjustment,
       reviewer_display_name: review.reviewer&.display_name,
       project_name: ship.project.name,
       user_display_name: ship.project.user.display_name,

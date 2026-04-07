@@ -6,14 +6,69 @@ import { Badge } from '@/components/admin/ui/badge'
 import { Button } from '@/components/admin/ui/button'
 import { Card, CardContent } from '@/components/admin/ui/card'
 import { DataTable } from '@/components/admin/DataTable'
-import { ChevronLeftIcon, ExternalLinkIcon } from 'lucide-react'
-import type { AdminProjectDetail, PagyProps } from '@/types'
+import HoursDisplay from '@/components/admin/HoursDisplay'
+import { ChevronLeftIcon, ExternalLinkIcon, ClockIcon } from 'lucide-react'
+import type { AdminProjectDetail, PagyProps, SiblingStatuses } from '@/types'
+
+interface JournalEntry {
+  id: number
+  content_html: string
+  images: string[]
+  author_display_name: string
+  author_avatar: string
+  created_at: string
+  ship_id: number | null
+  total_duration: number
+  recordings: {
+    id: number
+    type: string
+    name: string
+    duration: number
+    removed_seconds: number
+    description: string | null
+  }[]
+}
+
+function formatDuration(seconds: number): string {
+  if (seconds < 60) return `${seconds}s`
+  const h = Math.floor(seconds / 3600)
+  const m = Math.floor((seconds % 3600) / 60)
+  if (h > 0) return `${h}h ${m}m`
+  return `${m}m`
+}
+
+function recordingTypeLabel(type: string): string {
+  switch (type) {
+    case 'LookoutTimelapse':
+      return 'Lookout'
+    case 'LapseTimelapse':
+      return 'Lapse'
+    case 'YouTubeVideo':
+      return 'YouTube'
+    default:
+      return type
+  }
+}
+
+function recordingTypeBadgeColor(type: string): string {
+  switch (type) {
+    case 'LookoutTimelapse':
+      return 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800'
+    case 'LapseTimelapse':
+      return 'bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-950 dark:text-purple-300 dark:border-purple-800'
+    case 'YouTubeVideo':
+      return 'bg-red-100 text-red-700 border-red-200 dark:bg-red-950 dark:text-red-300 dark:border-red-800'
+    default:
+      return 'bg-zinc-100 text-zinc-700 border-zinc-200'
+  }
+}
 
 interface ShipRow {
   id: number
   status: string
-  reviewer_display_name: string | null
-  approved_seconds: number | null
+  approved_public_hours: number | null
+  approved_internal_hours: number | null
+  review_statuses: SiblingStatuses
   created_at: string
 }
 
@@ -21,6 +76,24 @@ const statusColors: Record<string, 'default' | 'secondary' | 'destructive' | 'ou
   pending: 'secondary',
   approved: 'default',
   rejected: 'destructive',
+  returned: 'outline',
+}
+
+function StepBadge({ label, status }: { label: string; status: string | null }) {
+  if (!status) return null
+  const color =
+    status === 'approved'
+      ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400'
+      : status === 'returned' || status === 'rejected'
+        ? 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400'
+        : status === 'cancelled'
+          ? 'bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-500'
+          : 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400'
+  return (
+    <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${color}`}>
+      {label}: {status}
+    </span>
+  )
 }
 
 const shipColumns: ColumnDef<ShipRow>[] = [
@@ -36,21 +109,36 @@ const shipColumns: ColumnDef<ShipRow>[] = [
   {
     accessorKey: 'status',
     header: 'Status',
+    cell: ({ row }) => {
+      const { status, review_statuses } = row.original
+      const showSteps = status === 'pending' && review_statuses
+      if (showSteps) {
+        return (
+          <div className="flex flex-wrap gap-1">
+            <StepBadge label="TA" status={review_statuses.time_audit} />
+            <StepBadge label="RC" status={review_statuses.requirements_check} />
+            <StepBadge label="Design" status={review_statuses.design_review} />
+            <StepBadge label="Build" status={review_statuses.build_review} />
+          </div>
+        )
+      }
+      return (
+        <Badge variant={statusColors[status] ?? 'outline'} className="capitalize">
+          {status}
+        </Badge>
+      )
+    },
+  },
+  {
+    accessorKey: 'approved_public_hours',
+    header: 'Hours Approved',
     cell: ({ row }) => (
-      <Badge variant={statusColors[row.original.status] ?? 'outline'} className="capitalize">
-        {row.original.status}
-      </Badge>
+      <HoursDisplay
+        publicHours={row.original.approved_public_hours}
+        internalHours={row.original.approved_internal_hours}
+        className="text-xs"
+      />
     ),
-  },
-  {
-    accessorKey: 'reviewer_display_name',
-    header: 'Reviewer',
-    cell: ({ row }) => row.original.reviewer_display_name ?? <span className="text-muted-foreground">Unassigned</span>,
-  },
-  {
-    accessorKey: 'approved_seconds',
-    header: 'Approved Seconds',
-    cell: ({ row }) => row.original.approved_seconds ?? <span className="text-muted-foreground">—</span>,
   },
   {
     accessorKey: 'created_at',
@@ -86,10 +174,14 @@ export default function AdminProjectsShow({
   project,
   ships,
   pagy_ships,
+  journal_entries,
+  pagy_entries,
 }: {
   project: AdminProjectDetail
   ships: ShipRow[]
   pagy_ships: PagyProps
+  journal_entries: JournalEntry[]
+  pagy_entries: PagyProps
 }) {
   return (
     <div>
@@ -214,6 +306,114 @@ export default function AdminProjectsShow({
       </div>
 
       <DataTable columns={shipColumns} data={ships} pagy={pagy_ships} noun="ships" pageParam="ships_page" />
+
+      <div className="flex items-center gap-2 mb-4 mt-8">
+        <h2 className="text-lg font-semibold tracking-tight">Journal Entries</h2>
+        <Badge variant="secondary" className="text-sm">
+          {pagy_entries.count}
+        </Badge>
+      </div>
+
+      {journal_entries.length > 0 ? (
+        <>
+          <Card className="py-0">
+            <div className="divide-y divide-border">
+              {journal_entries.map((entry) => (
+                <div key={entry.id} className="p-3 space-y-2">
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <img src={entry.author_avatar} alt="" className="size-4 rounded-full" />
+                    <span>{entry.author_display_name}</span>
+                    <span>|</span>
+                    <span>{entry.created_at}</span>
+                    <span className="flex items-center gap-1">
+                      <ClockIcon className="size-3" />
+                      {formatDuration(entry.total_duration)}
+                    </span>
+                    {entry.ship_id && (
+                      <Badge variant="outline" className="text-[10px]">
+                        Ship {entry.ship_id}
+                      </Badge>
+                    )}
+                  </div>
+
+                  {entry.recordings.length > 0 && (
+                    <div className="grid grid-cols-3 gap-1.5">
+                      {entry.recordings.map((rec) => (
+                        <div key={rec.id} className="text-xs rounded border border-border p-2 space-y-1">
+                          <div className="flex items-center gap-1.5">
+                            <Badge
+                              className={`text-[10px] shrink-0 ${recordingTypeBadgeColor(rec.type)}`}
+                              variant="outline"
+                            >
+                              {recordingTypeLabel(rec.type)}
+                            </Badge>
+                            <span className="text-muted-foreground">{formatDuration(rec.duration)}</span>
+                            {rec.removed_seconds > 0 && (
+                              <span className="text-red-600 dark:text-red-400">
+                                → {formatDuration(rec.duration - rec.removed_seconds)}
+                              </span>
+                            )}
+                          </div>
+                          {rec.description && <p className="text-muted-foreground leading-snug">{rec.description}</p>}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <div
+                    className="markdown-content max-w-none text-xs"
+                    style={{ zoom: 0.85 }}
+                    dangerouslySetInnerHTML={{ __html: entry.content_html }}
+                  />
+                  {entry.images.length > 0 && (
+                    <div className="grid grid-cols-3 gap-2">
+                      {entry.images.map((img, j) => (
+                        <a key={j} href={img} target="_blank" rel="noopener noreferrer">
+                          <img src={img} alt="" className="rounded border border-border object-cover w-full max-h-24" />
+                        </a>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </Card>
+
+          {pagy_entries.pages > 1 && (
+            <div className="flex items-center justify-center gap-2 pt-4">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={!pagy_entries.prev}
+                onClick={() => {
+                  const url = new URL(window.location.href)
+                  url.searchParams.set('entries_page', String(pagy_entries.prev!))
+                  window.location.href = url.toString()
+                }}
+              >
+                Previous
+              </Button>
+              <span className="text-sm text-muted-foreground">
+                {pagy_entries.page} / {pagy_entries.pages}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={!pagy_entries.next}
+                onClick={() => {
+                  const url = new URL(window.location.href)
+                  url.searchParams.set('entries_page', String(pagy_entries.next!))
+                  window.location.href = url.toString()
+                }}
+              >
+                Next
+              </Button>
+            </div>
+          )}
+        </>
+      ) : (
+        <p className="text-sm text-muted-foreground">No journal entries.</p>
+      )}
     </div>
   )
 }

@@ -3,9 +3,6 @@ class Admin::Reviews::BaseController < Admin::ApplicationController
   skip_after_action :verify_authorized
   skip_after_action :verify_policy_scoped
 
-  # Optimistic locking: concurrent updates to the same review raise StaleObjectError
-  rescue_from ActiveRecord::StaleObjectError, with: :handle_stale_review
-
   before_action :set_review, only: %i[ show update heartbeat ]
   before_action :release_all_review_claims, only: %i[ index ]
   before_action :claim_review!, only: %i[ show ]
@@ -93,15 +90,23 @@ class Admin::Reviews::BaseController < Admin::ApplicationController
     (params[:skip] || "").split(",").filter_map { |id| id.to_i if id.present? }
   end
 
-  def handle_stale_review
-    redirect_to review_index_path, alert: "This review was modified by another reviewer. Your changes were not saved."
+  # Flagged projects are visible in the All table but excluded from the pending queue
+  def flagged_ship_ids
+    Ship.where(project_id: ProjectFlag.select(:project_id)).select(:id)
   end
 
   def redirect_to_next_or_index(notice:)
-    # Clear claim expiry but keep reviewer_id as audit trail on the completed review
-    @review.update_columns(claim_expires_at: nil)
+    @review.update_columns(claim_expires_at: nil) # Clear claim expiry but keep reviewer_id as audit trail
+    clear_flag_if_admin_override!
     skip_ids = parse_skip_ids << @review.id
     redirect_to review_next_path(skip: skip_ids.join(",")), notice: notice
+  end
+
+  # Admin submitting a decision on a flagged review clears the flag (admin override)
+  def clear_flag_if_admin_override!
+    return unless current_user.admin?
+    project = @review.ship.project
+    project.project_flags.destroy_all if project.flagged?
   end
 
   # -- Route helpers — use url_for with controller/action instead of polymorphic_path,
@@ -135,7 +140,7 @@ class Admin::Reviews::BaseController < Admin::ApplicationController
     end
   end
 
-  def serialize_review_row(review)
+  def serialize_review_row(review, flagged_project_ids: Set.new)
     ship = review.ship
     {
       id: review.id,
@@ -143,6 +148,7 @@ class Admin::Reviews::BaseController < Admin::ApplicationController
       project_name: ship.project.name,
       user_display_name: ship.project.user.display_name,
       status: review.status,
+      project_flagged: flagged_project_ids.include?(ship.project_id),
       reviewer_display_name: review.reviewer&.display_name,
       created_at: review.created_at.strftime("%b %d, %Y"),
       is_claimed: review.claimed?,
@@ -151,9 +157,10 @@ class Admin::Reviews::BaseController < Admin::ApplicationController
   end
 
   def serialize_project_context(project, ship)
-    total_hours = (project.time_logged / 3600.0).round(1)
+    logged = (project.time_logged / 3600.0).round(1)
+    public_hrs = ship.approved_seconds ? (ship.approved_seconds / 3600.0).round(1) : nil
+    internal_hrs = compute_internal_hours(ship)
     entry_count = project.kept_journal_entries.size
-    approved_hours = ship.approved_seconds ? (ship.approved_seconds / 3600.0).round(1) : nil
     first_ship = project.ships.order(:created_at).first
     {
       id: project.id,
@@ -166,8 +173,9 @@ class Admin::Reviews::BaseController < Admin::ApplicationController
       user_id: project.user_id,
       user_display_name: project.user.display_name,
       user_avatar: project.user.avatar,
-      total_hours: total_hours,
-      approved_hours: approved_hours,
+      logged_hours: logged,
+      approved_public_hours: public_hrs,
+      approved_internal_hours: internal_hrs,
       entry_count: entry_count,
       ship_type: ship.ship_type,
       frozen_repo_link: ship.frozen_repo_link,
@@ -238,5 +246,14 @@ class Admin::Reviews::BaseController < Admin::ApplicationController
     when YouTubeVideo then recording.recordable.duration_seconds.to_i
     else 0
     end
+  end
+
+  def compute_internal_hours(ship)
+    base = ship.approved_seconds || 0
+    dr_adj = ship.design_review&.hours_adjustment || 0
+    br_adj = ship.build_review&.hours_adjustment || 0
+    total = base + dr_adj + br_adj
+    return nil if base.zero? && dr_adj.zero? && br_adj.zero?
+    (total / 3600.0).round(1)
   end
 end

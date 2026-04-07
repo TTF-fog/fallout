@@ -3,12 +3,13 @@ class Admin::Reviews::RequirementsChecksController < Admin::Reviews::BaseControl
     base = policy_scope(RequirementsCheckReview)
       .includes(ship: [ :project, project: :user ], reviewer: [])
 
-    pending_reviews = base.pending.order(created_at: :asc).load
+    pending_reviews = base.pending.where.not(ship_id: flagged_ship_ids).order(created_at: :asc).load
     @pagy, @all_reviews = pagy(base.order(created_at: :desc))
+    flagged_ids = ProjectFlag.distinct.pluck(:project_id).to_set
 
     render inertia: {
       pending_reviews: pending_reviews.map { |r| serialize_review_row(r) },
-      all_reviews: @all_reviews.map { |r| serialize_review_row(r) },
+      all_reviews: @all_reviews.map { |r| serialize_review_row(r, flagged_project_ids: flagged_ids) },
       pagy: pagy_props(@pagy),
       start_reviewing_path: next_admin_reviews_requirements_checks_path
     }
@@ -77,7 +78,7 @@ class Admin::Reviews::RequirementsChecksController < Admin::Reviews::BaseControl
   end
 
   def review_params
-    params.expect(requirements_check_review: [ :status, :feedback, :internal_reason, :lock_version ])
+    params.expect(requirements_check_review: [ :status, :feedback, :internal_reason ])
   end
 
   def serialize_review_detail(review)
@@ -88,7 +89,6 @@ class Admin::Reviews::RequirementsChecksController < Admin::Reviews::BaseControl
       status: review.status,
       feedback: review.feedback,
       internal_reason: review.internal_reason,
-      lock_version: review.lock_version,
       reviewer_display_name: review.reviewer&.display_name,
       project_name: ship.project.name,
       user_display_name: ship.project.user.display_name,

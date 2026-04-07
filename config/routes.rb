@@ -145,7 +145,7 @@ Rails.application.routes.draw do
         resources :reviewer_notes, only: [ :create, :update, :destroy ]
       end
 
-      resources :ships, only: [ :index, :show, :edit, :update ], path: "reviews"
+      resources :ships, only: [ :index, :show ], path: "reviews"
     end
   end
 

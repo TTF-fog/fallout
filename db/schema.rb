@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_04_07_005034) do
+ActiveRecord::Schema[8.1].define(version: 2026_04_07_011926) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -101,7 +101,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_07_005034) do
     t.datetime "claim_expires_at"
     t.datetime "created_at", null: false
     t.text "feedback"
+    t.integer "hours_adjustment"
     t.text "internal_reason"
+    t.integer "koi_adjustment"
     t.integer "lock_version", default: 0, null: false
     t.bigint "reviewer_id"
     t.bigint "ship_id", null: false
@@ -175,7 +177,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_07_005034) do
     t.datetime "claim_expires_at"
     t.datetime "created_at", null: false
     t.text "feedback"
+    t.integer "hours_adjustment"
     t.text "internal_reason"
+    t.integer "koi_adjustment"
     t.integer "lock_version", default: 0, null: false
     t.bigint "reviewer_id"
     t.bigint "ship_id", null: false

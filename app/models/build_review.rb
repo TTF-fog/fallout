@@ -6,7 +6,9 @@
 #  annotations      :jsonb
 #  claim_expires_at :datetime
 #  feedback         :text
+#  hours_adjustment :integer
 #  internal_reason  :text
+#  koi_adjustment   :integer
 #  lock_version     :integer          default(0), not null
 #  status           :integer          default("pending"), not null
 #  created_at       :datetime         not null

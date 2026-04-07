@@ -3,9 +3,11 @@ import type { ReactNode } from 'react'
 import { Link, router } from '@inertiajs/react'
 import { useReviewHeartbeat } from '@/hooks/useReviewHeartbeat'
 import ReviewLayout from '@/layouts/ReviewLayout'
+import HoursDisplay from '@/components/admin/HoursDisplay'
 import { Badge } from '@/components/admin/ui/badge'
 import { Button } from '@/components/admin/ui/button'
 import { Separator } from '@/components/admin/ui/separator'
+import { Input } from '@/components/admin/ui/input'
 import { Textarea } from '@/components/admin/ui/textarea'
 import {
   AlertDialog,
@@ -35,7 +37,7 @@ import {
 import ProjectNotesWindow from '@/components/admin/ProjectNotesWindow'
 import RepoTree from '@/components/admin/RepoTree'
 import type {
-  RequirementsCheckReviewDetail,
+  DesignReviewDetail,
   RequirementsCheckJournalEntry,
   PreflightCheck,
   RepoTreeData,
@@ -282,7 +284,7 @@ function TopBar({
   const [flagReason, setFlagReason] = useState('')
 
   return (
-    <div className="z-50 bg-background border-b border-border px-4 py-2 flex items-center gap-3 shrink-0">
+    <div className="z-50 bg-muted/40 border-b border-border px-4 py-2 flex items-center gap-3 shrink-0">
       <Button variant="outline" size="sm" asChild>
         <Link href="/admin/reviews/design_reviews">End Session</Link>
       </Button>
@@ -376,7 +378,7 @@ function TopBar({
 // --- Main Page ---
 
 interface PageProps {
-  review: RequirementsCheckReviewDetail
+  review: DesignReviewDetail
   project: RequirementsCheckProjectContext
   new_entries: RequirementsCheckJournalEntry[]
   previous_entries: RequirementsCheckJournalEntry[]
@@ -411,10 +413,21 @@ export default function DesignReviewsShow({
 
   const [feedback, setFeedback] = useState(review.feedback || '')
   const [internalReason, setInternalReason] = useState(review.internal_reason || '')
+  const [hoursAdjInput, setHoursAdjInput] = useState(
+    review.hours_adjustment != null ? String(review.hours_adjustment / 3600) : '',
+  )
+  const [koiAdjInput, setKoiAdjInput] = useState(review.koi_adjustment != null ? String(review.koi_adjustment) : '')
   const [submitting, setSubmitting] = useState(false)
   const [notesOpen, setNotesOpen] = useState(false)
   const [flagging, setFlagging] = useState(false)
   const [isFlagged, setIsFlagged] = useState(project_flagged)
+
+  const userFacingHours = project.approved_public_hours ?? project.logged_hours
+  const hoursAdj = hoursAdjInput !== '' ? parseFloat(hoursAdjInput) || 0 : 0
+  const internalHours = userFacingHours + hoursAdj
+  const baseKoi = Math.floor(7 * userFacingHours) // Koi based on user-facing hours (TA-approved)
+  const koiAdj = koiAdjInput !== '' ? parseInt(koiAdjInput, 10) || 0 : 0
+  const finalKoi = baseKoi + koiAdj
 
   const preflight = useMemo(() => {
     const results = review.preflight_results || []
@@ -474,6 +487,8 @@ export default function DesignReviewsShow({
       const url = skip
         ? `/admin/reviews/design_reviews/${review.id}?skip=${skip}`
         : `/admin/reviews/design_reviews/${review.id}`
+      const hoursAdjSeconds = hoursAdjInput !== '' ? Math.round((parseFloat(hoursAdjInput) || 0) * 3600) : null
+      const koiAdjValue = koiAdjInput !== '' ? parseInt(koiAdjInput, 10) || 0 : null
       router.patch(
         url,
         {
@@ -482,13 +497,14 @@ export default function DesignReviewsShow({
             status,
             feedback: feedback.trim() || null,
             internal_reason: internalReason.trim() || null,
-            lock_version: review.lock_version,
+            hours_adjustment: hoursAdjSeconds,
+            koi_adjustment: koiAdjValue,
           } as any,
         },
         { onFinish: () => setSubmitting(false) },
       )
     },
-    [review.id, feedback, internalReason, skip],
+    [review.id, feedback, internalReason, hoursAdjInput, koiAdjInput, skip],
   )
 
   return (
@@ -555,15 +571,12 @@ export default function DesignReviewsShow({
                 <p className="text-sm font-medium capitalize">{project.ship_type}</p>
               </div>
               <div className="px-3 py-2">
-                <p className="text-xs text-muted-foreground mb-0.5">Hours</p>
-                <p className="text-sm font-mono">
-                  {project.approved_hours != null ? (
-                    <>
-                      {project.approved_hours}h <span className="text-muted-foreground">/ {project.total_hours}h</span>
-                    </>
-                  ) : (
-                    <>{project.total_hours}h</>
-                  )}
+                <p className="text-xs text-muted-foreground mb-0.5">Hours Approved</p>
+                <p className="text-sm">
+                  <HoursDisplay
+                    publicHours={project.approved_public_hours}
+                    internalHours={project.approved_internal_hours}
+                  />
                 </p>
               </div>
               <div className="px-3 py-2">
@@ -700,7 +713,7 @@ export default function DesignReviewsShow({
                               <span className="text-muted-foreground">{formatDuration(rec.duration)}</span>
                               {rec.removed_seconds > 0 && (
                                 <span className="text-red-600 dark:text-red-400">
-                                  −{formatDuration(rec.removed_seconds)}
+                                  → {formatDuration(rec.duration - rec.removed_seconds)}
                                 </span>
                               )}
                             </div>
@@ -774,6 +787,28 @@ export default function DesignReviewsShow({
                   <p className="text-sm whitespace-pre-wrap">{review.feedback}</p>
                 </div>
               )}
+              {(review.hours_adjustment != null || review.koi_adjustment != null) && (
+                <div className="space-y-1.5 pt-1">
+                  {review.hours_adjustment != null && (
+                    <div className="flex items-center gap-2 text-xs">
+                      <span className="text-muted-foreground">Hours adj:</span>
+                      <span className="font-mono">
+                        {review.hours_adjustment >= 0 ? '+' : ''}
+                        {(review.hours_adjustment / 3600).toFixed(1)}h
+                      </span>
+                    </div>
+                  )}
+                  {review.koi_adjustment != null && (
+                    <div className="flex items-center gap-2 text-xs">
+                      <span className="text-muted-foreground">Koi adj:</span>
+                      <span className="font-mono">
+                        {review.koi_adjustment >= 0 ? '+' : ''}
+                        {review.koi_adjustment}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
             </>
           ) : (
             <>
@@ -803,12 +838,70 @@ export default function DesignReviewsShow({
                 />
               </div>
 
+              <Separator />
+
+              <div className="space-y-3">
+                <div className="space-y-1.5">
+                  <label className="text-xs text-muted-foreground">
+                    Modify Hours <span className="text-muted-foreground/60">(not shown to user)</span>
+                  </label>
+                  <div className="flex items-center gap-2 text-sm">
+                    <span className="text-muted-foreground font-mono whitespace-nowrap">
+                      {userFacingHours.toFixed(1)}h
+                    </span>
+                    <span className="text-muted-foreground">→</span>
+                    <Input
+                      type="number"
+                      step="0.5"
+                      value={hoursAdjInput}
+                      onChange={(e) => setHoursAdjInput(e.target.value)}
+                      placeholder="0"
+                      className="h-8 text-sm font-mono w-20 text-center"
+                    />
+                    <span className="text-muted-foreground">→</span>
+                    <span
+                      className={`font-mono whitespace-nowrap ${hoursAdj !== 0 ? 'text-foreground font-semibold' : 'text-muted-foreground'}`}
+                    >
+                      {internalHours.toFixed(1)}h
+                    </span>
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs text-muted-foreground">
+                    Modify Koi <span className="text-muted-foreground/60">(shown to user)</span>
+                  </label>
+                  <div className="flex items-center gap-2 text-sm">
+                    <span className="text-muted-foreground font-mono whitespace-nowrap">
+                      {baseKoi}
+                      <span className="text-[10px] ml-0.5 opacity-60">{userFacingHours}h×7</span>
+                    </span>
+                    <span className="text-muted-foreground">→</span>
+                    <Input
+                      type="number"
+                      step="1"
+                      value={koiAdjInput}
+                      onChange={(e) => setKoiAdjInput(e.target.value)}
+                      placeholder="0"
+                      className="h-8 text-sm font-mono w-20 text-center"
+                    />
+                    <span className="text-muted-foreground">→</span>
+                    <span
+                      className={`font-mono whitespace-nowrap ${koiAdj !== 0 ? 'text-foreground font-semibold' : 'text-muted-foreground'}`}
+                    >
+                      {finalKoi}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
               <div className="space-y-2 pt-2">
                 <Button
                   className="w-full"
                   variant="default"
-                  disabled={submitting}
+                  disabled={submitting || !internalReason.trim()}
                   onClick={() => handleSubmit('approved')}
+                  title={!internalReason.trim() ? 'Internal reason is required when approving' : undefined}
                 >
                   {submitting ? (
                     <LoaderIcon className="size-4 animate-spin mr-1" />
