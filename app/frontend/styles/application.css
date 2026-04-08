@@ -178,6 +178,24 @@ textarea:focus {
   will-change: transform;
 }
 
+@keyframes continue-button-breathe {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.02);
+  }
+}
+
+.continue-button-breathe {
+  display: inline-block;
+  animation: continue-button-breathe 2.1s ease-in-out infinite;
+  transform-origin: center;
+  will-change: transform;
+}
+
 .markdown-content {
   margin: 2rem auto;
   padding: 0 1rem;
