@@ -111,9 +111,12 @@ export default function PathIndex() {
     has_projects,
     journal_entry_count,
     critter_variants,
+    has_unread_mail,
+    features,
     auth: { user: authUser },
     sign_in_path,
   } = usePage<PageProps & SharedProps>().props
+  const [notPressed] = useState<boolean>(true)
   const [loggedIn] = useState(false)
 
   const { visitModal, stack } = useModalStack()
@@ -326,9 +329,15 @@ export default function PathIndex() {
         </Tooltip>
         <Tooltip>
           <TooltipTrigger>
-            <button onClick={() => notify('alert', "The shop isn't open yet. Check back later!")}>
-              <img src="/icon/shop.webp" alt="Shop" className="cursor-pointer w-20 xs:w-25" />
-            </button>
+            {features.shop ? (
+              <ModalLink href="/shop" className="outline-0">
+                <img src="/icon/shop.webp" alt="Shop" className="cursor-pointer w-20 xs:w-25" />
+              </ModalLink>
+            ) : (
+              <button onClick={() => notify('alert', "The shop isn't open yet. Check back later!")}>
+                <img src="/icon/shop.webp" alt="Shop" className="cursor-pointer w-20 xs:w-25" />
+              </button>
+            )}
           </TooltipTrigger>
           <TooltipContent>Shop</TooltipContent>
         </Tooltip>
