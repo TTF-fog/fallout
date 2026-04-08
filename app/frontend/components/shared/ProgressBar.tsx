@@ -1,4 +1,4 @@
-import { type CSSProperties, type TransitionEvent, useEffect, useState } from 'react'
+import { type CSSProperties, useEffect, useRef, useState } from 'react'
 
 type ProgressBarProps = {
   progress: number
@@ -7,6 +7,7 @@ type ProgressBarProps = {
   visitStepIndex?: number
   visitTotalSteps?: number
   celebrateOnComplete?: boolean
+  completionKey?: string | number
   onCompleteVisualsFinished?: () => void
 }
 
@@ -64,6 +65,7 @@ const BURST_PARTICLES = [
 ]
 
 const completionVisualDurationMs = 980
+const progressFillTransitionDurationMs = 500
 
 function clampProgress(value: number): number {
   return Math.min(100, Math.max(0, value))
@@ -109,6 +111,7 @@ const ProgressBar = ({
   visitStepIndex,
   visitTotalSteps,
   celebrateOnComplete = false,
+  completionKey,
   onCompleteVisualsFinished,
 }: ProgressBarProps) => {
   const clampedProgress = clampProgress(progress)
@@ -120,6 +123,8 @@ const ProgressBar = ({
   const [completionPending, setCompletionPending] = useState(false)
   const [endColorActive, setEndColorActive] = useState(false)
   const [completionBurst, setCompletionBurst] = useState(0)
+  const celebratedCompletionKeyRef = useRef<string | number | null>(null)
+  const finishedCompletionKeyRef = useRef<string | number | null>(null)
 
   useEffect(() => {
     const frame = requestAnimationFrame(() => setAnimatedProgress(clampedProgress))
@@ -145,37 +150,54 @@ const ProgressBar = ({
       return
     }
 
-    if (animatedProgress < 100) {
+    if (!endColorActive) {
       setCompletionPending(true)
     }
-  }, [clampedProgress, animatedProgress])
+  }, [clampedProgress, endColorActive])
+
+  useEffect(() => {
+    if (!completionPending || clampedProgress < 100 || animatedProgress < 100 || endColorActive) return
+
+    const timeout = window.setTimeout(() => {
+      setCompletionPending(false)
+      setEndColorActive(true)
+
+      if (celebrateOnComplete) {
+        if (completionKey !== undefined) {
+          if (celebratedCompletionKeyRef.current === completionKey) return
+          celebratedCompletionKeyRef.current = completionKey
+        }
+        setCompletionBurst((prev) => prev + 1)
+      }
+    }, progressFillTransitionDurationMs)
+
+    return () => window.clearTimeout(timeout)
+  }, [animatedProgress, celebrateOnComplete, clampedProgress, completionKey, completionPending, endColorActive])
 
   useEffect(() => {
     if (!onCompleteVisualsFinished || clampedProgress < 100 || animatedProgress < 100 || !endColorActive) return
     if (celebrateOnComplete && completionBurst === 0) return
+    if (completionKey !== undefined && finishedCompletionKeyRef.current === completionKey) return
 
-    const timeout = window.setTimeout(onCompleteVisualsFinished, celebrateOnComplete ? completionVisualDurationMs : 0)
+    const timeout = window.setTimeout(
+      () => {
+        if (completionKey !== undefined) {
+          finishedCompletionKeyRef.current = completionKey
+        }
+        onCompleteVisualsFinished()
+      },
+      celebrateOnComplete ? completionVisualDurationMs : 0,
+    )
     return () => window.clearTimeout(timeout)
   }, [
     animatedProgress,
     celebrateOnComplete,
     clampedProgress,
+    completionKey,
     completionBurst,
     endColorActive,
     onCompleteVisualsFinished,
   ])
-
-  function handleFillTransitionEnd(event: TransitionEvent<HTMLDivElement>) {
-    if (event.propertyName !== 'width') return
-    if (!completionPending || clampedProgress < 100 || animatedProgress < 100) return
-
-    setCompletionPending(false)
-    setEndColorActive(true)
-
-    if (celebrateOnComplete) {
-      setCompletionBurst((prev) => prev + 1)
-    }
-  }
 
   return (
     <div className={`w-full ${className}`}>
@@ -216,7 +238,6 @@ const ProgressBar = ({
           <div
             className={`h-full transition-all duration-500 relative rounded-full ${endColorActive ? 'bg-green' : 'bg-blue'}`}
             style={{ width: `${animatedProgress}%` }}
-            onTransitionEnd={handleFillTransitionEnd}
           >
             <div
               className="absolute inset-0 opacity-30 mix-blend-overlay"
