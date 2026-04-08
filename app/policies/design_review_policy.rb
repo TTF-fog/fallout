@@ -1,0 +1,41 @@
+# frozen_string_literal: true
+
+class DesignReviewPolicy < ApplicationPolicy
+  def index?
+    admin? || staff_reviewer?
+  end
+
+  def show?
+    return true if admin?
+    return false if record.ship.project.flagged? # Only admins can view flagged reviews
+    staff_reviewer?
+  end
+
+  def update?
+    record.pending? && (admin? || active_claimer?) # Only pending reviews can be modified
+  end
+
+  def heartbeat?
+    admin? || active_claimer?
+  end
+
+  private
+
+  def active_claimer?
+    record.claimed_by?(user)
+  end
+
+  def staff_reviewer?
+    user&.can_review?(:design_review) # Only pass2 reviewers (and admins) can access this queue
+  end
+
+  class Scope < ApplicationPolicy::Scope
+    def resolve
+      if user&.can_review?(:design_review)
+        scope.all
+      else
+        scope.none
+      end
+    end
+  end
+end

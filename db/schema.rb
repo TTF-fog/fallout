@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_03_31_202812) do
+ActiveRecord::Schema[8.1].define(version: 2026_04_07_174922) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -96,6 +96,25 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_31_202812) do
     t.index ["record_identifier"], name: "index_airtable_syncs_on_record_identifier", unique: true
   end
 
+  create_table "build_reviews", force: :cascade do |t|
+    t.jsonb "annotations"
+    t.datetime "claim_expires_at"
+    t.datetime "created_at", null: false
+    t.text "feedback"
+    t.integer "hours_adjustment"
+    t.text "internal_reason"
+    t.integer "koi_adjustment"
+    t.integer "lock_version", default: 0, null: false
+    t.bigint "reviewer_id"
+    t.bigint "ship_id", null: false
+    t.integer "status", default: 0, null: false
+    t.datetime "updated_at", null: false
+    t.index ["reviewer_id"], name: "index_build_reviews_on_reviewer_id"
+    t.index ["ship_id"], name: "index_build_reviews_on_ship_id", unique: true
+    t.index ["status", "claim_expires_at"], name: "index_build_reviews_on_status_and_claim_expires_at"
+    t.index ["status"], name: "index_build_reviews_on_status"
+  end
+
   create_table "collaboration_invites", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.datetime "discarded_at"
@@ -153,6 +172,25 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_31_202812) do
     t.index ["user_id"], name: "index_critters_on_user_id"
   end
 
+  create_table "design_reviews", force: :cascade do |t|
+    t.jsonb "annotations"
+    t.datetime "claim_expires_at"
+    t.datetime "created_at", null: false
+    t.text "feedback"
+    t.integer "hours_adjustment"
+    t.text "internal_reason"
+    t.integer "koi_adjustment"
+    t.integer "lock_version", default: 0, null: false
+    t.bigint "reviewer_id"
+    t.bigint "ship_id", null: false
+    t.integer "status", default: 0, null: false
+    t.datetime "updated_at", null: false
+    t.index ["reviewer_id"], name: "index_design_reviews_on_reviewer_id"
+    t.index ["ship_id"], name: "index_design_reviews_on_ship_id", unique: true
+    t.index ["status", "claim_expires_at"], name: "index_design_reviews_on_status_and_claim_expires_at"
+    t.index ["status"], name: "index_design_reviews_on_status"
+  end
+
   create_table "flipper_features", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.string "key", null: false
@@ -174,17 +212,35 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_31_202812) do
     t.datetime "created_at", null: false
     t.datetime "discarded_at"
     t.bigint "project_id", null: false
+    t.bigint "ship_id"
     t.datetime "updated_at", null: false
     t.bigint "user_id", null: false
     t.index ["discarded_at"], name: "index_journal_entries_on_discarded_at"
     t.index ["project_id"], name: "index_journal_entries_on_project_id"
+    t.index ["ship_id"], name: "index_journal_entries_on_ship_id"
     t.index ["user_id"], name: "index_journal_entries_on_user_id"
   end
 
+  create_table "koi_transactions", force: :cascade do |t|
+    t.bigint "actor_id", null: false
+    t.integer "amount", null: false
+    t.datetime "created_at", null: false
+    t.text "description", null: false
+    t.string "reason", null: false
+    t.bigint "user_id", null: false
+    t.index ["actor_id"], name: "index_koi_transactions_on_actor_id"
+    t.index ["user_id", "created_at"], name: "index_koi_transactions_on_user_id_and_created_at"
+    t.index ["user_id"], name: "index_koi_transactions_on_user_id"
+  end
+
   create_table "lapse_timelapses", force: :cascade do |t|
+    t.datetime "activity_checked_at"
     t.datetime "created_at", null: false
     t.text "description"
     t.float "duration"
+    t.integer "inactive_frame_count"
+    t.float "inactive_percentage"
+    t.jsonb "inactive_segments", default: []
     t.boolean "is_published"
     t.datetime "lapse_created_at"
     t.string "lapse_timelapse_id", null: false
@@ -203,8 +259,12 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_31_202812) do
   end
 
   create_table "lookout_timelapses", force: :cascade do |t|
+    t.datetime "activity_checked_at"
     t.datetime "created_at", null: false
     t.float "duration"
+    t.integer "inactive_frame_count"
+    t.float "inactive_percentage"
+    t.jsonb "inactive_segments", default: []
     t.datetime "last_refreshed_at"
     t.string "name"
     t.string "playback_url"
@@ -269,6 +329,19 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_31_202812) do
     t.index ["project_id"], name: "index_preflight_runs_on_project_id"
   end
 
+  create_table "project_flags", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.bigint "project_id", null: false
+    t.text "reason", null: false
+    t.string "review_stage"
+    t.bigint "ship_id"
+    t.datetime "updated_at", null: false
+    t.bigint "user_id", null: false
+    t.index ["project_id"], name: "index_project_flags_on_project_id"
+    t.index ["ship_id"], name: "index_project_flags_on_ship_id"
+    t.index ["user_id"], name: "index_project_flags_on_user_id"
+  end
+
   create_table "projects", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.string "demo_link"
@@ -298,6 +371,36 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_31_202812) do
     t.index ["user_id"], name: "index_recordings_on_user_id"
   end
 
+  create_table "requirements_check_reviews", force: :cascade do |t|
+    t.datetime "claim_expires_at"
+    t.datetime "created_at", null: false
+    t.text "feedback"
+    t.text "internal_reason"
+    t.integer "lock_version", default: 0, null: false
+    t.jsonb "repo_tree"
+    t.bigint "reviewer_id"
+    t.bigint "ship_id", null: false
+    t.integer "status", default: 0, null: false
+    t.datetime "updated_at", null: false
+    t.index ["reviewer_id"], name: "index_requirements_check_reviews_on_reviewer_id"
+    t.index ["ship_id"], name: "index_requirements_check_reviews_on_ship_id", unique: true
+    t.index ["status", "claim_expires_at"], name: "idx_on_status_claim_expires_at_8572608249"
+    t.index ["status"], name: "index_requirements_check_reviews_on_status"
+  end
+
+  create_table "reviewer_notes", force: :cascade do |t|
+    t.text "body", null: false
+    t.datetime "created_at", null: false
+    t.bigint "project_id", null: false
+    t.string "review_stage"
+    t.bigint "ship_id"
+    t.datetime "updated_at", null: false
+    t.bigint "user_id", null: false
+    t.index ["project_id"], name: "index_reviewer_notes_on_project_id"
+    t.index ["ship_id"], name: "index_reviewer_notes_on_ship_id"
+    t.index ["user_id"], name: "index_reviewer_notes_on_user_id"
+  end
+
   create_table "ships", force: :cascade do |t|
     t.integer "approved_seconds"
     t.datetime "created_at", null: false
@@ -311,12 +414,43 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_31_202812) do
     t.bigint "preflight_run_id"
     t.bigint "project_id", null: false
     t.bigint "reviewer_id"
+    t.integer "ship_type", default: 0, null: false
     t.integer "status", default: 0, null: false
     t.datetime "updated_at", null: false
     t.index ["preflight_run_id"], name: "index_ships_on_preflight_run_id"
     t.index ["project_id"], name: "index_ships_on_project_id"
     t.index ["reviewer_id"], name: "index_ships_on_reviewer_id"
+    t.index ["ship_type"], name: "index_ships_on_ship_type"
     t.index ["status"], name: "index_ships_on_status"
+  end
+
+  create_table "shop_items", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.text "description"
+    t.boolean "featured", default: false, null: false
+    t.string "image_url"
+    t.string "name"
+    t.integer "price"
+    t.string "status", default: "available", null: false
+    t.boolean "ticket", default: false, null: false
+    t.datetime "updated_at", null: false
+    t.index ["status"], name: "index_shop_items_on_status"
+  end
+
+  create_table "shop_orders", force: :cascade do |t|
+    t.text "address"
+    t.text "admin_note"
+    t.datetime "created_at", null: false
+    t.integer "frozen_price", null: false
+    t.string "phone"
+    t.integer "quantity", default: 1, null: false
+    t.bigint "shop_item_id", null: false
+    t.string "state", default: "pending", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "user_id", null: false
+    t.index ["shop_item_id"], name: "index_shop_orders_on_shop_item_id"
+    t.index ["state"], name: "index_shop_orders_on_state"
+    t.index ["user_id"], name: "index_shop_orders_on_user_id"
   end
 
   create_table "solid_queue_blocked_executions", force: :cascade do |t|
@@ -440,6 +574,23 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_31_202812) do
     t.index ["key"], name: "index_solid_queue_semaphores_on_key", unique: true
   end
 
+  create_table "time_audit_reviews", force: :cascade do |t|
+    t.jsonb "annotations"
+    t.integer "approved_seconds"
+    t.datetime "claim_expires_at"
+    t.datetime "created_at", null: false
+    t.text "feedback"
+    t.integer "lock_version", default: 0, null: false
+    t.bigint "reviewer_id"
+    t.bigint "ship_id", null: false
+    t.integer "status", default: 0, null: false
+    t.datetime "updated_at", null: false
+    t.index ["reviewer_id"], name: "index_time_audit_reviews_on_reviewer_id"
+    t.index ["ship_id"], name: "index_time_audit_reviews_on_ship_id", unique: true
+    t.index ["status", "claim_expires_at"], name: "index_time_audit_reviews_on_status_and_claim_expires_at"
+    t.index ["status"], name: "index_time_audit_reviews_on_status"
+  end
+
   create_table "users", force: :cascade do |t|
     t.string "avatar", null: false
     t.datetime "created_at", null: false
@@ -472,11 +623,14 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_31_202812) do
     t.bigint "item_id", null: false
     t.string "item_type", null: false
     t.text "object"
+    t.jsonb "object_changes"
     t.string "whodunnit"
     t.index ["item_type", "item_id"], name: "index_versions_on_item_type_and_item_id"
+    t.index ["object_changes"], name: "index_versions_on_object_changes", using: :gin
   end
 
   create_table "you_tube_videos", force: :cascade do |t|
+    t.datetime "activity_checked_at"
     t.boolean "caption"
     t.string "category_id"
     t.string "channel_id"
@@ -485,6 +639,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_31_202812) do
     t.string "definition"
     t.text "description"
     t.integer "duration_seconds"
+    t.integer "inactive_frame_count"
+    t.float "inactive_percentage"
+    t.jsonb "inactive_segments", default: []
     t.datetime "last_refreshed_at"
     t.string "live_broadcast_content"
     t.datetime "published_at"
@@ -499,6 +656,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_31_202812) do
 
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
+  add_foreign_key "build_reviews", "ships"
+  add_foreign_key "build_reviews", "users", column: "reviewer_id"
   add_foreign_key "collaboration_invites", "projects"
   add_foreign_key "collaboration_invites", "users", column: "invitee_id"
   add_foreign_key "collaboration_invites", "users", column: "inviter_id"
@@ -506,8 +665,13 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_31_202812) do
   add_foreign_key "collapse_timelapses", "users"
   add_foreign_key "critters", "journal_entries"
   add_foreign_key "critters", "users"
+  add_foreign_key "design_reviews", "ships"
+  add_foreign_key "design_reviews", "users", column: "reviewer_id"
   add_foreign_key "journal_entries", "projects"
+  add_foreign_key "journal_entries", "ships"
   add_foreign_key "journal_entries", "users"
+  add_foreign_key "koi_transactions", "users"
+  add_foreign_key "koi_transactions", "users", column: "actor_id"
   add_foreign_key "lapse_timelapses", "users"
   add_foreign_key "lookout_timelapses", "users"
   add_foreign_key "mail_interactions", "mail_messages"
@@ -516,16 +680,28 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_31_202812) do
   add_foreign_key "mail_messages", "users", column: "author_id"
   add_foreign_key "onboarding_responses", "users"
   add_foreign_key "preflight_runs", "projects"
+  add_foreign_key "project_flags", "projects"
+  add_foreign_key "project_flags", "ships"
+  add_foreign_key "project_flags", "users"
   add_foreign_key "projects", "users"
   add_foreign_key "recordings", "journal_entries"
   add_foreign_key "recordings", "users"
+  add_foreign_key "requirements_check_reviews", "ships"
+  add_foreign_key "requirements_check_reviews", "users", column: "reviewer_id"
+  add_foreign_key "reviewer_notes", "projects"
+  add_foreign_key "reviewer_notes", "ships"
+  add_foreign_key "reviewer_notes", "users"
   add_foreign_key "ships", "preflight_runs"
   add_foreign_key "ships", "projects"
   add_foreign_key "ships", "users", column: "reviewer_id"
+  add_foreign_key "shop_orders", "shop_items"
+  add_foreign_key "shop_orders", "users"
   add_foreign_key "solid_queue_blocked_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
   add_foreign_key "solid_queue_claimed_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
   add_foreign_key "solid_queue_failed_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
   add_foreign_key "solid_queue_ready_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
   add_foreign_key "solid_queue_recurring_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
   add_foreign_key "solid_queue_scheduled_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
+  add_foreign_key "time_audit_reviews", "ships"
+  add_foreign_key "time_audit_reviews", "users", column: "reviewer_id"
 end

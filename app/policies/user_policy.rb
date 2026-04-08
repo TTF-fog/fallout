@@ -1,14 +1,18 @@
 class UserPolicy < ApplicationPolicy
   def index?
-    admin?
+    staff?
   end
 
   def show?
-    admin? || record == user
+    staff? || record == user
   end
 
   def update?
     admin? || record == user
+  end
+
+  def update_roles?
+    admin?
   end
 
   def destroy?
@@ -17,7 +21,7 @@ class UserPolicy < ApplicationPolicy
 
   class Scope < ApplicationPolicy::Scope
     def resolve
-      if user&.admin?
+      if user&.staff?
         scope.all
       else
         scope.kept.where(id: user&.id)

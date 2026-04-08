@@ -32,6 +32,12 @@ Pundit policies enforce authorization at a low level and should always be used. 
 
 Two user types exist: **full users** (authenticated through HCA, cross-device access, can access non-public data) and **trial users** (email-based login, device-cookie-scoped, limited access). For privacy and security, multiple trial accounts with the same email cannot access each other's data. Trial users become full users upon completing HCA authentication. Consider both user types when making changes and enforce access controls via Pundit when making changes.
 
+## Staff Roles & PII
+
+Staff users have one or more roles stored in a PostgreSQL array column: `time_auditor`, `requirements_checker`, `pass2_reviewer`, or `admin`. Each reviewer role grants access only to its specific review queue(s) — use `user.can_review?(queue)` to check. Admins have access to everything.
+
+**PII (email, slack_id, etc.) must only be exposed to admins.** Non-admin reviewers see display names and avatars but never email addresses or other identifying information. When serializing user data for the admin frontend, always check `current_user.admin?` before including PII fields. The `/admin/users` pages are already admin-only via `require_admin!`.
+
 ## Fail-Closed Defaults
 
 By default, every action requires full HCA authentication, completed onboarding, and Pundit authorization. Only relax defaults when explicitly necessary, for specific actions only. When in doubt, deny access. Assume developers will forget to configure access on new actions — the system must fail closed.
@@ -61,6 +67,10 @@ Maintain existing functionality; do not introduce bugs. Before finishing, run `g
 ## Styling
 
 Use only the project's existing color palette (Tailwind theme colors like `bg-brown`, `text-light-brown`, `border-dark-brown`, etc.). Do not use hex colors or arbitrary values (e.g. `bg-[#ae9578]`) unless explicitly told to. Do not use opacity/translucency (e.g. `bg-dark-brown/50`, `text-brown/30`) as a way to create color shades — if a shade is needed that doesn't exist in the palette, ask the developer for the correct color.
+
+## Admin Dashboard
+
+The admin dashboard (`/admin`) uses shadcn/ui components, completely separate from the user-facing Fallout theme. When building admin pages, always use shadcn components from `@/components/admin/ui/` (Button, Table, Card, Badge, Input, Select, etc.) instead of writing raw HTML or using the shared Fallout components. The shadcn MCP tools are available for discovering and adding new components. Admin-specific components live in `@/components/admin/`, and all admin pages use `AdminLayout`.
 
 ## Comments
 

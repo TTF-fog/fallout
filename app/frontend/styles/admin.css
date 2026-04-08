@@ -1,0 +1,113 @@
+/* Admin theme — shadcn/ui color values scoped to .admin wrapper.
+   These CSS variables are only active inside AdminLayout's .admin div,
+   keeping the user-facing Fallout brown theme completely untouched. */
+
+.admin {
+  --radius: 0.5rem;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: oklch(0.577 0.245 27.325);
+  --border: oklch(0.885 0 0);
+  --input: oklch(0.885 0 0);
+  --ring: oklch(0.708 0 0);
+  --sidebar: oklch(0.96 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.94 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.88 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
+
+  color-scheme: light;
+  font-family: 'Geist Variable', ui-sans-serif, system-ui, sans-serif;
+}
+
+.admin.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.985 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: oklch(0.577 0.245 27.325);
+  --border: oklch(0.3 0 0);
+  --input: oklch(0.3 0 0);
+  --ring: oklch(0.439 0 0);
+  --sidebar: oklch(0.115 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.985 0 0);
+  --sidebar-primary-foreground: oklch(0.205 0 0);
+  --sidebar-accent: oklch(0.22 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(0.3 0 0);
+  --sidebar-ring: oklch(0.439 0 0);
+
+  color-scheme: dark;
+}
+
+.admin.dark .markdown-content {
+  color: oklch(0.9 0 0);
+}
+
+.admin.dark .markdown-content a {
+  color: #6db8e0;
+}
+
+.admin.dark .markdown-content a:hover {
+  background: rgba(109, 184, 224, 0.1);
+}
+
+.admin.dark .markdown-content code {
+  background-color: oklch(0.3 0 0);
+  color: oklch(0.9 0 0);
+}
+
+.admin.dark .markdown-content pre {
+  background-color: oklch(0.25 0 0);
+  color: oklch(0.9 0 0);
+}
+
+.admin.dark .markdown-content blockquote {
+  background: oklch(0.25 0 0);
+}
+
+.admin.dark .markdown-content h1,
+.admin.dark .markdown-content h2 {
+  border-bottom-color: oklch(0.4 0 0);
+}
+
+.admin.dark .markdown-content th {
+  border-bottom-color: oklch(0.4 0 0);
+}
+
+.admin.dark .markdown-content hr {
+  border-top-color: oklch(0.4 0 0);
+}
+
+.admin.dark .markdown-content aside {
+  background-color: oklch(0.25 0 0);
+  color: oklch(0.9 0 0);
+}

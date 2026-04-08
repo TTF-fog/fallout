@@ -39,6 +39,23 @@ class User < ApplicationRecord
 
   pg_search_scope :search, against: [ :display_name, :email ], using: { tsearch: { prefix: true } }
 
+  scoped_search on: :id
+  scoped_search on: :display_name, aliases: [ :name, :username ]
+  scoped_search on: :email
+  scoped_search on: :slack_id
+  scoped_search on: :created_at, aliases: [ :joined ]
+  scoped_search on: :roles, aliases: [ :role ], ext_method: :search_roles, only_explicit: true, operators: [ :eq, :ne ]
+
+  def self.search_roles(_key, operator, value)
+    sanitized = ActiveRecord::Base.sanitize_sql_like(value)
+    sql = if operator == "="
+      "roles @> ARRAY['#{sanitized}']::varchar[]"
+    else
+      "NOT (roles @> ARRAY['#{sanitized}']::varchar[])"
+    end
+    { conditions: sql }
+  end
+
   has_many :ahoy_visits, class_name: "Ahoy::Visit", dependent: :nullify
   has_many :ahoy_events, class_name: "Ahoy::Event", dependent: :nullify
   has_one :latest_locatable_visit, -> { where.not(country: [ nil, "" ]).order(started_at: :desc) }, class_name: "Ahoy::Visit"
@@ -53,10 +70,15 @@ class User < ApplicationRecord
   has_many :authored_mail_messages, class_name: "MailMessage", foreign_key: :author_id, dependent: :nullify, inverse_of: :author
   has_many :mail_interactions, dependent: :destroy
   has_many :critters, dependent: :destroy
+  has_many :koi_transactions, dependent: :destroy
+  has_many :acting_koi_transactions, class_name: "KoiTransaction", foreign_key: :actor_id, dependent: :nullify, inverse_of: :actor
+  has_many :shop_orders, dependent: :destroy
   has_many :collaborations, -> { kept }, class_name: "Collaborator", dependent: :destroy
   has_many :collaborated_projects, through: :collaborations, source: :collaboratable, source_type: "Project"
   has_many :received_collaboration_invites, -> { kept }, class_name: "CollaborationInvite", foreign_key: :invitee_id, dependent: :destroy, inverse_of: :invitee
   has_many :sent_collaboration_invites, -> { kept }, class_name: "CollaborationInvite", foreign_key: :inviter_id, dependent: :destroy, inverse_of: :inviter
+  has_many :reviewer_notes
+  has_many :project_flags
 
   encrypts :hca_token
   encrypts :lapse_token
@@ -67,7 +89,8 @@ class User < ApplicationRecord
   validates :avatar, :display_name, :email, :timezone, presence: true
   validates :slack_id, presence: true, unless: :trial?
   validates :hca_id, presence: true, unless: :trial?
-  VALID_ROLES = %w[user admin reviewer].freeze
+  VALID_ROLES = %w[user admin time_auditor requirements_checker pass2_reviewer].freeze
+  REVIEWER_ROLES = %w[time_auditor requirements_checker pass2_reviewer].freeze
   SLACK_WELCOME_CHANNELS = %w[C037157AL30 C0ACG0XQWGN C0ACJ290090].freeze
 
   validates :roles, presence: true, unless: :trial?
@@ -99,7 +122,30 @@ class User < ApplicationRecord
   end
 
   def reviewer?
-    has_role?(:reviewer)
+    (roles & REVIEWER_ROLES).any?
+  end
+
+  def time_auditor?
+    has_role?(:time_auditor)
+  end
+
+  def requirements_checker?
+    has_role?(:requirements_checker)
+  end
+
+  def pass2_reviewer?
+    has_role?(:pass2_reviewer)
+  end
+
+  # True if user can review in a specific queue
+  def can_review?(queue)
+    return true if admin?
+    case queue.to_s
+    when "time_audit" then time_auditor?
+    when "requirements_check" then requirements_checker? || pass2_reviewer?
+    when "design_review", "build_review" then pass2_reviewer?
+    else false
+    end
   end
 
   def staff?
@@ -260,8 +306,19 @@ class User < ApplicationRecord
     earliest_visit_with_ref&.utm_source
   end
 
+  def total_time_logged_seconds
+    entry_scope = { project_id: projects.kept.select(:id), discarded_at: nil }
+
+    LapseTimelapse.joins(recording: :journal_entry).where(journal_entries: entry_scope).sum(:duration).to_i +
+      YouTubeVideo.joins(recording: :journal_entry).where(journal_entries: entry_scope).sum(:duration_seconds).to_i +
+      LookoutTimelapse.joins(recording: :journal_entry).where(journal_entries: entry_scope).sum(:duration).to_i
+  end
+
   def koi
-    0
+    return 0 if trial? # Trial users cannot earn or spend koi
+
+    koi_transactions.sum(:amount) -
+      shop_orders.where.not(state: :rejected).sum("frozen_price * quantity")
   end
 
   def self.normalize_country_code(country)

@@ -2,16 +2,20 @@
 #
 # Table name: lookout_timelapses
 #
-#  id                :bigint           not null, primary key
-#  duration          :float
-#  last_refreshed_at :datetime
-#  name              :string
-#  playback_url      :string
-#  session_token     :text             not null
-#  thumbnail_url     :string
-#  created_at        :datetime         not null
-#  updated_at        :datetime         not null
-#  user_id           :bigint           not null
+#  id                   :bigint           not null, primary key
+#  activity_checked_at  :datetime
+#  duration             :float
+#  inactive_frame_count :integer
+#  inactive_percentage  :float
+#  inactive_segments    :jsonb
+#  last_refreshed_at    :datetime
+#  name                 :string
+#  playback_url         :string
+#  session_token        :text             not null
+#  thumbnail_url        :string
+#  created_at           :datetime         not null
+#  updated_at           :datetime         not null
+#  user_id              :bigint           not null
 #
 # Indexes
 #
@@ -36,11 +40,14 @@ class LookoutTimelapse < ApplicationRecord
     data = fetch_data
     raise ActiveRecord::RecordNotFound, "Lookout session for token not found" unless data
 
+    video_data = LookoutService.get_video_url(session_token)
+    thumb_data = LookoutService.get_thumbnail_url(session_token)
+
     update!(
       name: data["name"].presence || name,
       duration: data["trackedSeconds"],
-      playback_url: data["videoUrl"],
-      thumbnail_url: data["thumbnailUrl"],
+      playback_url: video_data&.dig("videoUrl") || data["videoUrl"],
+      thumbnail_url: thumb_data&.dig("thumbnailUrl") || data["thumbnailUrl"],
       last_refreshed_at: Time.current
     )
   end

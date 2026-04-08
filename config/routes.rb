@@ -114,8 +114,39 @@ Rails.application.routes.draw do
   end
   constraints Constraints::StaffConstraint.new do
     namespace :admin do
-      get "/" => "static_pages#index", as: :root
-      resources :ships, only: [ :index, :show, :edit, :update ], path: "reviews"
+      get "/" => "dashboard#index", as: :root
+
+      # Per-type review queues must be defined before the catch-all ships resource
+      namespace :reviews do
+        resources :time_audits, only: [ :index, :show, :update ] do
+          member { post :heartbeat }
+          collection { get :next }
+        end
+        resources :requirements_checks, only: [ :index, :show, :update ] do
+          member do
+            post :heartbeat
+            post :refresh_tree
+          end
+          collection { get :next }
+        end
+        resources :design_reviews, only: [ :index, :show, :update ] do
+          member { post :heartbeat }
+          collection { get :next }
+        end
+        resources :build_reviews, only: [ :index, :show, :update ] do
+          member { post :heartbeat }
+          collection { get :next }
+        end
+      end
+
+      resources :project_flags, only: [ :index, :create, :destroy ]
+
+      resources :projects, only: [ :index, :show ] do
+        resources :reviewer_notes, only: [ :create, :update, :destroy ]
+      end
+      resources :users, only: [ :index, :show ]
+
+      resources :ships, only: [ :index, :show ], path: "reviews"
     end
   end
 
@@ -124,8 +155,15 @@ Rails.application.routes.draw do
     mount Flipper::UI.app(Flipper), at: "/flipper" # Feature flag dashboard — admin-only
 
     namespace :admin do
-      resources :projects, only: [ :index, :show ]
-      resources :users, only: [ :index, :show ]
+      resources :users, only: [] do
+        member do
+          patch :update_roles
+        end
+      end
+      resources :activity_checks, only: [ :new, :create ]
+      resources :shop_items, only: [ :index, :create, :update, :destroy ] # Admin shop item management
+      resources :shop_orders, only: [ :index, :show, :update ] # Admin order management
+      resources :koi_transactions, only: [ :index, :new, :create ] # Admin koi adjustments
     end
   end
 
@@ -185,6 +223,10 @@ Rails.application.routes.draw do
   post "you_tube_videos/lookup" => "you_tube_videos#lookup", as: :lookup_you_tube_video
   resources :lookout_sessions, only: %i[new] do
     get :record, on: :collection # Token-based recording page: /lookout_sessions/record?token=...
+  end
+
+  resources :shop_items, path: "shop", only: [ :index, :show ] do # Koi shop (admin CRUD via /admin/shop_items)
+    resources :shop_orders, only: [ :new, :create, :show ], path: "orders" # Purchase flow
   end
 
   get "faq" => redirect("/docs/faq") # Shortcut to FAQ docs page

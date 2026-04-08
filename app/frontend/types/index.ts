@@ -15,6 +15,7 @@ export type FlashData = Record<string, string>
 
 export interface Features {
   collaborators?: boolean
+  shop?: boolean
 }
 
 export interface SharedProps {
@@ -131,6 +132,7 @@ export interface JournalEntryCard {
 export interface ShipEvent {
   id: number
   status: string
+  feedback: string | null
   created_at_iso: string
 }
 
@@ -144,7 +146,8 @@ export interface ProjectForm {
 export interface AdminUserRow {
   id: number
   display_name: string
-  email: string
+  email?: string
+  slack_id: string | null
   roles: string[]
   projects_count: number
   is_discarded: boolean
@@ -154,9 +157,11 @@ export interface AdminUserRow {
 export interface AdminUserDetail {
   id: number
   display_name: string
-  email: string
+  email?: string
   avatar: string
+  slack_id: string | null
   roles: string[]
+  projects_count: number
   timezone: string
   is_banned: boolean
   is_discarded: boolean
@@ -164,12 +169,21 @@ export interface AdminUserDetail {
   created_at: string
 }
 
+export interface AdminProjectData {
+  projects: AdminProjectRow[]
+  pagy: PagyProps
+  total_count: number
+}
+
 export interface AdminProjectRow {
   id: number
   name: string
   user_id: number
   user_display_name: string
-  ships_count: number
+  journal_entries_count: number
+  repo_link: string | null
+  hours_tracked: number
+  last_entry_at: string | null
   is_unlisted: boolean
   is_discarded: boolean
   created_at: string
@@ -187,6 +201,12 @@ export interface AdminProjectDetail {
   discarded_at: string | null
   user_id: number
   user_display_name: string
+  user_avatar: string
+  journal_entries_count: number
+  hours_tracked: number
+  last_entry_at: string | null
+  created_at: string
+  collaborators: { id: number; display_name: string; avatar: string }[]
 }
 
 export interface AdminShipRow {
@@ -201,15 +221,29 @@ export interface AdminShipRow {
 export interface AdminShipDetail {
   id: number
   status: string
-  reviewer_display_name: string | null
-  approved_seconds: number | null
+  approved_public_hours: number | null
+  approved_internal_hours: number | null
   feedback: string | null
   justification: string | null
   frozen_demo_link: string | null
   frozen_repo_link: string | null
   project_name: string
   user_display_name: string
+  review_statuses: SiblingStatuses
   created_at: string
+}
+
+export interface RepoTreeEntry {
+  path: string
+  type: 'blob' | 'tree'
+  size?: number | null
+}
+
+export interface RepoTreeData {
+  entries: RepoTreeEntry[]
+  default_branch: string
+  pushed_at: string | null
+  created_at: string | null
 }
 
 export interface PreflightCheck {
@@ -217,6 +251,7 @@ export interface PreflightCheck {
   label: string
   status: 'running' | 'passed' | 'failed' | 'warn' | 'skipped'
   message: string | null
+  visibility?: string
 }
 
 export interface PreflightResult {
@@ -232,4 +267,208 @@ export interface ShipForm {
   approved_seconds: number | null
   project_name: string
   user_display_name: string
+}
+
+export interface ReviewerNote {
+  id: number
+  body: string
+  ship_id: number | null
+  review_stage: string | null
+  author_display_name: string
+  author_avatar: string
+  author_id: number
+  created_at: string
+  updated_at: string
+}
+
+export interface ProjectFlag {
+  id: number
+  project_id: number
+  project_name: string
+  user_display_name: string
+  flagged_by_display_name: string
+  flagged_by_avatar: string
+  ship_id: number | null
+  review_stage: string | null
+  reason: string
+  created_at: string
+}
+
+export interface ReviewRow {
+  id: number
+  ship_id: number
+  project_name: string
+  user_display_name: string
+  status: string
+  project_flagged: boolean
+  reviewer_display_name: string | null
+  created_at: string
+  is_claimed: boolean
+  claimed_by_display_name: string | null
+}
+
+export interface TimeAuditReviewDetail {
+  id: number
+  ship_id: number
+  status: string
+  feedback: string | null
+  approved_seconds: number | null
+  annotations: TimeAuditAnnotations | null
+  reviewer_display_name: string | null
+  created_at: string
+}
+
+export interface TimeAuditAnnotations {
+  recordings?: Record<
+    string,
+    {
+      description?: string
+      segments?: TimeAuditSegment[]
+    }
+  >
+}
+
+export interface TimeAuditSegment {
+  recording_id: number
+  start_seconds: number
+  end_seconds: number
+  type: 'removed' | 'deflated'
+  reason: string
+  deflated_percent?: number
+}
+
+export interface InactiveSegment {
+  start_min: number
+  end_min: number
+  duration_min: number
+}
+
+export interface ReviewRecording {
+  id: number
+  type: string
+  duration: number
+  name: string
+  playback_url?: string
+  thumbnail_url?: string
+  video_id?: string
+  inactive_segments?: InactiveSegment[]
+  inactive_percentage?: number
+  activity_checked?: boolean
+}
+
+export interface ReviewJournalEntry {
+  id: number
+  content_html: string
+  images: string[]
+  author_display_name: string
+  author_avatar: string
+  created_at: string
+  created_at_iso: string
+  recordings: ReviewRecording[]
+  total_duration: number
+}
+
+export interface ReviewShipContext {
+  id: number
+  ship_type: string
+  status: string
+  created_at: string
+}
+
+export interface ReviewProjectContext {
+  id: number
+  name: string
+  description: string | null
+  repo_link: string | null
+  demo_link: string | null
+  user_id: number
+  user_display_name: string
+  user_avatar: string
+}
+
+export interface RequirementsCheckProjectContext extends ReviewProjectContext {
+  tags: string[]
+  created_at: string
+  logged_hours: number
+  approved_public_hours: number | null
+  approved_internal_hours: number | null
+  entry_count: number
+  ship_type: string
+  frozen_repo_link: string | null
+  frozen_demo_link: string | null
+  waiting_since: string
+  first_submitted_at: string | null
+}
+
+export interface SiblingStatuses {
+  time_audit: string | null
+  requirements_check: string | null
+  design_review: string | null
+  build_review: string | null
+}
+
+export interface RecordingSummary {
+  id: number
+  name: string
+  type: string
+  duration: number
+  description: string | null
+  removed_seconds: number
+}
+
+export interface RequirementsCheckJournalEntry {
+  id: number
+  content_html: string
+  images: string[]
+  author_display_name: string
+  author_avatar: string
+  created_at: string
+  total_duration: number
+  approved_duration: number
+  recordings: RecordingSummary[]
+}
+
+export interface RequirementsCheckReviewDetail {
+  id: number
+  ship_id: number
+  status: string
+  feedback: string | null
+  internal_reason: string | null
+  reviewer_display_name: string | null
+  project_name: string
+  user_display_name: string
+  preflight_results: PreflightCheck[] | null
+  created_at: string
+}
+
+export interface DesignReviewDetail {
+  id: number
+  ship_id: number
+  status: string
+  feedback: string | null
+  internal_reason: string | null
+  hours_adjustment: number | null
+  koi_adjustment: number | null
+  annotations: Record<string, unknown> | null
+  reviewer_display_name: string | null
+  project_name: string
+  user_display_name: string
+  preflight_results: PreflightCheck[] | null
+  created_at: string
+}
+
+export interface BuildReviewDetail {
+  id: number
+  ship_id: number
+  status: string
+  feedback: string | null
+  internal_reason: string | null
+  hours_adjustment: number | null
+  koi_adjustment: number | null
+  annotations: Record<string, unknown> | null
+  reviewer_display_name: string | null
+  project_name: string
+  user_display_name: string
+  preflight_results: PreflightCheck[] | null
+  created_at: string
 }

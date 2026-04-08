@@ -33,6 +33,14 @@ class Project < ApplicationRecord
 
   pg_search_scope :search, against: [ :name, :description ], using: { tsearch: { prefix: true } }
 
+  scoped_search on: :id
+  scoped_search on: :name
+  scoped_search on: :description
+  scoped_search on: :repo_link
+  scoped_search on: :is_unlisted, aliases: [ :unlisted ], default_operator: :exact_match
+  scoped_search on: :created_at
+  scoped_search relation: :user, on: :display_name, rename: :owner
+
   belongs_to :user
   has_many :ships, dependent: :destroy
   has_many :preflight_runs, dependent: :destroy
@@ -41,6 +49,8 @@ class Project < ApplicationRecord
   has_many :collaborators, -> { kept }, as: :collaboratable, dependent: :destroy
   has_many :collaborator_users, through: :collaborators, source: :user
   has_many :collaboration_invites, -> { kept }, dependent: :destroy
+  has_many :reviewer_notes, dependent: :destroy
+  has_many :project_flags, dependent: :destroy
 
   def discard
     transaction do
@@ -59,6 +69,10 @@ class Project < ApplicationRecord
   def owner_or_collaborator?(user)
     return false unless user
     user_id == user.id || collaborator?(user)
+  end
+
+  def flagged?
+    project_flags.exists?
   end
 
   validates :name, presence: true
@@ -104,5 +118,29 @@ class Project < ApplicationRecord
       .sum(:duration).to_i
 
     lapse + youtube + lookout
+  end
+
+  # Batch version: returns { project_id => seconds } for a set of project IDs in a single query
+  def self.batch_time_logged(project_ids)
+    return {} if project_ids.empty?
+    sql = <<~SQL.squish
+      SELECT je.project_id,
+        COALESCE(SUM(CASE r.recordable_type
+          WHEN 'LapseTimelapse' THEN lt.duration
+          WHEN 'LookoutTimelapse' THEN lot.duration
+          WHEN 'YouTubeVideo' THEN yt.duration_seconds
+          ELSE 0 END), 0) AS total
+      FROM journal_entries je
+      JOIN recordings r ON r.journal_entry_id = je.id
+      LEFT JOIN lapse_timelapses lt ON lt.id = r.recordable_id AND r.recordable_type = 'LapseTimelapse'
+      LEFT JOIN lookout_timelapses lot ON lot.id = r.recordable_id AND r.recordable_type = 'LookoutTimelapse'
+      LEFT JOIN you_tube_videos yt ON yt.id = r.recordable_id AND r.recordable_type = 'YouTubeVideo'
+      WHERE je.project_id IN (:ids) AND je.discarded_at IS NULL
+      GROUP BY je.project_id
+    SQL
+    result = ActiveRecord::Base.connection.select_rows(
+      ActiveRecord::Base.sanitize_sql([ sql, ids: project_ids ])
+    )
+    result.to_h { |pid, total| [ pid.to_i, total.to_i ] }
   end
 end

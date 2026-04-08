@@ -31,7 +31,7 @@ class JournalEntriesController < ApplicationController
         if tokens.any?
           sessions = LookoutService.batch_sessions(tokens) || []
           sessions
-            .select { |s| %w[complete stopped].include?(s["status"]) }
+            .select { |s| %w[complete stopped].include?(s["status"]) && s["videoUrl"].present? }
             .map { |s| { token: s["token"], name: s["name"], status: s["status"], duration: s["trackedSeconds"], thumbnail_url: s["thumbnailUrl"], created_at: s["createdAt"] } }
         else
           []

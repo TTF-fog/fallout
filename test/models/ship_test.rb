@@ -11,6 +11,7 @@
 #  frozen_screenshot :string
 #  justification     :string
 #  preflight_results :jsonb
+#  ship_type         :integer          default("design"), not null
 #  status            :integer          default("pending"), not null
 #  created_at        :datetime         not null
 #  updated_at        :datetime         not null
@@ -23,6 +24,7 @@
 #  index_ships_on_preflight_run_id  (preflight_run_id)
 #  index_ships_on_project_id        (project_id)
 #  index_ships_on_reviewer_id       (reviewer_id)
+#  index_ships_on_ship_type         (ship_type)
 #  index_ships_on_status            (status)
 #
 # Foreign Keys

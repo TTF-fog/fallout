@@ -16,9 +16,12 @@ class ProjectsController < ApplicationController
       collaborated_ids = Collaborator.kept.where(user: current_user, collaboratable_type: "Project").select(:collaboratable_id)
       scope = scope.or(Project.kept.where(id: collaborated_ids))
     end
-    scope = scope.includes(kept_journal_entries: [ :recordings, { images_attachments: :blob } ])
+    scope = scope.includes(kept_journal_entries: :images_attachments)
     scope = scope.search(params[:query]) if params[:query].present?
     @pagy, @projects = pagy(scope.order(created_at: :desc))
+    @recordings_counts = Recording.joins(:journal_entry)
+      .where(journal_entries: { project_id: @projects.map(&:id), discarded_at: nil })
+      .group("journal_entries.project_id").count
 
     render inertia: {
       projects: @projects.map { |p| serialize_project_card(p) },
@@ -44,7 +47,7 @@ class ProjectsController < ApplicationController
         { id: c.id, user_id: c.user.id, display_name: c.user.display_name, avatar: c.user.avatar }
       } : [],
       ships: @project.ships.order(created_at: :desc).map { |s|
-        { id: s.id, status: s.status, created_at_iso: s.created_at.iso8601 }
+        { id: s.id, status: s.status, feedback: s.feedback, created_at_iso: s.created_at.iso8601 }
       },
       can: {
         update: policy(@project).update?,
@@ -173,7 +176,7 @@ class ProjectsController < ApplicationController
       cover_image_url: cover_entry&.images&.first&.then { |img| url_for(img) },
       journal_entries_count: kept_entries.size,
       time_logged: project.time_logged,
-      recordings_count: kept_entries.sum { |je| je.recordings.size },
+      recordings_count: @recordings_counts[project.id] || 0,
       is_collaborator: project.user_id != current_user.id # True when viewing a project you collaborate on (not own)
     }
   end

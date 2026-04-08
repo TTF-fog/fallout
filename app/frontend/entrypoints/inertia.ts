@@ -31,6 +31,25 @@ Sentry.init({
   replaysOnErrorSampleRate: 1.0,
 })
 
+// Bullet N+1 alerts: Inertia uses axios (XHR). Bullet.console sets X-bullet-console-text headers
+// on non-HTML responses. Patch XHR to read that header and show toast notifications.
+if (import.meta.env.DEV) {
+  const originalSend = XMLHttpRequest.prototype.send
+  XMLHttpRequest.prototype.send = function (...args: Parameters<XMLHttpRequest['send']>) {
+    this.addEventListener('load', function () {
+      const bulletText = this.getResponseHeader('X-bullet-console-text')
+      if (bulletText) {
+        try {
+          JSON.parse(bulletText).forEach((msg: string) => notify('alert', msg))
+        } catch {
+          notify('alert', bulletText)
+        }
+      }
+    })
+    return originalSend.apply(this, args)
+  }
+}
+
 router.on('exception', (event) => {
   Sentry.captureException(event.detail.exception)
   notify('alert', 'A network error occurred. Please check your connection and try again.')

@@ -5,11 +5,15 @@
 # Table name: you_tube_videos
 #
 #  id                     :bigint           not null, primary key
+#  activity_checked_at    :datetime
 #  caption                :boolean
 #  channel_title          :string
 #  definition             :string
 #  description            :text
 #  duration_seconds       :integer
+#  inactive_frame_count   :integer
+#  inactive_percentage    :float
+#  inactive_segments      :jsonb
 #  last_refreshed_at      :datetime
 #  live_broadcast_content :string
 #  published_at           :datetime

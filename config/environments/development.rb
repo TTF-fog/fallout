@@ -72,6 +72,7 @@ Rails.application.configure do
   config.after_initialize do
     Bullet.enable = true
     Bullet.rails_logger = true
-    Bullet.add_footer = true
+    # Enables X-bullet-console-text header on XHR responses for the frontend interceptor in inertia.ts
+    Bullet.console = true
   end
 end

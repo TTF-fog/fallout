@@ -3,8 +3,12 @@
 # Table name: lapse_timelapses
 #
 #  id                   :bigint           not null, primary key
+#  activity_checked_at  :datetime
 #  description          :text
 #  duration             :float
+#  inactive_frame_count :integer
+#  inactive_percentage  :float
+#  inactive_segments    :jsonb
 #  is_published         :boolean
 #  lapse_created_at     :datetime
 #  last_refreshed_at    :datetime
