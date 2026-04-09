@@ -506,11 +506,11 @@ export default function LandingIndex() {
               Start now to join us in Shenzhen, July 1-7
             </div>
 
-            <h1 className="shake text-center tracking-[5%] text-shadow-md text-shadow-blue font-outfit text-2xl md:text-6xl font-semibold max-w-5xl">
-              Build hardware projects, Visit Shenzhen, China!
+            <h1 className="text-center tracking-[5%] text-shadow-md text-shadow-blue font-outfit text-2xl xs:text-4xl md:text-6xl font-semibold max-w-5xl">
+              Build hardware projects for free, visit Shenzhen, China!
             </h1>
             <p className="text-base md:text-2xl tracking-[5%] text-center ">Solo or in teams, for teens 13-18.</p>
-            <Frame className="w-full max-w-[calc(100%-1rem)] sm:max-w-160 ml-1">
+            <Frame showBorderOnMobile className="w-full max-w-[calc(100%-1rem)] sm:max-w-160 ml-1">
               <form
                 className="w-full h-full flex px-2 sm:px-4 py-1 text-xl items-center justify-between gap-2"
                 onSubmit={handleSubmit}
