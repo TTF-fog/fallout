@@ -43,3 +43,23 @@ production:
     class: HcbGrantCardSyncJob
     queue: background
     schedule: every 15 minutes
+
+  streak_reconciliation:
+    class: StreakReconciliationJob
+    queue: background
+    schedule: every day at 2am
+
+  streak_notifications:
+    class: StreakNotificationJob
+    queue: background
+    schedule: every hour at minute 30
+
+  streak_leaderboard:
+    class: StreakLeaderboardJob
+    queue: background
+    schedule: every day at 5pm # Noon ET (UTC-5 standard / UTC-4 daylight — using standard)
+
+  project_inactivity:
+    class: ProjectInactivityJob
+    queue: background
+    schedule: every day at 9am

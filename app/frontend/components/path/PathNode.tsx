@@ -17,6 +17,7 @@ export default function PathNode({
   journalEntryCount = 0,
   critterVariant,
   readDocsNudge = false,
+  dialogOverlayOpen = false,
 }: {
   index: number
   interactive?: boolean
@@ -24,6 +25,7 @@ export default function PathNode({
   journalEntryCount?: number
   critterVariant?: string
   readDocsNudge?: boolean
+  dialogOverlayOpen?: boolean
 }) {
   const activeIndex = hasProjects ? journalEntryCount + 1 : 0
   const state: 'completed' | 'active' | 'locked' =
@@ -157,6 +159,7 @@ export default function PathNode({
         alwaysShow={showAlways}
         snapWhenOffscreen={snapPosition}
         onSnapClick={handleSnapClick}
+        disabled={dialogOverlayOpen}
       >
         <TooltipTrigger>{content}</TooltipTrigger>
         <TooltipContent>{tooltipText}</TooltipContent>
@@ -166,7 +169,7 @@ export default function PathNode({
 
   if (state === 'completed') {
     return (
-      <Tooltip side="top" gap={12} trackScroll>
+      <Tooltip side="top" gap={12} trackScroll disabled={dialogOverlayOpen}>
         <TooltipTrigger>{content}</TooltipTrigger>
         <TooltipContent>Completed</TooltipContent>
       </Tooltip>
@@ -174,7 +177,7 @@ export default function PathNode({
   }
 
   return (
-    <Tooltip side="top" gap={12} trackScroll>
+    <Tooltip side="top" gap={12} trackScroll disabled={dialogOverlayOpen}>
       <TooltipTrigger>{content}</TooltipTrigger>
       <TooltipContent>Locked</TooltipContent>
     </Tooltip>

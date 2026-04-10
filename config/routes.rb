@@ -158,6 +158,7 @@ Rails.application.routes.draw do
       resources :users, only: [] do
         member do
           patch :update_roles
+          patch :update_streak_day # Admin streak day status override
         end
       end
       resources :activity_checks, only: [ :new, :create ]
@@ -191,6 +192,11 @@ Rails.application.routes.draw do
   post "onboarding" => "onboarding#update"
 
   get "path" => "path#index", as: :path
+
+  resource :streak_goal, only: [ :show, :create, :destroy ]
+
+  # Campaign-based dialog system — marks a one-time dialog as seen via plain fetch (not Inertia)
+  post "dialog_campaigns/:key/mark_seen", to: "dialog_campaigns#mark_seen", as: :mark_seen_dialog_campaign
 
   resources :critters, only: [ :show, :update ], path: "spin" # Gacha spin reveal page
   get "clearing" => "clearing#index", as: :clearing

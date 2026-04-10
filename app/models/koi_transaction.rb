@@ -7,7 +7,7 @@
 #  description :text             not null
 #  reason      :string           not null
 #  created_at  :datetime         not null
-#  actor_id    :bigint           not null
+#  actor_id    :bigint
 #  user_id     :bigint           not null
 #
 # Indexes
@@ -22,10 +22,10 @@
 #  fk_rails_...  (user_id => users.id)
 #
 class KoiTransaction < ApplicationRecord
-  REASONS = %w[ship_review admin_adjustment].freeze
+  REASONS = %w[ship_review admin_adjustment streak_goal].freeze
 
   belongs_to :user
-  belongs_to :actor, class_name: "User"
+  belongs_to :actor, class_name: "User", optional: true # nil for system-generated awards (e.g. streak goals)
 
   validates :amount, presence: true, numericality: { other_than: 0 }
   validates :reason, inclusion: { in: REASONS }

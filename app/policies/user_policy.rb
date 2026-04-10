@@ -15,6 +15,10 @@ class UserPolicy < ApplicationPolicy
     admin?
   end
 
+  def update_streak_day?
+    admin?
+  end
+
   def destroy?
     admin? && record != user
   end

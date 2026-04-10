@@ -6,6 +6,7 @@ class ApplicationController < ActionController::Base
   include InertiaPagination
 
   before_action :set_paper_trail_whodunnit # Track who made changes in PaperTrail audit log
+  before_action :sync_browser_timezone # Keep user.timezone current from the browser's Intl API
   after_action :track_page_view
 
   after_action :verify_authorized, except: :index
@@ -52,6 +53,15 @@ class ApplicationController < ActionController::Base
               .where.not(id: current_user.mail_interactions.read.select(:mail_message_id))
               .exists?
   }
+  inertia_share current_streak: -> { # Streak count shown in the header next to koi
+    next 0 unless current_user && !current_user.trial?
+    StreakService.reconcile_missed_days(current_user) # Apply freezes/misses on every page load so the streak is always current
+    StreakDay.current_streak(current_user)
+  }
+  inertia_share streak_freezes: -> { # Streak freeze count shown in the header
+    next 0 unless current_user && !current_user.trial?
+    current_user.streak_freezes
+  }
 
   private
 
@@ -78,6 +88,17 @@ class ApplicationController < ActionController::Base
     current_user && Flipper.enabled?(:collaborators, current_user)
   end
   helper_method :collaborators_enabled? # Available in views/Inertia props
+
+  def sync_browser_timezone
+    return unless current_user
+
+    browser_tz = request.headers["X-Browser-Timezone"]
+    return if browser_tz.blank?
+    return if browser_tz == current_user.timezone
+    return unless ActiveSupport::TimeZone[browser_tz] # Only accept valid IANA zone names
+
+    current_user.update_column(:timezone, browser_tz) # Skip callbacks/validations — just a timezone sync
+  end
 
   def user_not_authorized
     flash[:alert] = "You are not authorized to perform this action."

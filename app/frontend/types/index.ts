@@ -27,6 +27,8 @@ export interface SharedProps {
   trial_session_path: string
   rsvp_path: string
   has_unread_mail: boolean
+  current_streak: number
+  streak_freezes: number
   errors: Record<string, string[]>
   [key: string]: unknown
 }
@@ -167,6 +169,19 @@ export interface AdminUserDetail {
   is_discarded: boolean
   discarded_at: string | null
   created_at: string
+}
+
+export interface AdminStreakDay {
+  date: string
+  status: 'pending' | 'active' | 'frozen' | 'missed'
+}
+
+export interface AdminStreakData {
+  current_streak: number
+  longest_streak: number
+  total_active_days: number
+  freezes_remaining: number
+  days: AdminStreakDay[]
 }
 
 export interface AdminProjectData {

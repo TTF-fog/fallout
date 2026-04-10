@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_04_09_202849) do
+ActiveRecord::Schema[8.1].define(version: 2026_04_12_115215) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -191,6 +191,16 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_09_202849) do
     t.index ["status"], name: "index_design_reviews_on_status"
   end
 
+  create_table "dialog_campaigns", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.string "key", null: false
+    t.datetime "seen_at"
+    t.datetime "updated_at", null: false
+    t.bigint "user_id", null: false
+    t.index ["user_id", "key"], name: "index_dialog_campaigns_on_user_id_and_key", unique: true
+    t.index ["user_id"], name: "index_dialog_campaigns_on_user_id"
+  end
+
   create_table "flipper_features", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.string "key", null: false
@@ -276,7 +286,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_09_202849) do
   end
 
   create_table "koi_transactions", force: :cascade do |t|
-    t.bigint "actor_id", null: false
+    t.bigint "actor_id"
     t.integer "amount", null: false
     t.datetime "created_at", null: false
     t.text "description", null: false
@@ -646,6 +656,37 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_09_202849) do
     t.index ["key"], name: "index_solid_queue_semaphores_on_key", unique: true
   end
 
+  create_table "streak_days", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.date "date", null: false
+    t.integer "status", default: 0, null: false
+    t.datetime "updated_at", null: false
+    t.bigint "user_id", null: false
+    t.index ["user_id", "date"], name: "index_streak_days_on_user_id_and_date", unique: true
+    t.index ["user_id"], name: "index_streak_days_on_user_id"
+  end
+
+  create_table "streak_events", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.boolean "dialog_seen", default: false, null: false
+    t.string "event_type", null: false
+    t.jsonb "metadata", default: {}, null: false
+    t.datetime "updated_at", null: false
+    t.bigint "user_id", null: false
+    t.index ["user_id", "event_type"], name: "index_streak_events_on_user_id_and_event_type"
+    t.index ["user_id"], name: "index_streak_events_on_user_id"
+  end
+
+  create_table "streak_goals", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.boolean "notify_streak_events", default: true, null: false
+    t.date "started_on", null: false
+    t.integer "target_days", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "user_id", null: false
+    t.index ["user_id"], name: "index_streak_goals_on_user_id", unique: true
+  end
+
   create_table "time_audit_reviews", force: :cascade do |t|
     t.jsonb "annotations"
     t.integer "approved_seconds"
@@ -679,6 +720,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_09_202849) do
     t.string "pending_lookout_tokens", default: [], null: false, array: true
     t.string "roles", default: [], null: false, array: true
     t.string "slack_id"
+    t.integer "streak_freezes", default: 1, null: false
+    t.boolean "streak_in_app_notifications", default: true, null: false
+    t.boolean "streak_slack_notifications", default: true, null: false
     t.string "timezone", null: false
     t.string "type"
     t.datetime "updated_at", null: false
@@ -739,6 +783,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_09_202849) do
   add_foreign_key "critters", "users"
   add_foreign_key "design_reviews", "ships"
   add_foreign_key "design_reviews", "users", column: "reviewer_id"
+  add_foreign_key "dialog_campaigns", "users", name: "dialog_campaigns_user_id_fkey"
   add_foreign_key "hcb_connections", "users", column: "connected_by_id"
   add_foreign_key "hcb_grant_cards", "users"
   add_foreign_key "hcb_transactions", "hcb_grant_cards"
@@ -780,6 +825,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_09_202849) do
   add_foreign_key "solid_queue_ready_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
   add_foreign_key "solid_queue_recurring_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
   add_foreign_key "solid_queue_scheduled_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
+  add_foreign_key "streak_days", "users"
+  add_foreign_key "streak_events", "users"
+  add_foreign_key "streak_goals", "users"
   add_foreign_key "time_audit_reviews", "ships"
   add_foreign_key "time_audit_reviews", "users", column: "reviewer_id"
 end

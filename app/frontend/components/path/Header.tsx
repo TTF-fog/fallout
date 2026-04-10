@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { usePage, router } from '@inertiajs/react'
-// @ts-expect-error useModalStack lacks type declarations in this beta package
 import { useModalStack } from '@inertiaui/modal-react'
 import type { SharedProps } from '@/types'
 import { useClickOutside } from '@/hooks/useClickOutside'
@@ -75,13 +74,40 @@ export default function Header({ koiBalance, avatar, displayName }: Props) {
       </div>
 
       <div className="flex space-x-8 items-center">
-        <div className="flex items-center space-x-2">
+        <button
+          type="button"
+          onClick={() => visitModal('/streak_goal')}
+          className="flex items-center space-x-1 cursor-pointer group relative"
+          aria-label="Streak"
+        >
+          <img src="/fire.svg" alt="streak" className="h-8 xl:h-10" />
+          <span className="text-coral text-4xl xl:text-5xl font-bold">{shared.current_streak}</span>
+          <span className="pointer-events-none absolute -bottom-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-dark-brown px-2 py-1 text-xs text-light-brown opacity-0 transition-opacity group-hover:opacity-100">
+            Streak
+          </span>
+        </button>
+        <button
+          type="button"
+          onClick={() => visitModal('/streak_goal')}
+          className="flex items-center space-x-1 cursor-pointer group relative"
+          aria-label="Streak freezes"
+        >
+          <img src="/frozen-fire.svg" alt="streak freeze" className="h-8 xl:h-10" />
+          <span className="text-ice-blue text-4xl xl:text-5xl font-bold">{shared.streak_freezes}</span>
+          <span className="pointer-events-none absolute -bottom-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-dark-brown px-2 py-1 text-xs text-light-brown opacity-0 transition-opacity group-hover:opacity-100">
+            Streak Freezes
+          </span>
+        </button>
+        <div className="flex items-center space-x-2 group relative">
           <img src="/koifish.webp" alt="koi" className="h-10" />
           <span className="text-coral text-4xl xl:text-5xl font-bold">{koiBalance}</span>
+          <span className="pointer-events-none absolute -bottom-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-dark-brown px-2 py-1 text-xs text-light-brown opacity-0 transition-opacity group-hover:opacity-100">
+            Koi Balance
+          </span>
         </div>
         <button
           type="button"
-          className="relative cursor-pointer"
+          className="relative cursor-pointer group"
           onClick={() => {
             if (shared.auth.user?.is_trial) {
               notify('alert', 'Please verify your account to access your mail.')
@@ -100,6 +126,9 @@ export default function Header({ koiBalance, avatar, displayName }: Props) {
               <span className="absolute top-1 right-0 rounded-full size-3 bg-coral animate-ping" />
             </>
           )}
+          <span className="pointer-events-none absolute -bottom-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-dark-brown px-2 py-1 text-xs text-light-brown opacity-0 transition-opacity group-hover:opacity-100">
+            Mail
+          </span>
         </button>
       </div>
     </header>

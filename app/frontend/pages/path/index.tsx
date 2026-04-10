@@ -1,4 +1,4 @@
-import { useState, useEffect, useLayoutEffect, useRef, useMemo } from 'react'
+import { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback } from 'react'
 import type { ReactNode } from 'react'
 import { Link, router, usePage } from '@inertiajs/react'
 import type { SharedProps } from '@/types'
@@ -13,6 +13,8 @@ import FlashMessages from '@/components/FlashMessages'
 import { notify } from '@/lib/notifications'
 import { consumePathEntryTransition } from '@/lib/pathTransition'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/shared/Tooltip'
+import PathDialogOverlay from '@/components/path/PathDialogOverlay'
+import type { DialogScript } from '@/components/path/PathDialogOverlay'
 
 type PageProps = {
   user: {
@@ -24,6 +26,7 @@ type PageProps = {
   has_projects: boolean
   journal_entry_count: number
   critter_variants: (string | null)[]
+  pending_dialog: string | null
 }
 
 const PATH_ENTRY_HUD_DELAY_MS = 420
@@ -111,6 +114,7 @@ export default function PathIndex() {
     has_projects,
     journal_entry_count,
     critter_variants,
+    pending_dialog,
     has_unread_mail,
     features,
     auth: { user: authUser },
@@ -118,10 +122,84 @@ export default function PathIndex() {
   } = usePage<PageProps & SharedProps>().props
   const [notPressed] = useState<boolean>(true)
   const [loggedIn] = useState(false)
+  const [activeDialog, setActiveDialog] = useState<DialogScript | null>(null)
+  const isDialogOverlayOpen = activeDialog !== null
 
   const { visitModal, stack } = useModalStack()
 
   const modalOpen = stack.length > 0
+
+  const streakGoalScript = useCallback(
+    (): DialogScript => ({
+      mascotSrc: '/onboarding/chinese_heidi.webp',
+      speakerName: 'Soup',
+      onEnd: () => visitModal('/streak_goal'),
+      steps: [
+        { text: `Hang on, ${user.display_name}\nbefore you journal today...` },
+        {
+          text: 'What about committing to a weekly streak goal for some extra Koi?',
+          choices: [
+            { label: 'Sure!', onSelect: () => visitModal('/streak_goal') },
+            { label: 'Nah', goTo: 2 },
+          ],
+        },
+        { text: "That's OK! But keep in mind- doing a streak goal is risk free!" },
+        { text: "I'll show em to you just in case you're changing your mind.", last: true },
+      ],
+    }),
+    [visitModal, user],
+  )
+
+  const firstJournalScript = useCallback(
+    (): DialogScript => ({
+      mascotSrc: '/onboarding/chinese_heidi.webp',
+      speakerName: 'Soup',
+      onEnd: () => visitModal('/streak_goal'),
+      steps: [
+        { text: "Congrats on your first journal entry!\nYou're off to a great start." },
+        {
+          text: "Want to set a weekly streak goal? It's a great way to earn extra Koi!",
+          choices: [{ label: "Let's go!", onSelect: () => visitModal('/streak_goal') }, { label: 'Maybe later' }],
+        },
+      ],
+    }),
+    [visitModal],
+  )
+
+  const keepJournalingScript = useCallback(
+    (): DialogScript => ({
+      mascotSrc: '/onboarding/chinese_heidi.webp',
+      speakerName: 'Soup',
+      onEnd: () => visitModal('/streak_goal'),
+      steps: [
+        { text: "Congrats on completing your streak goal! You're showing momentum." },
+        {
+          text: 'Ready to keep going? Another streak goal means more Koi and more progress!',
+          choices: [{ label: "I'm on it!", onSelect: () => visitModal('/streak_goal') }, { label: 'Take a break' }],
+        },
+      ],
+    }),
+    [visitModal],
+  )
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.metaKey && e.shiftKey && e.key.toLowerCase() === 'l') {
+        e.preventDefault()
+        setActiveDialog(streakGoalScript())
+      }
+      if (e.metaKey && e.shiftKey && e.key.toLowerCase() === 'k') {
+        e.preventDefault()
+        setActiveDialog(firstJournalScript())
+      }
+      if (e.metaKey && e.shiftKey && e.key.toLowerCase() === 'p') {
+        e.preventDefault()
+        setActiveDialog(keepJournalingScript())
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [streakGoalScript, firstJournalScript, keepJournalingScript])
 
   const [readDocsNudge, setReadDocsNudge] = useState(initialPathEntry.readDocsNudge)
   const [docsNudgeReady, setDocsNudgeReady] = useState(false)
@@ -163,9 +241,10 @@ export default function PathIndex() {
           journalEntryCount={journal_entry_count}
           critterVariant={i >= 1 ? (critter_variants[i - 1] ?? undefined) : undefined}
           readDocsNudge={readDocsNudge}
+          dialogOverlayOpen={isDialogOverlayOpen}
         />
       )),
-    [has_projects, journal_entry_count, critter_variants, pathIntro.active, readDocsNudge],
+    [has_projects, journal_entry_count, critter_variants, pathIntro.active, readDocsNudge, isDialogOverlayOpen],
   )
 
   useEffect(() => {
@@ -258,6 +337,41 @@ export default function PathIndex() {
     void visitModal(modalUrl)
   }, [introFinished, pendingModal, stack.length, visitModal])
 
+  // Auto-trigger pending campaign dialog after intro animation finishes
+  const campaignDialogTriggered = useRef(false)
+  useEffect(() => {
+    if (campaignDialogTriggered.current) return
+    if (!introFinished || !pending_dialog || pendingModal || stack.length > 0) return
+
+    const scriptMap: Record<string, () => DialogScript> = {
+      first_journal: firstJournalScript,
+      streak_goal_nudge: streakGoalScript,
+      streak_goal_completed: keepJournalingScript,
+    }
+
+    const scriptFn = scriptMap[pending_dialog]
+    if (!scriptFn) return
+
+    campaignDialogTriggered.current = true
+    setActiveDialog(scriptFn())
+
+    // Plain fetch to mark campaign as seen — NOT router.post (Inertia expects an Inertia response from head :no_content)
+    fetch(`/dialog_campaigns/${pending_dialog}/mark_seen`, {
+      method: 'POST',
+      headers: {
+        'X-CSRF-Token': document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content || '',
+      },
+    })
+  }, [
+    introFinished,
+    pending_dialog,
+    pendingModal,
+    stack.length,
+    streakGoalScript,
+    firstJournalScript,
+    keepJournalingScript,
+  ])
+
   function reloadPathProgress() {
     router.reload({ only: ['has_projects', 'journal_entry_count', 'critter_variants'] })
   }
@@ -305,7 +419,7 @@ export default function PathIndex() {
         className="fixed z-10 flex flex-row xs:flex-col items-center xs:items-start space-y-4 bottom-2 left-2 xs:bottom-6 xs:left-6"
         style={{ pointerEvents: pathIntro.hudVisible ? 'auto' : 'none' }}
       >
-        <Tooltip alwaysShow={docsNudgeReady && !modalOpen}>
+        <Tooltip alwaysShow={docsNudgeReady && !modalOpen} disabled={isDialogOverlayOpen}>
           <TooltipTrigger>
             <Link href="/docs" onClick={() => setReadDocsNudge(false)}>
               <img src="/icon/guide.webp" alt="Guide" className="cursor-pointer w-20 xs:w-25" />
@@ -313,7 +427,7 @@ export default function PathIndex() {
           </TooltipTrigger>
           <TooltipContent>{readDocsNudge ? 'Read this!' : 'Docs & Resources'}</TooltipContent>
         </Tooltip>
-        <Tooltip>
+        <Tooltip disabled={isDialogOverlayOpen}>
           <TooltipTrigger>
             {has_projects ? (
               <ModalLink href="/projects" onProjectDeleted={reloadPathProgress} className="outline-0">
@@ -327,7 +441,7 @@ export default function PathIndex() {
           </TooltipTrigger>
           <TooltipContent>Projects</TooltipContent>
         </Tooltip>
-        <Tooltip>
+        <Tooltip disabled={isDialogOverlayOpen}>
           <TooltipTrigger>
             {features.shop ? (
               <ModalLink href="/shop" className="outline-0">
@@ -341,7 +455,7 @@ export default function PathIndex() {
           </TooltipTrigger>
           <TooltipContent>Shop</TooltipContent>
         </Tooltip>
-        <Tooltip>
+        <Tooltip disabled={isDialogOverlayOpen}>
           <TooltipTrigger>
             {!authUser?.is_trial ? (
               <Link href="/clearing" className="col-span-2 -mt-4">
@@ -370,6 +484,10 @@ export default function PathIndex() {
           targetNodeIndex: activePathNodeIndex,
         }}
       />
+
+      {activeDialog && (
+        <PathDialogOverlay isOpen={isDialogOverlayOpen} onClose={() => setActiveDialog(null)} script={activeDialog} />
+      )}
     </>
   )
 }

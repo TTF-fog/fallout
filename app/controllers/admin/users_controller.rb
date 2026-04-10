@@ -29,6 +29,16 @@ class Admin::UsersController < Admin::ApplicationController
       user: serialize_user_detail(@user),
       valid_roles: current_user.admin? ? User::VALID_ROLES : [], # Only admins can edit roles
       is_self: @user == current_user,
+      streak_data: InertiaRails.defer {
+        streak_days = @user.streak_days.chronological.pluck(:date, :status)
+        {
+          current_streak: StreakDay.current_streak(@user),
+          longest_streak: StreakDay.longest_streak(@user),
+          total_active_days: @user.streak_days.status_active.count,
+          freezes_remaining: @user.streak_freezes,
+          days: streak_days.map { |date, status| { date: date.iso8601, status: status } }
+        }
+      },
       project_data: InertiaRails.defer {
         base_scope = @user.projects
         base_scope = base_scope.kept unless params[:include_deleted] == "1"
@@ -53,7 +63,11 @@ class Admin::UsersController < Admin::ApplicationController
       hide_unlisted: params[:hide_unlisted] == "1",
       with_journals: params[:with_journals] == "1"
     }
-    props[:audit_log] = InertiaRails.defer { serialize_audit_log(@user) } if current_user.admin? # Audit log — admin-only
+    props[:audit_log] = InertiaRails.defer { # Audit log — admin-only
+      streak_day_ids = @user.streak_days.select(:id)
+      streak_versions = PaperTrail::Version.where(item_type: "StreakDay", item_id: streak_day_ids).to_a
+      serialize_audit_log(@user, extra_versions: streak_versions)
+    } if current_user.admin?
     render inertia: props
   end
 
@@ -74,6 +88,32 @@ class Admin::UsersController < Admin::ApplicationController
 
     @user.update!(roles: roles)
     redirect_to admin_user_path(@user), notice: "Roles updated."
+  end
+
+  def update_streak_day
+    @user = User.find(params[:id])
+    authorize @user
+
+    date = Date.parse(params[:date])
+    status = params[:status]
+
+    unless StreakDay.statuses.key?(status)
+      render json: { error: "Invalid status" }, status: :unprocessable_entity
+      return
+    end
+
+    streak_day = StreakDay.find_or_initialize_by(user: @user, date: date)
+    streak_day.status = status
+    streak_day.save!
+
+    render json: {
+      date: date.iso8601,
+      status: streak_day.status,
+      current_streak: StreakDay.current_streak(@user),
+      longest_streak: StreakDay.longest_streak(@user),
+      total_active_days: @user.streak_days.status_active.count,
+      freezes_remaining: @user.streak_freezes
+    }
   end
 
   private
