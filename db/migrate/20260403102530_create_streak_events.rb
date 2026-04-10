@@ -8,6 +8,6 @@ class CreateStreakEvents < ActiveRecord::Migration[8.1]
       t.timestamps
     end
 
-    add_index :streak_events, [:user_id, :event_type]
+    add_index :streak_events, [ :user_id, :event_type ]
   end
 end
