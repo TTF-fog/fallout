@@ -2,26 +2,29 @@
 #
 # Table name: users
 #
-#  id                     :bigint           not null, primary key
-#  avatar                 :string           not null
-#  device_token           :text
-#  discarded_at           :datetime
-#  display_name           :string           not null
-#  email                  :string           not null
-#  hca_token              :text
-#  is_adult               :boolean          default(FALSE), not null
-#  is_banned              :boolean          default(FALSE), not null
-#  lapse_token            :text
-#  onboarded              :boolean          default(FALSE), not null
-#  pending_lookout_tokens :string           default([]), not null, is an Array
-#  roles                  :string           default([]), not null, is an Array
-#  timezone               :string           not null
-#  type                   :string
-#  verification_status    :string
-#  created_at             :datetime         not null
-#  updated_at             :datetime         not null
-#  hca_id                 :string
-#  slack_id               :string
+#  id                          :bigint           not null, primary key
+#  avatar                      :string           not null
+#  device_token                :text
+#  discarded_at                :datetime
+#  display_name                :string           not null
+#  email                       :string           not null
+#  hca_token                   :text
+#  is_adult                    :boolean          default(FALSE), not null
+#  is_banned                   :boolean          default(FALSE), not null
+#  lapse_token                 :text
+#  onboarded                   :boolean          default(FALSE), not null
+#  pending_lookout_tokens      :string           default([]), not null, is an Array
+#  roles                       :string           default([]), not null, is an Array
+#  streak_freezes              :integer          default(1), not null
+#  streak_in_app_notifications :boolean          default(TRUE), not null
+#  streak_slack_notifications  :boolean          default(TRUE), not null
+#  timezone                    :string           not null
+#  type                        :string
+#  verification_status         :string
+#  created_at                  :datetime         not null
+#  updated_at                  :datetime         not null
+#  hca_id                      :string
+#  slack_id                    :string
 #
 # Indexes
 #

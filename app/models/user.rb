@@ -2,26 +2,29 @@
 #
 # Table name: users
 #
-#  id                     :bigint           not null, primary key
-#  avatar                 :string           not null
-#  device_token           :text
-#  discarded_at           :datetime
-#  display_name           :string           not null
-#  email                  :string           not null
-#  hca_token              :text
-#  is_adult               :boolean          default(FALSE), not null
-#  is_banned              :boolean          default(FALSE), not null
-#  lapse_token            :text
-#  onboarded              :boolean          default(FALSE), not null
-#  pending_lookout_tokens :string           default([]), not null, is an Array
-#  roles                  :string           default([]), not null, is an Array
-#  timezone               :string           not null
-#  type                   :string
-#  verification_status    :string
-#  created_at             :datetime         not null
-#  updated_at             :datetime         not null
-#  hca_id                 :string
-#  slack_id               :string
+#  id                          :bigint           not null, primary key
+#  avatar                      :string           not null
+#  device_token                :text
+#  discarded_at                :datetime
+#  display_name                :string           not null
+#  email                       :string           not null
+#  hca_token                   :text
+#  is_adult                    :boolean          default(FALSE), not null
+#  is_banned                   :boolean          default(FALSE), not null
+#  lapse_token                 :text
+#  onboarded                   :boolean          default(FALSE), not null
+#  pending_lookout_tokens      :string           default([]), not null, is an Array
+#  roles                       :string           default([]), not null, is an Array
+#  streak_freezes              :integer          default(1), not null
+#  streak_in_app_notifications :boolean          default(TRUE), not null
+#  streak_slack_notifications  :boolean          default(TRUE), not null
+#  timezone                    :string           not null
+#  type                        :string
+#  verification_status         :string
+#  created_at                  :datetime         not null
+#  updated_at                  :datetime         not null
+#  hca_id                      :string
+#  slack_id                    :string
 #
 # Indexes
 #
@@ -73,11 +76,15 @@ class User < ApplicationRecord
   has_many :koi_transactions, dependent: :destroy
   has_many :acting_koi_transactions, class_name: "KoiTransaction", foreign_key: :actor_id, dependent: :nullify, inverse_of: :actor
   has_many :shop_orders, dependent: :destroy
+  has_many :streak_days, dependent: :destroy
+  has_many :streak_events, dependent: :destroy
+  has_one :streak_goal, dependent: :destroy
   has_many :collaborations, -> { kept }, class_name: "Collaborator", dependent: :destroy
   has_many :collaborated_projects, through: :collaborations, source: :collaboratable, source_type: "Project"
   has_many :received_collaboration_invites, -> { kept }, class_name: "CollaborationInvite", foreign_key: :invitee_id, dependent: :destroy, inverse_of: :invitee
   has_many :sent_collaboration_invites, -> { kept }, class_name: "CollaborationInvite", foreign_key: :inviter_id, dependent: :destroy, inverse_of: :inviter
   has_many :sent_pending_collaboration_invites, -> { kept }, class_name: "PendingCollaborationInvite", foreign_key: :inviter_id, dependent: :destroy, inverse_of: :inviter
+  has_many :dialog_campaigns, dependent: :destroy
   has_many :hcb_grant_cards, dependent: :destroy
   has_one :active_hcb_grant_card, -> { where(status: "active") }, class_name: "HcbGrantCard"
   has_many :reviewer_notes
@@ -267,7 +274,6 @@ class User < ApplicationRecord
       profile.image_32.presence ||
       profile.image_24.presence ||
       profile.image_original
-    new_timezone = user_info.user.tz
 
     updates = {}
     updates[:display_name] = new_display_name if new_display_name.present? && display_name != new_display_name
@@ -276,7 +282,6 @@ class User < ApplicationRecord
     elsif avatar.blank?
       updates[:avatar] = "/static-assets/pfp_fallback.webp"
     end
-    updates[:timezone] = new_timezone if new_timezone.present? && timezone != new_timezone
 
     return if updates.empty?
 
@@ -397,6 +402,40 @@ class User < ApplicationRecord
     return nil if hca_token.blank?
 
     @hca_identity ||= HcaService.me(hca_token)&.dig("identity")
+  end
+
+  # Computes the best hour to send a streak reminder based on journaling habits.
+  # Takes the median local hour of each day's earliest journal entry, then subtracts
+  # the average recording duration (so the reminder arrives before they'd normally start).
+  # Falls back to 18 (6 PM) if no journal history exists.
+  def preferred_reminder_hour
+    tz = ActiveSupport::TimeZone[timezone] || ActiveSupport::TimeZone["UTC"]
+
+    entries = journal_entries.kept.order(:created_at).pluck(:created_at)
+    return 18 if entries.empty?
+
+    # Group by local date, keep only the earliest entry per day
+    earliest_by_day = entries.each_with_object({}) do |created_at, hash|
+      local_time = created_at.in_time_zone(tz)
+      local_date = local_time.to_date
+      hash[local_date] = local_time if hash[local_date].nil? || local_time < hash[local_date]
+    end
+
+    return 18 if earliest_by_day.empty?
+
+    # Extract the local hour of each day's earliest journal
+    hours = earliest_by_day.values.map(&:hour).sort
+    median_hour = hours[hours.size / 2]
+
+    # Average recording duration across all kept journal entries (in hours)
+    entry_ids = journal_entries.kept.select(:id)
+    total_seconds = LapseTimelapse.joins(:recording).where(recordings: { journal_entry_id: entry_ids }).sum(:duration).to_i +
+                    YouTubeVideo.joins(:recording).where(recordings: { journal_entry_id: entry_ids }).sum(:duration_seconds).to_i +
+                    LookoutTimelapse.joins(:recording).where(recordings: { journal_entry_id: entry_ids }).sum(:duration).to_i
+    entry_count = journal_entries.kept.count
+    avg_duration_hours = entry_count > 0 ? (total_seconds.to_f / entry_count / 3600).ceil : 0
+
+    (median_hour - avg_duration_hours).clamp(6, 22)
   end
 
   private

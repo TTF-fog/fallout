@@ -25,7 +25,42 @@ class PathController < ApplicationController
       has_projects: current_user.projects.kept.exists? || (collaborators_enabled? && Collaborator.kept.where(user: current_user, collaboratable_type: "Project").exists?),
       journal_entry_count: journal_entries.size,
       # Critter variant per journal entry (by creation order), nil if no critter was awarded
-      critter_variants: journal_entries.map { |je| je.critters.find { |c| c.user_id == current_user.id }&.variant }
+      critter_variants: journal_entries.map { |je| je.critters.find { |c| c.user_id == current_user.id }&.variant },
+      pending_dialog: pending_dialog_key(journal_entries)
     }
+  end
+
+  private
+
+  NUDGE_INTERVAL_DAYS = 12
+
+  # Determines the first eligible campaign dialog to show.
+  # Creates campaign rows lazily when conditions are met.
+  def pending_dialog_key(journal_entries)
+    return nil if current_user.trial?
+
+    # streak_goal_completed: created by StreakService when a goal is completed, reset to unseen on each new completion
+    unseen_completed = current_user.dialog_campaigns.unseen.find_by(key: "streak_goal_completed")
+    return "streak_goal_completed" if unseen_completed
+
+    # first_journal: created by JournalEntriesController on first journal submission
+    unseen_first = current_user.dialog_campaigns.unseen.find_by(key: "first_journal")
+    return "first_journal" if unseen_first
+
+    # streak_goal_nudge: re-triggers every 12 days while user has no active streak goal
+    if journal_entries.size >= 1 && current_user.streak_goal.nil?
+      campaign = current_user.dialog_campaigns.find_or_initialize_by(key: "streak_goal_nudge")
+      if campaign.new_record?
+        campaign.save!
+        return "streak_goal_nudge"
+      elsif campaign.seen? && campaign.seen_at < NUDGE_INTERVAL_DAYS.days.ago
+        campaign.update!(seen_at: nil) # Reset so it triggers again
+        return "streak_goal_nudge"
+      elsif !campaign.seen?
+        return "streak_goal_nudge"
+      end
+    end
+
+    nil
   end
 end

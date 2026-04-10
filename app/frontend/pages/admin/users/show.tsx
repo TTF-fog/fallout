@@ -29,7 +29,8 @@ import {
 } from '@/components/admin/ui/alert-dialog'
 import AuditLog, { AuditLogLoading } from '@/components/admin/AuditLog'
 import type { AuditLogEntry } from '@/components/admin/AuditLog'
-import type { AdminUserDetail, AdminProjectRow, AdminProjectData, PagyProps } from '@/types'
+import StreakCalendar, { StreakCalendarLoading } from '@/components/admin/StreakCalendar'
+import type { AdminUserDetail, AdminProjectRow, AdminProjectData, AdminStreakData, PagyProps } from '@/types'
 
 const projectColumns: ColumnDef<AdminProjectRow>[] = [
   {
@@ -100,6 +101,7 @@ interface PageProps {
   user: AdminUserDetail
   valid_roles: string[]
   is_self: boolean
+  streak_data?: AdminStreakData
   project_data?: AdminProjectData
   audit_log?: AuditLogEntry[]
   query: string
@@ -342,6 +344,7 @@ export default function AdminUsersShow({
   user,
   valid_roles,
   is_self,
+  streak_data,
   project_data,
   audit_log,
   query,
@@ -437,6 +440,12 @@ export default function AdminUsersShow({
           </Deferred>
         </div>
       )}
+
+      <div className="mt-8">
+        <Deferred data="streak_data" fallback={<StreakCalendarLoading />}>
+          <StreakCalendar data={streak_data!} userId={user.id} />
+        </Deferred>
+      </div>
     </div>
   )
 }

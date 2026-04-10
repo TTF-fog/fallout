@@ -9,7 +9,7 @@ class JournalEntriesController < ApplicationController
       collaborated_project_ids = Collaborator.kept.where(user: current_user, collaboratable_type: "Project").select(:collaboratable_id)
       projects = projects.or(Project.kept.where(id: collaborated_project_ids))
     end
-    projects = projects.includes(:collaborator_users, :user)
+    projects = projects.includes(:collaborator_users, :user) if collaborators_enabled?
 
     if params[:project_id]
       @project = projects.find(params[:project_id])
@@ -20,12 +20,17 @@ class JournalEntriesController < ApplicationController
 
     lapse_connected = current_user.lapse_token.present? || ENV["LAPSE_PROGRAM_KEY"].present?
 
+    # Pre-compute streak data so the frontend can warn before submission
+    streak_data = streak_data_for_warning(current_user)
+
     render inertia: "journal_entries/new", props: {
       projects: projects.map { |p| serialize_project_for_journal(p) },
       selected_project_id: @project&.id,
       lapse_connected: lapse_connected,
       is_modal: request.headers["X-InertiaUI-Modal"].present?,
       direct_upload_url: rails_direct_uploads_url,
+      streak_seconds_logged: streak_data[:seconds_logged],
+      streak_threshold: streak_data[:threshold],
       lookout_timelapses: InertiaRails.defer {
         tokens = current_user.pending_lookout_tokens
         if tokens.any?
@@ -107,11 +112,16 @@ class JournalEntriesController < ApplicationController
 
     critter = maybe_award_critter(@journal_entry, current_user)
     award_critters_to_collaborators(@journal_entry)
+    StreakService.record_activity(current_user)
+
+    # Queue the first-journal congrats dialog if this is the user's very first journal entry
+    if current_user.journal_entries.kept.count == 1
+      current_user.dialog_campaigns.find_or_create_by!(key: "first_journal") { |c| c.seen_at = nil }
+    end
 
     if critter
       redirect_to critter_path(critter)
     else
-      # Redirect to path when created from the journal modal so it closes and the path updates
       destination = params[:return_to] == "path" ? path_path : project_path(@project)
       redirect_to destination, notice: "Journal created."
     end
@@ -146,5 +156,19 @@ class JournalEntriesController < ApplicationController
     end
 
     { id: project.id, name: project.name, potential_collaborators: potential }
+  end
+
+  def streak_data_for_warning(user)
+    if user.trial?
+      { seconds_logged: nil, threshold: nil }
+    else
+      today = Date.current.in_time_zone(user.timezone).to_date
+      streak_day = StreakDay.find_by(user: user, date: today)
+      if streak_day&.status_active?
+        { seconds_logged: nil, threshold: nil } # Already hit the threshold — no warning needed
+      else
+        { seconds_logged: StreakService.daily_seconds_logged(user, today), threshold: StreakService::STREAK_THRESHOLD_SECONDS }
+      end
+    end
   end
 end

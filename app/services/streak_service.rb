@@ -1,0 +1,261 @@
+class StreakService
+  MAX_FREEZES = 5
+  MILESTONES = [ 7, 14, 30, 60, 100 ].freeze
+  STREAK_THRESHOLD_SECONDS = 1.hour.to_i # Minimum daily recording time to count toward a streak
+  GOAL_KOI_REWARDS = { 3 => 1, 5 => 2, 7 => 5, 14 => 10 }.freeze
+  STREAK_ANNOUNCEMENT_CHANNEL = "C037157AL30" # Public channel for streak goal announcements
+
+  def self.record_activity(user)
+    return if user.trial?
+
+    reconcile_missed_days(user) # Backfill all unreconciled days before recording today
+
+    today = Date.current.in_time_zone(user.timezone).to_date
+    streak_day = StreakDay.find_or_initialize_by(user: user, date: today)
+    return if streak_day.status_active?
+    return unless daily_seconds_logged(user, today) >= STREAK_THRESHOLD_SECONDS # Day doesn't count until total recordings reach 1 hour
+
+    streak_day.status = :active
+    streak_day.save!
+
+    user.streak_events.create!(event_type: "day_completed", metadata: { date: today.iso8601 })
+    check_milestones(user)
+    check_goal_completion(user)
+  end
+
+  def self.daily_seconds_logged(user, date)
+    tz = ActiveSupport::TimeZone[user.timezone]
+    day_start = tz.parse(date.to_s).beginning_of_day
+    day_end = day_start.end_of_day
+
+    journal_ids = JournalEntry.kept.where(user: user, created_at: day_start..day_end).select(:id)
+
+    lapse = LapseTimelapse.joins(:recording).where(recordings: { journal_entry_id: journal_ids }).sum(:duration).to_i
+    youtube = YouTubeVideo.joins(:recording).where(recordings: { journal_entry_id: journal_ids }).sum(:duration_seconds).to_i
+    lookout = LookoutTimelapse.joins(:recording).where(recordings: { journal_entry_id: journal_ids }).sum(:duration).to_i
+
+    lapse + youtube + lookout
+  end
+
+  def self.reconcile_missed_days(user)
+    # Lock the user row to prevent concurrent reconciliation (page load + cron + record_activity)
+    user.with_lock do
+      today = Date.current.in_time_zone(user.timezone).to_date
+      # Anchor from the last day that actually counted — pending/missed days shouldn't push the window forward
+      last_entry = StreakDay.where(user: user).streak_counting.where("date < ?", today).reverse_chronological.first
+
+      # Nothing to reconcile if user has no streak history before today
+      next unless last_entry
+
+      # Snapshot the streak length before any missed days are inserted, so mark_missed
+      # can record the correct broken streak regardless of iteration order.
+      streak_before_reconciliation = StreakDay.current_streak(user)
+
+      # Walk each day between last entry and yesterday, apply freeze or miss
+      ((last_entry.date + 1.day)...(today)).each do |date|
+        streak_day = StreakDay.find_by(user: user, date: date)
+        next unless streak_day.nil? || streak_day.status_pending?
+
+        user.reload # Freeze count may have changed from previous iteration
+        if user.streak_freezes > 0
+          use_freeze(user, date, streak_day)
+        else
+          mark_missed(user, date, streak_day, streak_before_reconciliation)
+          streak_before_reconciliation = 0 # Only the first miss breaks the streak
+        end
+      end
+    end
+  end
+
+  def self.check_milestones(user)
+    current = StreakDay.current_streak(user)
+    return unless current.in?(MILESTONES)
+
+    already_earned = user.streak_events.where(event_type: "streak_milestone")
+                         .where("metadata->>'streak_length' = ?", current.to_s)
+                         .exists?
+    return if already_earned
+
+    user.streak_events.create!(event_type: "streak_milestone", metadata: { streak_length: current })
+
+    if user.streak_freezes < MAX_FREEZES
+      user.increment!(:streak_freezes)
+      user.streak_events.create!(event_type: "freeze_earned", metadata: { streak_length: current, new_total: user.streak_freezes })
+    end
+
+    notify_milestone(user, current)
+  end
+
+  def self.send_reminder(user)
+    today = Date.current.in_time_zone(user.timezone).to_date
+    streak_day = StreakDay.find_by(user: user, date: today)
+
+    return if streak_day&.status_active?
+
+    current_streak = StreakDay.current_streak(user)
+    return if current_streak.zero?
+
+    if user.streak_slack_notifications && user.slack_id.present?
+      SlackMsgJob.perform_later(user.slack_id, reminder_message(user.display_name, current_streak))
+    end
+
+    if user.streak_in_app_notifications
+      MailDeliveryService.streak_reminder(user, current_streak)
+    end
+  end
+
+  private_class_method def self.notify_milestone(user, streak_length)
+    if user.streak_slack_notifications && user.slack_id.present?
+      SlackMsgJob.perform_later(user.slack_id, ":yay: #{streak_length}-day streak! You're on fire! Keep it up!")
+    end
+
+    if user.streak_in_app_notifications
+      MailDeliveryService.streak_milestone(user, streak_length)
+    end
+  end
+
+  private_class_method def self.use_freeze(user, date, streak_day)
+    if streak_day
+      streak_day.update!(status: :frozen)
+    else
+      StreakDay.create!(user: user, date: date, status: :frozen)
+    end
+
+    # Atomic decrement that refuses to go negative — returns 0 rows updated if streak_freezes is already 0
+    rows = User.where(id: user.id).where("streak_freezes > 0").update_all("streak_freezes = streak_freezes - 1")
+    raise ActiveRecord::RecordInvalid, "No freezes available to decrement" if rows.zero?
+
+    user.reload
+    user.streak_events.create!(event_type: "freeze_used", metadata: { date: date.iso8601, remaining: user.streak_freezes })
+
+    goal = user.streak_goal
+    # Skip DM/in-app notifications if user opted out for this specific goal
+    return if goal && !goal.notify_streak_events
+
+    if user.streak_slack_notifications && user.slack_id.present?
+      SlackMsgJob.perform_later(user.slack_id, ":ice_cube: I used a streak freeze for you yesterday! You have #{user.streak_freezes} left.")
+    end
+
+    if user.streak_in_app_notifications
+      MailDeliveryService.streak_freeze_used(user, user.streak_freezes)
+    end
+  end
+
+  private_class_method def self.check_goal_completion(user)
+    goal = user.streak_goal
+    return unless goal&.completed?
+
+    already_rewarded = user.streak_events
+                           .where(event_type: "goal_completed")
+                           .where("metadata->>'target_days' = ?", goal.target_days.to_s)
+                           .where("metadata->>'started_on' = ?", goal.started_on.iso8601)
+                           .exists?
+    return if already_rewarded
+
+    user.streak_events.create!(
+      event_type: "goal_completed",
+      metadata: { target_days: goal.target_days, started_on: goal.started_on.iso8601 }
+    )
+
+    koi_amount = GOAL_KOI_REWARDS[goal.target_days]
+    if koi_amount
+      KoiTransaction.create!(
+        user: user,
+        actor: nil, # System-generated reward
+        amount: koi_amount,
+        reason: "streak_goal",
+        description: "Completed #{goal.target_days}-day streak goal"
+      )
+    end
+
+    # Queue the congrats dialog for the next time the user visits the path page
+    campaign = user.dialog_campaigns.find_or_initialize_by(key: "streak_goal_completed")
+    campaign.update!(seen_at: nil)
+
+    # Reset the nudge timer so it doesn't re-trigger for 12 days after goal completion
+    nudge = user.dialog_campaigns.find_by(key: "streak_goal_nudge")
+    nudge&.mark_seen!
+
+    if user.streak_freezes < MAX_FREEZES
+      user.increment!(:streak_freezes)
+      user.streak_events.create!(
+        event_type: "freeze_earned",
+        metadata: { reason: "goal_completed", target_days: goal.target_days, new_total: user.streak_freezes }
+      )
+    end
+
+    # Skip DM/in-app notifications if user opted out for this specific goal
+    unless goal.notify_streak_events == false
+      if user.streak_slack_notifications && user.slack_id.present?
+        SlackMsgJob.perform_later(user.slack_id, ":tada: You completed your #{goal.target_days}-day streak goal!")
+      end
+
+      if user.streak_in_app_notifications
+        MailDeliveryService.streak_goal_completed(user, goal.target_days)
+      end
+    end
+
+    announce_goal_completed(user, goal.target_days) if user.slack_id.present?
+  end
+
+  private_class_method def self.mark_missed(user, date, streak_day, broken_streak)
+    if streak_day
+      streak_day.update!(status: :missed)
+    else
+      StreakDay.create!(user: user, date: date, status: :missed)
+    end
+
+    user.streak_events.create!(event_type: "streak_broken", metadata: { date: date.iso8601, streak_length: broken_streak })
+
+    goal = user.streak_goal
+    if goal
+      goal_notify = goal.notify_streak_events # Capture before destroy
+      user.streak_events.create!(event_type: "goal_broken", metadata: { target_days: goal.target_days, started_on: goal.started_on.iso8601 })
+      broken_target = goal.target_days
+      goal.destroy!
+      if goal_notify
+        MailDeliveryService.streak_goal_broken(user, broken_target) # Only notify if user opted in for this goal
+      end
+      announce_goal_broken(user, broken_target) if user.slack_id.present?
+    end
+
+    if broken_streak > 0
+      # Skip streak-broken notifications if user opted out for this specific goal
+      goal_notify = goal_notify.nil? ? true : goal_notify
+      if goal_notify
+        if user.streak_slack_notifications && user.slack_id.present?
+          SlackMsgJob.perform_later(user.slack_id, ":broken_heart: Your #{broken_streak}-day streak ended. Start a new one today!")
+        end
+
+        if user.streak_in_app_notifications
+          MailDeliveryService.streak_broken(user, broken_streak)
+        end
+      end
+    end
+  end
+
+  private_class_method def self.reminder_message(name, streak)
+    variants = [
+      ":oi: Yo #{name}! Ya haven't posted a journal entry today! I'm so hungry!! Your #{streak}-day streak is on the line :<",
+      ":oi: #{name}!! no journal = no koi = one very sad soup :< your #{streak}-day streak is slipping away!!",
+      ":oi: HELLO?? #{name}?? i haven't eaten all day and it's YOUR fault. post a journal entry before your #{streak}-day streak disappears!!",
+      ":oi: yo #{name} i'm literally starving out here. your #{streak}-day streak won't save itself. journal. NOW. (please.)",
+      ":oi: #{name} i swear if you don't post a journal today i'm going to lose it. #{streak} days on the line. do it for the fish. do it for ME.",
+      ":oi: hey #{name}! soup here, reporting live from the bottom of an empty bowl :< your #{streak}-day streak needs you TODAY",
+      ":oi: #{name}!! it's been a whole day and i've seen zero koi. ZERO. your #{streak}-day streak is at risk and i'm at risk of fading away :<",
+      ":oi: knock knock. who's there. it's soup. soup who. soup who is HUNGRY and needs #{name} to post a journal entry before their #{streak}-day streak ends :<",
+      ":oi: #{name}! i asked the other fish and they said you haven't journaled today. your #{streak}-day streak said \"tell them i miss them\" :<",
+      ":oi: URGENT: #{name} has not posted a journal entry. soup is hungry. #{streak}-day streak is endangered. situation critical. please advise (by journaling).",
+    ]
+    variants.sample
+  end
+
+  private_class_method def self.announce_goal_completed(user, target_days)
+    emoji = [ ":yayayayayay:", ":oi:" ].sample
+    SlackMsgJob.perform_later(STREAK_ANNOUNCEMENT_CHANNEL, "#{emoji} <@#{user.slack_id}> completed their #{target_days}-day streak!! Congratulations!")
+  end
+
+  private_class_method def self.announce_goal_broken(user, target_days)
+    SlackMsgJob.perform_later(STREAK_ANNOUNCEMENT_CHANNEL, ":shocked: <@#{user.slack_id}> broke their #{target_days}-day streak. </3 I NEED MORE FISH!")
+  end
+end
