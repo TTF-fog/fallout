@@ -24,7 +24,7 @@ class StreakService
   end
 
   def self.daily_seconds_logged(user, date)
-    tz = ActiveSupport::TimeZone[user.timezone]
+    tz = ActiveSupport::TimeZone[user.timezone] || ActiveSupport::TimeZone["UTC"]
     day_start = tz.parse(date.to_s).beginning_of_day
     day_end = day_start.end_of_day
 
@@ -43,7 +43,9 @@ class StreakService
       last_entry = StreakDay.where(user: user).streak_counting.where("date < ?", today).reverse_chronological.first
       next unless last_entry
 
-      streak_before_reconciliation = StreakDay.current_streak(user)
+      # Count streak length ending at last_entry — can't use current_streak here because it
+      # requires continuity to today/yesterday, which doesn't hold when reconciling a gap.
+      streak_before_reconciliation = streak_length_ending_at(user, last_entry.date)
 
       ((last_entry.date + 1.day)...(today)).each do |date|
         streak_day = StreakDay.find_by(user: user, date: date)
@@ -184,7 +186,7 @@ class StreakService
       end
     end
 
-    announce_goal_completed(user, goal.target_days) if user.slack_id.present?
+    announce_goal_completed(user, goal.target_days) if user.slack_id.present? && goal.notify_streak_events != false
   end
 
   private_class_method def self.mark_missed(user, date, streak_day, broken_streak)
@@ -205,7 +207,7 @@ class StreakService
       if goal_notify
         MailDeliveryService.streak_goal_broken(user, broken_target)
       end
-      announce_goal_broken(user, broken_target) if user.slack_id.present?
+      announce_goal_broken(user, broken_target) if user.slack_id.present? && goal_notify
     end
 
     if broken_streak > 0
@@ -245,5 +247,19 @@ class StreakService
 
   private_class_method def self.announce_goal_broken(user, target_days)
     SlackMsgJob.perform_later(STREAK_ANNOUNCEMENT_CHANNEL, ":shocked: <@#{user.slack_id}> broke their #{target_days}-day streak. </3 I NEED MORE FISH!")
+  end
+
+  private_class_method def self.streak_length_ending_at(user, end_date)
+    days = StreakDay.where(user: user).streak_counting.where("date <= ?", end_date).reverse_chronological.pluck(:date)
+    return 0 if days.empty? || days.first != end_date
+
+    count = 0
+    expected = end_date
+    days.each do |date|
+      break unless date == expected
+      count += 1
+      expected -= 1.day
+    end
+    count
   end
 end

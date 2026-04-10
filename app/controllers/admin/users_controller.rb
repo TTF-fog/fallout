@@ -94,7 +94,12 @@ class Admin::UsersController < Admin::ApplicationController
     @user = User.find(params[:id])
     authorize @user
 
-    date = Date.parse(params[:date])
+    date = begin
+      Date.parse(params[:date])
+    rescue ArgumentError
+      render json: { error: "Invalid date" }, status: :unprocessable_entity
+      return
+    end
     status = params[:status]
 
     unless StreakDay.statuses.key?(status)

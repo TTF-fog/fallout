@@ -406,27 +406,24 @@ class User < ApplicationRecord
 
   def preferred_reminder_hour
     tz = ActiveSupport::TimeZone[timezone] || ActiveSupport::TimeZone["UTC"]
+    quoted_tz = self.class.connection.quote(tz.tzinfo.identifier)
 
-    entries = journal_entries.kept.order(:created_at).pluck(:created_at)
-    return 18 if entries.empty?
+    # Single query: earliest journal entry per day → extract hour, all in user's local timezone
+    hours = journal_entries.kept
+      .select(Arel.sql("EXTRACT(HOUR FROM MIN(created_at AT TIME ZONE 'UTC' AT TIME ZONE #{quoted_tz}))::int AS hour"))
+      .group(Arel.sql("(created_at AT TIME ZONE 'UTC' AT TIME ZONE #{quoted_tz})::date"))
+      .map(&:hour)
 
-    earliest_by_day = entries.each_with_object({}) do |created_at, hash|
-      local_time = created_at.in_time_zone(tz)
-      local_date = local_time.to_date
-      hash[local_date] = local_time if hash[local_date].nil? || local_time < hash[local_date]
-    end
+    return 18 if hours.empty?
 
-    return 18 if earliest_by_day.empty?
-
-    hours = earliest_by_day.values.map(&:hour).sort
+    hours.sort!
     median_hour = hours[hours.size / 2]
 
     entry_ids = journal_entries.kept.select(:id)
     total_seconds = LapseTimelapse.joins(:recording).where(recordings: { journal_entry_id: entry_ids }).sum(:duration).to_i +
                     YouTubeVideo.joins(:recording).where(recordings: { journal_entry_id: entry_ids }).sum(:duration_seconds).to_i +
                     LookoutTimelapse.joins(:recording).where(recordings: { journal_entry_id: entry_ids }).sum(:duration).to_i
-    entry_count = journal_entries.kept.count
-    avg_duration_hours = entry_count > 0 ? (total_seconds.to_f / entry_count / 3600).ceil : 0
+    avg_duration_hours = (total_seconds.to_f / hours.size / 3600).ceil
 
     (median_hour - avg_duration_hours).clamp(6, 22)
   end

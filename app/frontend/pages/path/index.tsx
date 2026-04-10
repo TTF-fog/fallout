@@ -154,7 +154,6 @@ export default function PathIndex() {
     (): DialogScript => ({
       mascotSrc: '/onboarding/chinese_heidi.webp',
       speakerName: 'Soup',
-      onEnd: () => visitModal('/streak_goal'),
       steps: [
         { text: "Congrats on your first journal entry!\nYou're off to a great start." },
         {
@@ -170,7 +169,6 @@ export default function PathIndex() {
     (): DialogScript => ({
       mascotSrc: '/onboarding/chinese_heidi.webp',
       speakerName: 'Soup',
-      onEnd: () => visitModal('/streak_goal'),
       steps: [
         { text: "Congrats on completing your streak goal! You're showing momentum." },
         {
@@ -183,6 +181,7 @@ export default function PathIndex() {
   )
 
   useEffect(() => {
+    if (!import.meta.env.DEV) return
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.metaKey && e.shiftKey && e.key.toLowerCase() === 'l') {
         e.preventDefault()

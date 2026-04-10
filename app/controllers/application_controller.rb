@@ -53,9 +53,8 @@ class ApplicationController < ActionController::Base
               .where.not(id: current_user.mail_interactions.read.select(:mail_message_id))
               .exists?
   }
-  inertia_share current_streak: -> {
+  inertia_share current_streak: -> { # Read-only — reconciliation happens in StreakReconciliationJob and StreakService.record_activity
     next 0 unless current_user && !current_user.trial?
-    StreakService.reconcile_missed_days(current_user) # Backfill freezes/misses so the streak is current
     StreakDay.current_streak(current_user)
   }
   inertia_share streak_freezes: -> {

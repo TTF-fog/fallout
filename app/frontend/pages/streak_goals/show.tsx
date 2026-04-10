@@ -207,7 +207,7 @@ function StreakGoalShow({ goal, current_streak, streak_freezes, targets, last_go
                 }
               `}</style>
               {(() => {
-                const activeDays = goal.progress - goal.frozen_days
+                const activeDays = Math.max(goal.progress - goal.frozen_days, 0)
                 const activePct = Math.min((activeDays / goal.target_days) * 100, 100)
                 const frozenPct = Math.min((goal.progress / goal.target_days) * 100, 100)
                 const fillGradient =
