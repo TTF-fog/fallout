@@ -3,7 +3,7 @@ class StreakNotificationJob < ApplicationJob
   queue_as :background
 
   def perform
-    User.verified.kept.joins(:streak_days).distinct.find_each do |user|
+    User.verified.kept.joins(:streak_days).where(streak_days: { date: 1.week.ago.to_date.. }).distinct.find_each do |user|
       local_hour = Time.current.in_time_zone(user.timezone).hour
       next unless local_hour == user.preferred_reminder_hour
 
