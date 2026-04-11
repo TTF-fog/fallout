@@ -13,6 +13,8 @@ class SlackMsgJob < ApplicationJob
       channel: slack_id,
       text: message
     )
+
+    sleep 1.1 # Stay under Slack's ~1 msg/sec workspace rate limit
   rescue StandardError => e
     Rails.logger.tagged("SlackMsgJob") do
       Rails.logger.error({ event: "slack_msg_failed", slack_id: slack_id, error: e.message }.to_json)
