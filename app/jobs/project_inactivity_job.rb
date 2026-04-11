@@ -6,7 +6,7 @@ class ProjectInactivityJob < ApplicationJob
   INACTIVITY_THRESHOLD = 2.weeks
 
   def perform
-    User.kept.where.not(type: "TrialUser").where.not(slack_id: nil).find_each do |user|
+    User.verified.kept.where.not(slack_id: nil).find_each do |user|
       inactive_projects = user.projects.kept.select do |project|
         next false if project.inactivity_dm_sent_at.present? # Already notified, never repeat
 
