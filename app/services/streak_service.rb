@@ -54,6 +54,7 @@ class StreakService
         user.reload # Freeze count may have changed from previous iteration
         if user.streak_freezes > 0
           use_freeze(user, date, streak_day)
+          check_goal_completion(user) # Frozen days count toward goal progress
         else
           mark_missed(user, date, streak_day, streak_before_reconciliation)
           streak_before_reconciliation = 0
@@ -204,10 +205,11 @@ class StreakService
       user.streak_events.create!(event_type: "goal_broken", metadata: { target_days: goal.target_days, started_on: goal.started_on.iso8601 })
       broken_target = goal.target_days
       goal.destroy!
-      if goal_notify
+      if goal_notify && broken_target > 3
         MailDeliveryService.streak_goal_broken(user, broken_target)
       end
-      announce_goal_broken(user, broken_target) if user.slack_id.present? && goal_notify
+      # Only announce publicly if it's not a 3-day goal
+      announce_goal_broken(user, broken_target) if user.slack_id.present? && goal_notify && broken_target > 3
     end
 
     if broken_streak > 0
@@ -246,7 +248,7 @@ class StreakService
   end
 
   private_class_method def self.announce_goal_broken(user, target_days)
-    SlackMsgJob.perform_later(STREAK_ANNOUNCEMENT_CHANNEL, ":shocked: <@#{user.slack_id}> broke their #{target_days}-day streak. </3 I NEED MORE FISH!")
+    SlackMsgJob.perform_later(STREAK_ANNOUNCEMENT_CHANNEL, ":shocked: <@#{user.slack_id}> broke their #{target_days}-day streak goal. </3 I NEED MORE FISH!")
   end
 
   private_class_method def self.streak_length_ending_at(user, end_date)

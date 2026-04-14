@@ -66,7 +66,13 @@ class Admin::UsersController < Admin::ApplicationController
     props[:audit_log] = InertiaRails.defer { # Audit log — admin-only
       streak_day_ids = @user.streak_days.select(:id)
       streak_versions = PaperTrail::Version.where(item_type: "StreakDay", item_id: streak_day_ids).to_a
-      serialize_audit_log(@user, extra_versions: streak_versions)
+      # Include current and destroyed streak goals — find all goal IDs ever associated with this user
+      streak_goal_item_ids = PaperTrail::Version.where(item_type: "StreakGoal", event: "create")
+                                                .where("object_changes @> ?", { user_id: [nil, @user.id] }.to_json)
+                                                .pluck(:item_id)
+      streak_goal_item_ids << @user.streak_goal.id if @user.streak_goal # Include current goal even if created before paper_trail was added
+      streak_goal_versions = streak_goal_item_ids.any? ? PaperTrail::Version.where(item_type: "StreakGoal", item_id: streak_goal_item_ids.uniq).to_a : []
+      serialize_audit_log(@user, extra_versions: streak_versions + streak_goal_versions)
     } if current_user.admin?
     render inertia: props
   end

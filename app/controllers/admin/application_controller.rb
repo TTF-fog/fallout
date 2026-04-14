@@ -77,6 +77,9 @@ class Admin::ApplicationController < ApplicationController
       if version.item_type == "StreakDay"
         date = version.object_changes&.dig("date")&.last || streak_day_dates[version.item_id]
         label = "Streak Day#{date ? " (#{date})" : ""}"
+      elsif version.item_type == "StreakGoal"
+        target = version.object_changes&.dig("target_days")&.last
+        label = "Streak Goal#{target ? " (#{target}-day)" : ""}"
       end
 
       {
