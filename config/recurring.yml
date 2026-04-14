@@ -47,7 +47,7 @@ production:
   streak_reconciliation:
     class: StreakReconciliationJob
     queue: background
-    schedule: every day at 2am
+    schedule: every 30 minutes
 
   streak_notifications:
     class: StreakNotificationJob

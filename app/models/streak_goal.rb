@@ -20,6 +20,8 @@
 class StreakGoal < ApplicationRecord
   VALID_TARGETS = [ 3, 5, 7, 14 ].freeze
 
+  has_paper_trail
+
   belongs_to :user
 
   validates :target_days, presence: true, inclusion: { in: VALID_TARGETS }
