@@ -2,12 +2,13 @@
 #
 # Table name: streak_events
 #
-#  id         :bigint           not null, primary key
-#  event_type :string           not null
-#  metadata   :jsonb            not null
-#  created_at :datetime         not null
-#  updated_at :datetime         not null
-#  user_id    :bigint           not null
+#  id          :bigint           not null, primary key
+#  dialog_seen :boolean          default(FALSE), not null
+#  event_type  :string           not null
+#  metadata    :jsonb            not null
+#  created_at  :datetime         not null
+#  updated_at  :datetime         not null
+#  user_id     :bigint           not null
 #
 # Indexes
 #

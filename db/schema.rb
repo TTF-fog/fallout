@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_04_12_115215) do
+ActiveRecord::Schema[8.1].define(version: 2026_04_11_123017) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -785,7 +785,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_12_115215) do
   add_foreign_key "critters", "users"
   add_foreign_key "design_reviews", "ships"
   add_foreign_key "design_reviews", "users", column: "reviewer_id"
-  add_foreign_key "dialog_campaigns", "users", name: "dialog_campaigns_user_id_fkey"
+  add_foreign_key "dialog_campaigns", "users"
   add_foreign_key "hcb_connections", "users", column: "connected_by_id"
   add_foreign_key "hcb_grant_cards", "users"
   add_foreign_key "hcb_transactions", "hcb_grant_cards"

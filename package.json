@@ -5,12 +5,11 @@
     "@types/node": "^25.3.1",
     "prettier": "^3.8.1",
     "shadcn": "^4.1.2",
-    "vite": "^7.3.1",
-    "vite-plugin-ruby": "^5.1.2"
+    "vite": "^8.0.8",
+    "vite-plugin-ruby": "^5.2.1"
   },
   "dependencies": {
     "@fontsource-variable/geist": "^5.2.8",
-    "@videojs/react": "^10.0.0-beta.11",
     "@headlessui/react": "^2.1.0",
     "@heroicons/react": "^2.2.0",
     "@inertiajs/core": "^2.3.17",
@@ -27,6 +26,7 @@
     "@tanstack/react-table": "^8.21.3",
     "@types/react": "^19.1.0",
     "@types/react-dom": "^19.1.0",
+    "@videojs/react": "^10.0.0-beta.11",
     "@vitejs/plugin-react-swc": "^4.2.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

@@ -2,12 +2,13 @@
 #
 # Table name: streak_goals
 #
-#  id          :bigint           not null, primary key
-#  started_on  :date             not null
-#  target_days :integer          not null
-#  created_at  :datetime         not null
-#  updated_at  :datetime         not null
-#  user_id     :bigint           not null
+#  id                   :bigint           not null, primary key
+#  notify_streak_events :boolean          default(TRUE), not null
+#  started_on           :date             not null
+#  target_days          :integer          not null
+#  created_at           :datetime         not null
+#  updated_at           :datetime         not null
+#  user_id              :bigint           not null
 #
 # Indexes
 #
