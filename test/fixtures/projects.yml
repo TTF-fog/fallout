@@ -4,17 +4,18 @@
 #
 # Table name: projects
 #
-#  id           :bigint           not null, primary key
-#  demo_link    :string
-#  description  :text
-#  discarded_at :datetime
-#  is_unlisted  :boolean          default(FALSE), not null
-#  name         :string           not null
-#  repo_link    :string
-#  tags         :string           default([]), not null, is an Array
-#  created_at   :datetime         not null
-#  updated_at   :datetime         not null
-#  user_id      :bigint           not null
+#  id                    :bigint           not null, primary key
+#  demo_link             :string
+#  description           :text
+#  discarded_at          :datetime
+#  inactivity_dm_sent_at :datetime
+#  is_unlisted           :boolean          default(FALSE), not null
+#  name                  :string           not null
+#  repo_link             :string
+#  tags                  :string           default([]), not null, is an Array
+#  created_at            :datetime         not null
+#  updated_at            :datetime         not null
+#  user_id               :bigint           not null
 #
 # Indexes
 #

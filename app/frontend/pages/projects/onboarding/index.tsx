@@ -157,22 +157,22 @@ function ProjectsOnboarding({ is_modal }: { is_modal: boolean }) {
           <PaginationPage>
             {({ next, prev, currentPage, totalPages }) => (
               <ContentPhase currentPage={currentPage} totalPages={totalPages} onContinue={next} onBack={prev}>
-                <div className="flex flex-col w-full max-w-4xl mx-auto">
-                  <div className="mb-4 flex flex-wrap items-start gap-3 sm:gap-4">
-                    <img src="/onboarding/chinese_heidi.webp" className="h-auto w-28 shrink-0 sm:w-36 lg:w-56" />
+                <div className="flex flex-col w-full max-w-4xl mx-auto h-full flex-1">
+                  <div className="mb-[clamp(0.5rem,2vh,1rem)] sm:mb-[clamp(1rem,4vh,2rem)] flex flex-nowrap items-center gap-[clamp(0.5rem,2vh,1rem)] shrink-0">
+                    <img src="/onboarding/chinese_heidi.webp" className="h-auto w-[clamp(4rem,15vh,14rem)] shrink-0 object-contain" />
 
-                    <div className="min-w-0 flex-1 basis-64 pt-1 sm:pt-6 lg:pt-8">
-                      <SpeechBubble dir="left" style={{ maxWidth: 'min(32rem, calc(100vw - 2rem))' }}>
-                        <span className="block whitespace-normal">
+                    <div className="min-w-0 flex-1 relative top-0 sm:pt-[clamp(1rem,4vh,3rem)]">
+                      <SpeechBubble dir="left" style={{ maxWidth: 'min(32rem, 100%)' }}>
+                        <span className="block whitespace-normal text-[clamp(11px,2.5vh,18px)] leading-tight">
                           watch this!! a 3 min overview of the ENTIRE program -- you'll regret not watching it
                         </span>
                       </SpeechBubble>
                     </div>
                   </div>
 
-                  <div className="pb-6 lg:pb-12">
-                    <div className="w-full border-2 border-dark-brown rounded-2xl overflow-hidden bg-white aspect-video">
-                      <video src="/intro.mp4" className="w-full h-full object-contain" autoPlay controls playsInline />
+                  <div className="flex-1 min-h-0 relative w-full mb-[clamp(0.5rem,2vh,3rem)] lg:mb-[clamp(2rem,8vh,6rem)]">
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <video src="/intro.mp4" className="max-w-full max-h-full border-2 border-dark-brown rounded-2xl bg-white focus:outline-none" autoPlay controls playsInline />
                     </div>
                   </div>
                 </div>
@@ -580,26 +580,23 @@ function ContentPhase({
         }
       >
         <div className="flex-1 min-h-0 overflow-y-auto" style={{ pointerEvents: buttonsLocked ? 'none' : undefined }}>
-          <div className="flex min-h-full flex-col px-2 pt-6 pb-6 sm:px-4 sm:pt-8 lg:px-8 lg:pt-12 lg:pb-8">
+          <div className="flex min-h-full flex-col px-2 pt-6 pb-28 sm:px-4 sm:pt-8 lg:px-8 lg:pt-12 lg:pb-36">
             {children}
           </div>
         </div>
-
-        <div className="shrink-0 px-2 pb-2 pt-4 sm:px-4 sm:pb-4 lg:px-8 lg:pb-8">
-          <NavigationButtons
-            layout="footer"
-            backVisible={!!onBack && !isPathTransitioning}
-            backDisabled={buttonsLocked}
-            onBack={onBack}
-            continueVisible={submitLabel ? submitVisible : continueVisible}
-            continueDisabled={submitLabel ? submitDisabled : continueDisabled || forwardTransitioning}
-            continueLabel={submitLabel ?? 'continue'}
-            continueType={submitLabel ? 'submit' : 'button'}
-            onContinue={submitLabel ? undefined : handleContinue}
-            continueTransitionOut={forwardTransitioning || isPathTransitioning}
-          />
-        </div>
       </div>
+
+      <NavigationButtons
+        backVisible={!!onBack && !isPathTransitioning}
+        backDisabled={buttonsLocked}
+        onBack={onBack}
+        continueVisible={submitLabel ? submitVisible : continueVisible}
+        continueDisabled={submitLabel ? submitDisabled : continueDisabled || forwardTransitioning}
+        continueLabel={submitLabel ?? 'continue'}
+        continueType={submitLabel ? 'submit' : 'button'}
+        onContinue={submitLabel ? undefined : handleContinue}
+        continueTransitionOut={forwardTransitioning || isPathTransitioning}
+      />
     </div>
   )
 }
