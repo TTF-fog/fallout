@@ -315,13 +315,18 @@ export default function ShopIndex({
                 </div>
 
                 {isHours ? (
-                  <div className="mt-auto w-full h-10 bg-brown border-2 border-dark-brown rounded-sm overflow-hidden relative">
-                    <div
-                      className="h-full bg-dark-brown transition-all duration-500"
-                      style={{ width: `${Math.min((user_hours / item.price) * 100, 100)}%` }}
-                    />
-                    <span className="absolute inset-0 flex items-center justify-center text-light-brown font-bold text-2xl">
-                      {user_hours}h / {item.price}h
+                  <div className="mt-auto group/hours relative">
+                    <div className="w-full h-10 bg-brown border-2 border-dark-brown rounded-sm overflow-hidden relative">
+                      <div
+                        className="h-full bg-dark-brown transition-all duration-500"
+                        style={{ width: `${Math.min((user_hours / item.price) * 100, 100)}%` }}
+                      />
+                      <span className="absolute inset-0 flex items-center justify-center text-light-brown font-bold text-2xl">
+                        {user_hours}h / {item.price}h
+                      </span>
+                    </div>
+                    <span className="pointer-events-none absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-dark-brown px-2 py-1 text-xs text-light-brown opacity-0 transition-opacity group-hover/hours:opacity-100">
+                      Claim when hours are approved
                     </span>
                   </div>
                 ) : buyable ? (
