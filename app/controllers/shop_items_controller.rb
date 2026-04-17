@@ -1,6 +1,4 @@
 class ShopItemsController < ApplicationController
-  allow_trial_access only: %i[index show] # Shop is viewable by trial users
-
   def index
     authorize ShopItem # Enforces Flipper :shop flag via index? policy
     @shop_items = policy_scope(ShopItem).order(price: :asc)
