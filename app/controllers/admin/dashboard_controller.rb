@@ -19,7 +19,7 @@ class Admin::DashboardController < Admin::ApplicationController
   private
 
   def backlog_by_day
-    start_date = Date.new(2025, 4, 7)
+    start_date = Date.new(2026, 4, 7)
     end_date = Date.today
 
     ships_by_day = Ship.where("created_at < ?", end_date.end_of_day)
