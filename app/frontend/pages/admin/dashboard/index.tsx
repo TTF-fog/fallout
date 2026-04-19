@@ -3,6 +3,8 @@ import type { ReactNode } from 'react'
 import { usePage } from '@inertiajs/react'
 import AdminLayout from '@/layouts/AdminLayout'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/admin/ui/card'
+import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from '@/components/admin/ui/chart'
+import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from 'recharts'
 
 interface ReviewerStat {
   id: number
@@ -10,8 +12,6 @@ interface ReviewerStat {
   avatar: string | null
   review_count: number
   total_approved_seconds: number
-  avg_seconds_per_review: number
-  median_seconds_per_review: number
 }
 
 interface PeriodStats {
@@ -21,11 +21,17 @@ interface PeriodStats {
   total_approved_seconds: number
 }
 
+interface BacklogPoint {
+  date: string
+  backlog: number
+}
+
 interface Props {
   stats: {
     all_time: PeriodStats
     this_week: PeriodStats
   }
+  backlog_chart: BacklogPoint[]
 }
 
 function formatDuration(seconds: number): string {
@@ -36,23 +42,14 @@ function formatDuration(seconds: number): string {
   return `${m}m`
 }
 
-const MEDAL = ['🥇', '🥈', '🥉']
-
-type SortKey = 'review_count' | 'total_approved_seconds' | 'median_seconds_per_review'
+type SortKey = 'review_count' | 'total_approved_seconds'
 
 function RankRow({ reviewer, rank, metric }: { reviewer: ReviewerStat; rank: number; metric: SortKey }) {
-  const value =
-    metric === 'review_count'
-      ? `${reviewer.review_count}`
-      : metric === 'total_approved_seconds'
-        ? formatDuration(reviewer.total_approved_seconds)
-        : formatDuration(reviewer.median_seconds_per_review)
+  const value = metric === 'review_count' ? `${reviewer.review_count}` : formatDuration(reviewer.total_approved_seconds)
 
   return (
     <div className="flex items-center gap-3 py-2 border-b last:border-0">
-      <div className="w-6 text-center text-sm font-bold text-muted-foreground shrink-0">
-        {rank <= 3 ? MEDAL[rank - 1] : `#${rank}`}
-      </div>
+      <div className="w-6 text-center text-sm font-bold text-muted-foreground shrink-0">{rank}</div>
       {reviewer.avatar ? (
         <img src={reviewer.avatar} className="size-7 rounded-full shrink-0" alt="" />
       ) : (
@@ -134,8 +131,12 @@ function LeaderboardCard({
   )
 }
 
+const backlogChartConfig: ChartConfig = {
+  backlog: { label: 'Unreviewed ships', color: 'hsl(217, 91%, 60%)' },
+}
+
 export default function AdminDashboardIndex() {
-  const { stats } = usePage<Props>().props
+  const { stats, backlog_chart } = usePage<Props>().props
 
   return (
     <div className="space-y-6">
@@ -156,12 +157,57 @@ export default function AdminDashboardIndex() {
           this_week={stats.this_week}
           all_time={stats.all_time}
         />
-        <LeaderboardCard
-          title="Median per Review"
-          metric="median_seconds_per_review"
-          this_week={stats.this_week}
-          all_time={stats.all_time}
-        />
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Unreviewed Ships</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ChartContainer config={backlogChartConfig} className="h-[250px] w-full">
+              <AreaChart data={backlog_chart} margin={{ top: 4, right: 4, bottom: 0, left: -20 }}>
+                <defs>
+                  <linearGradient id="backlogFill" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="var(--color-backlog)" stopOpacity={0.3} />
+                    <stop offset="100%" stopColor="var(--color-backlog)" stopOpacity={0.02} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid vertical={false} strokeDasharray="3 3" />
+                <XAxis
+                  dataKey="date"
+                  tickLine={false}
+                  axisLine={false}
+                  tickMargin={8}
+                  tickFormatter={(v: string) => {
+                    const d = new Date(v + 'T00:00:00')
+                    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                  }}
+                  interval="preserveStartEnd"
+                />
+                <YAxis tickLine={false} axisLine={false} tickMargin={8} allowDecimals={false} />
+                <ChartTooltip
+                  content={
+                    <ChartTooltipContent
+                      labelFormatter={(v: string) => {
+                        const d = new Date(v + 'T00:00:00')
+                        return d.toLocaleDateString('en-US', {
+                          month: 'long',
+                          day: 'numeric',
+                          year: 'numeric',
+                        })
+                      }}
+                    />
+                  }
+                />
+                <Area
+                  type="monotone"
+                  dataKey="backlog"
+                  stroke="var(--color-backlog)"
+                  strokeWidth={2}
+                  fill="url(#backlogFill)"
+                />
+              </AreaChart>
+            </ChartContainer>
+          </CardContent>
+        </Card>
       </div>
     </div>
   )
