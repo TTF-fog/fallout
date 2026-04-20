@@ -1,9 +1,11 @@
 import { useState, useMemo, useCallback, useRef, useEffect, memo } from 'react'
+import { createPortal } from 'react-dom'
 import type { ReactNode } from 'react'
 import { Link, router } from '@inertiajs/react'
 import { createPlayer } from '@videojs/react'
 import { MinimalVideoSkin, Video, videoFeatures } from '@videojs/react/video'
 import '@videojs/react/video/minimal-skin.css'
+import { selectPlaybackRate } from '@videojs/core/dom'
 import { useReviewHeartbeat } from '@/hooks/useReviewHeartbeat'
 import ReviewLayout from '@/layouts/ReviewLayout'
 import { Badge } from '@/components/admin/ui/badge'
@@ -866,13 +868,91 @@ function SegmentEditor({
 const AuditPlayer = createPlayer({ features: videoFeatures })
 
 const AUDIT_PLAYBACK_RATES = [0.5, 1, 1.5, 2, 3, 4]
+const PLAYBACK_RATE_KEY = 'audit_playback_rate'
 
-function PlayerConfig() {
+function PlayerConfig({ videoContainerRef }: { videoContainerRef: React.RefObject<HTMLDivElement | null> }) {
   const store = AuditPlayer.usePlayer()
+  const rate = AuditPlayer.usePlayer(selectPlaybackRate)
+
+  // Patch available playback rates — no public setter exists, patch internal state directly
   useEffect(() => {
-    // Patch available playback rates — no public setter exists, patch internal state directly
     ;(store.$state as { patch?: (p: object) => void }).patch?.({ playbackRates: AUDIT_PLAYBACK_RATES })
   }, [store])
+
+  // Apply saved rate once the player has a target
+  useEffect(() => {
+    const saved = parseFloat(localStorage.getItem(PLAYBACK_RATE_KEY) ?? '')
+    if (!AUDIT_PLAYBACK_RATES.includes(saved)) return
+    try {
+      rate.setPlaybackRate(saved)
+    } catch {
+      // Player not attached yet — loadedmetadata handler below will cover it
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Re-apply saved rate after browser resets playbackRate on source load
+  useEffect(() => {
+    const attach = () => {
+      const video = videoContainerRef.current?.querySelector('video')
+      if (!video) return false
+      const onLoaded = () => {
+        const saved = parseFloat(localStorage.getItem(PLAYBACK_RATE_KEY) ?? '')
+        if (AUDIT_PLAYBACK_RATES.includes(saved)) {
+          try {
+            rate.setPlaybackRate(saved)
+          } catch {
+            video.playbackRate = saved
+          }
+        }
+      }
+      video.addEventListener('loadedmetadata', onLoaded)
+      return () => video.removeEventListener('loadedmetadata', onLoaded)
+    }
+    let cleanup = attach()
+    if (!cleanup) {
+      const interval = setInterval(() => {
+        cleanup = attach()
+        if (cleanup) clearInterval(interval)
+      }, 100)
+      return () => {
+        clearInterval(interval)
+        if (typeof cleanup === 'function') cleanup()
+      }
+    }
+    return cleanup
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Persist rate change and broadcast to other player instances on the page
+  const isFirstRender = useRef(true)
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false
+      return
+    }
+    localStorage.setItem(PLAYBACK_RATE_KEY, String(rate.playbackRate))
+    // storage event only fires in other tabs; dispatch manually for same-page sync
+    window.dispatchEvent(new StorageEvent('storage', { key: PLAYBACK_RATE_KEY, newValue: String(rate.playbackRate) }))
+  }, [rate.playbackRate])
+
+  // Sync when another player on the page changes the rate
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key !== PLAYBACK_RATE_KEY || !e.newValue) return
+      const next = parseFloat(e.newValue)
+      if (AUDIT_PLAYBACK_RATES.includes(next) && next !== rate.playbackRate) {
+        try {
+          rate.setPlaybackRate(next)
+        } catch {
+          /* player not yet attached */
+        }
+      }
+    }
+    window.addEventListener('storage', onStorage)
+    return () => window.removeEventListener('storage', onStorage)
+  }, [rate])
+
   return null
 }
 
@@ -912,6 +992,7 @@ function RecordingBlock({
   const [currentTime, setCurrentTime] = useState(0) // video seconds
   const [videoDuration, setVideoDuration] = useState<number | null>(null)
   const [preview, setPreview] = useState<{ start: number; end: number; type: 'removed' | 'deflated' } | null>(null)
+  const [sliderTrackEl, setSliderTrackEl] = useState<Element | null>(null)
 
   const isYouTube = recording.type === 'YouTubeVideo'
   const hasPlaybackUrl = !!recording.playback_url
@@ -1053,8 +1134,74 @@ function RecordingBlock({
       rafRef.current = requestAnimationFrame(tick)
     }
     rafRef.current = requestAnimationFrame(tick)
-    return () => cancelAnimationFrame(rafRef.current)
+
+    // video.js TimeSliderRoot only seeks on pointer-up (onValueCommit). To get live seeking during
+    // drag, intercept pointermove on the slider track and seek directly while the pointer is held down.
+    let sliderEl: Element | null = null
+    let dragging = false
+
+    const seekFromEvent = (e: PointerEvent) => {
+      const video = videoContainerRef.current?.querySelector('video')
+      if (!video || !sliderEl) return
+      const rect = sliderEl.getBoundingClientRect()
+      const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width))
+      video.currentTime = pct * video.duration
+      setCurrentTime(video.currentTime)
+    }
+
+    const onPointerDown = (e: PointerEvent) => {
+      dragging = true
+      seekFromEvent(e)
+    }
+    const onPointerMove = (e: PointerEvent) => {
+      if (dragging) seekFromEvent(e)
+    }
+    const onPointerUp = () => {
+      dragging = false
+    }
+
+    const attach = () => {
+      sliderEl = videoContainerRef.current?.querySelector('.media-slider') ?? null
+      if (!sliderEl) return false
+      sliderEl.addEventListener('pointerdown', onPointerDown as EventListener)
+      sliderEl.addEventListener('pointermove', onPointerMove as EventListener)
+      window.addEventListener('pointerup', onPointerUp)
+      return true
+    }
+
+    // The slider may not be in the DOM yet (video.js renders async); retry until found
+    if (!attach()) {
+      const retryInterval = setInterval(() => {
+        if (attach()) clearInterval(retryInterval)
+      }, 100)
+    }
+
+    return () => {
+      cancelAnimationFrame(rafRef.current)
+      sliderEl?.removeEventListener('pointerdown', onPointerDown as EventListener)
+      sliderEl?.removeEventListener('pointermove', onPointerMove as EventListener)
+      window.removeEventListener('pointerup', onPointerUp)
+    }
   }, [isYouTube, videoDuration])
+
+  // Find the video.js slider track element once the skin mounts, so we can portal inactive markers into it
+  useEffect(() => {
+    if (isYouTube) return
+    const find = () => {
+      const el = videoContainerRef.current?.querySelector('.media-slider__track')
+      if (el) {
+        setSliderTrackEl(el)
+        return true
+      }
+      return false
+    }
+    if (!find()) {
+      const interval = setInterval(() => {
+        if (find()) clearInterval(interval)
+      }, 100)
+      return () => clearInterval(interval)
+    }
+  }, [isYouTube])
 
   const seekTo = useCallback(
     (videoSeconds: number) => {
@@ -1090,7 +1237,7 @@ function RecordingBlock({
           </div>
         ) : hasPlaybackUrl ? (
           <AuditPlayer.Provider>
-            <PlayerConfig />
+            <PlayerConfig videoContainerRef={videoContainerRef} />
             <MinimalVideoSkin style={{ width: '100%', height: '100%' }}>
               <Video
                 src={recording.playback_url!}
@@ -1101,6 +1248,25 @@ function RecordingBlock({
                 className="w-full aspect-video bg-black rounded-none"
               />
             </MinimalVideoSkin>
+            {sliderTrackEl &&
+              recording.activity_checked &&
+              recording.inactive_segments &&
+              createPortal(
+                <>
+                  {recording.inactive_segments.map((seg, i) => {
+                    const startPct = (seg.start_min / timelineDuration) * 100
+                    const widthPct = (seg.duration_min / timelineDuration) * 100
+                    return (
+                      <div
+                        key={i}
+                        className="absolute top-0 h-full bg-purple-500/40 rounded-full pointer-events-none"
+                        style={{ left: `${startPct}%`, width: `${Math.max(widthPct, 0.3)}%` }}
+                      />
+                    )
+                  })}
+                </>,
+                sliderTrackEl,
+              )}
           </AuditPlayer.Provider>
         ) : null}
       </div>
