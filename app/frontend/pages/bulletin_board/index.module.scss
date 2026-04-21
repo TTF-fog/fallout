@@ -128,20 +128,64 @@ $beige: var(--color-light-brown);
 
     background-color: var(--color-brown);
 
+    text-align: left;
+    text-decoration: none;
+
+    border: none;
+    cursor: pointer;
+
+    transition: transform 120ms ease-out;
+
+    &:hover {
+      transform: translateY(-2px);
+    }
+
     .eventCardTitle {
       font-size: 1.125rem;
       font-weight: 700;
       color: var(--color-light-brown);
     }
 
-    .eventCardImage {
+    .eventCardImageWrap {
       flex: 1 1 0%;
       background-color: var(--color-light-brown);
       border-radius: 0.5rem;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .eventCardImage {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
     }
 
     .eventCardDate {
       color: var(--color-light-brown);
+    }
+
+    .eventCardFooter {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .eventCardStatus {
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      padding: 0.2rem 0.55rem;
+      border-radius: 9999px;
+      background-color: var(--color-light-brown);
+      color: var(--color-dark-brown);
+
+      &.eventCardStatusHappening {
+        background-color: var(--color-green);
+        color: var(--color-dark-brown);
+      }
     }
   }
 }

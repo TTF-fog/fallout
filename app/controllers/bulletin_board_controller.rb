@@ -1,11 +1,13 @@
 class BulletinBoardController < ApplicationController
-  allow_trial_access only: %i[index search] # Public community hub, trial users welcome
-  skip_after_action :verify_authorized, only: %i[index search] # No authorizable resource (placeholder content)
-  skip_after_action :verify_policy_scoped, only: %i[index search] # No scoped collection yet
+  include BulletinEventSerializer
+
+  allow_trial_access only: %i[index search event] # Public community hub, trial users welcome
+  skip_after_action :verify_authorized, only: %i[index search event] # No authorizable resource (event detail is public)
+  skip_after_action :verify_policy_scoped, only: %i[index search event] # No scoped collection yet
 
   def index
     render inertia: "bulletin_board/index", props: {
-      events: placeholder_events,
+      events: real_events,
       featured: placeholder_featured,
       explore: placeholder_explore,
       is_modal: request.headers["X-InertiaUI-Modal"].present?
@@ -16,14 +18,18 @@ class BulletinBoardController < ApplicationController
     render json: { explore: placeholder_explore }
   end
 
+  def event
+    @event = BulletinEvent.find(params[:id])
+    render inertia: "bulletin_board/events/show", props: {
+      event: serialize_bulletin_event(@event),
+      is_modal: request.headers["X-InertiaUI-Modal"].present?
+    }
+  end
+
   private
 
-  def placeholder_events
-    [
-      { title: "Lock-in Huddle with [NAME]", date: "Fri, April 3, 6:00PM" },
-      { title: "Tamagotchi Workshop w", date: "Fri, April 3, 6:00PM" },
-      { title: "[BLANK] Workshop w", date: "Fri, April 3, 6:00PM" }
-    ]
+  def real_events
+    BulletinEvent.order(Arel.sql("COALESCE(starts_at, '9999-01-01') ASC")).map { |e| serialize_bulletin_event(e) }
   end
 
   def placeholder_featured

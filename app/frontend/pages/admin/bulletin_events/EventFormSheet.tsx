@@ -1,0 +1,255 @@
+import { useEffect, useState } from 'react'
+import { router } from '@inertiajs/react'
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/admin/ui/sheet'
+import { Input } from '@/components/admin/ui/input'
+import { Textarea } from '@/components/admin/ui/textarea'
+import { Button } from '@/components/admin/ui/button'
+import { Alert, AlertDescription } from '@/components/admin/ui/alert'
+import type { SerializedBulletinEvent } from '@/lib/bulletinEventStatus'
+
+type Props = {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  event: SerializedBulletinEvent | null
+  currentTab: string
+}
+
+type FormState = {
+  title: string
+  description: string
+  image_url: string
+  schedulable: boolean
+  starts_at: string
+  ends_at: string
+}
+
+const BLANK: FormState = {
+  title: '',
+  description: '',
+  image_url: '',
+  schedulable: true,
+  starts_at: '',
+  ends_at: '',
+}
+
+// Builds a `YYYY-MM-DDTHH:MM` string in the viewer's local timezone (matches the
+// datetime-local input format). DO NOT use `toISOString().slice(0,16)` — that
+// returns UTC, which renders with the wrong offset for non-UTC viewers.
+function toLocalInputValue(iso: string | null): string {
+  if (!iso) return ''
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ''
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
+function toUtcIso(localValue: string): string | null {
+  if (!localValue) return null
+  const d = new Date(localValue)
+  if (Number.isNaN(d.getTime())) return null
+  return d.toISOString()
+}
+
+export default function EventFormSheet({ open, onOpenChange, event, currentTab }: Props) {
+  const [form, setForm] = useState<FormState>(BLANK)
+  const [submitting, setSubmitting] = useState(false)
+  const [errors, setErrors] = useState<Record<string, string[]>>({})
+
+  useEffect(() => {
+    if (!open) return
+    setErrors({})
+    if (event) {
+      setForm({
+        title: event.title,
+        description: event.description,
+        image_url: event.image_url ?? '',
+        schedulable: event.schedulable,
+        starts_at: toLocalInputValue(event.starts_at),
+        ends_at: toLocalInputValue(event.ends_at),
+      })
+    } else {
+      setForm(BLANK)
+    }
+  }, [open, event])
+
+  function update<K extends keyof FormState>(field: K, value: FormState[K]) {
+    setForm((prev) => ({ ...prev, [field]: value }))
+  }
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setSubmitting(true)
+    setErrors({})
+
+    const payload = {
+      bulletin_event: {
+        title: form.title,
+        description: form.description,
+        image_url: form.image_url || null,
+        schedulable: form.schedulable,
+        starts_at: form.schedulable ? toUtcIso(form.starts_at) : null,
+        ends_at: form.schedulable ? toUtcIso(form.ends_at) : null,
+      },
+      tab: currentTab,
+    }
+
+    const opts = {
+      preserveScroll: true,
+      onError: (errs: Record<string, string>) => {
+        setSubmitting(false)
+        // Rails returns `errors` as `{ field: [messages] }` via Inertia's error flash
+        const shaped: Record<string, string[]> = {}
+        Object.entries(errs).forEach(([k, v]) => {
+          shaped[k] = Array.isArray(v) ? v : [v]
+        })
+        setErrors(shaped)
+      },
+      onSuccess: () => {
+        setSubmitting(false)
+        onOpenChange(false)
+      },
+    }
+
+    if (event) {
+      router.patch(`/admin/bulletin_events/${event.id}`, payload, opts)
+    } else {
+      router.post('/admin/bulletin_events', payload, opts)
+    }
+  }
+
+  const isEdit = !!event
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent className="w-full sm:max-w-md flex flex-col">
+        <SheetHeader>
+          <SheetTitle>{isEdit ? 'Edit event' : 'New event'}</SheetTitle>
+          <SheetDescription>
+            {isEdit ? 'Update the event details below.' : 'Create a new bulletin board event.'}
+          </SheetDescription>
+        </SheetHeader>
+
+        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-4 pb-4 space-y-4">
+          {Object.keys(errors).length > 0 && (
+            <Alert variant="destructive">
+              <AlertDescription>
+                {Object.entries(errors).map(([field, msgs]) => (
+                  <p key={field}>
+                    <strong className="capitalize">{field.replace(/_/g, ' ')}:</strong> {msgs.join(', ')}
+                  </p>
+                ))}
+              </AlertDescription>
+            </Alert>
+          )}
+
+          <div className="space-y-1.5">
+            <label htmlFor="title" className="text-sm font-medium">
+              Title
+            </label>
+            <Input
+              id="title"
+              value={form.title}
+              onChange={(e) => update('title', e.target.value)}
+              required
+              placeholder="Lock-in Huddle with..."
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <label htmlFor="description" className="text-sm font-medium">
+              Description
+            </label>
+            <Textarea
+              id="description"
+              rows={5}
+              value={form.description}
+              onChange={(e) => update('description', e.target.value)}
+              required
+              placeholder="What's this event about?"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <label htmlFor="image_url" className="text-sm font-medium">
+              Image URL (optional)
+            </label>
+            <Input
+              id="image_url"
+              type="url"
+              value={form.image_url}
+              onChange={(e) => update('image_url', e.target.value)}
+              placeholder="https://cdn.hackclub.com/..."
+            />
+            <p className="text-xs text-muted-foreground">
+              Upload the image to the <code className="text-foreground">#cdn</code> channel on the Hack Club Slack, then
+              paste the returned URL here.
+            </p>
+          </div>
+
+          <div className="rounded-lg border border-border p-3 space-y-2">
+            <label className="flex items-center gap-2 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={form.schedulable}
+                onChange={(e) => update('schedulable', e.target.checked)}
+                className="size-4 accent-primary"
+              />
+              <span className="text-sm font-medium">Schedulable</span>
+            </label>
+            <p className="text-xs text-muted-foreground">
+              {form.schedulable
+                ? "Set start and optional end times below. The event will auto-appear/expire based on viewers' local time."
+                : 'Manual mode. Start and end the event yourself with the Start now / End now buttons.'}
+            </p>
+          </div>
+
+          {form.schedulable && (
+            <>
+              <div className="space-y-1.5">
+                <label htmlFor="starts_at" className="text-sm font-medium">
+                  Starts at <span className="text-muted-foreground">(your local time)</span>
+                </label>
+                <Input
+                  id="starts_at"
+                  type="datetime-local"
+                  value={form.starts_at}
+                  onChange={(e) => update('starts_at', e.target.value)}
+                  required={form.schedulable}
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label htmlFor="ends_at" className="text-sm font-medium">
+                    Ends at <span className="text-muted-foreground">(optional)</span>
+                  </label>
+                  {form.ends_at && (
+                    <Button type="button" size="xs" variant="ghost" onClick={() => update('ends_at', '')}>
+                      Clear
+                    </Button>
+                  )}
+                </div>
+                <Input
+                  id="ends_at"
+                  type="datetime-local"
+                  value={form.ends_at}
+                  onChange={(e) => update('ends_at', e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">Leave blank if you'll end the event manually.</p>
+              </div>
+            </>
+          )}
+
+          <div className="flex gap-2 pt-2">
+            <Button type="submit" disabled={submitting}>
+              {submitting ? 'Saving…' : isEdit ? 'Save changes' : 'Create event'}
+            </Button>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
+              Cancel
+            </Button>
+          </div>
+        </form>
+      </SheetContent>
+    </Sheet>
+  )
+}

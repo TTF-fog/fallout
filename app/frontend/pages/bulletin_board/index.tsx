@@ -1,18 +1,22 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { Link } from '@inertiajs/react'
-import { Modal } from '@inertiaui/modal-react'
+import { Modal, ModalLink } from '@inertiaui/modal-react'
 import { ArrowLeftIcon, MagnifyingGlassIcon } from '@heroicons/react/20/solid'
 import clsx from 'clsx'
 import { motion } from 'motion/react'
 import MarqueeText from '@/components/shared/MarqueeText'
+import {
+  computeBulletinEventStatus,
+  formatEventDateTime,
+  type SerializedBulletinEvent,
+} from '@/lib/bulletinEventStatus'
 import styles from './index.module.scss'
 
 type SortOption = 'newest' | 'top'
 type SourceOption = 'journals' | 'projects'
 const SEARCH_DEBOUNCE_MS = 300
 
-type Event = { title: string; date: string }
 type Featured = { image: string; title: string; username: string }
 type Explore = {
   username: string
@@ -26,7 +30,7 @@ type Explore = {
 }
 
 type PageProps = {
-  events: Event[]
+  events: SerializedBulletinEvent[]
   featured: Featured[]
   explore: Explore[]
   is_modal: boolean
@@ -41,6 +45,20 @@ export default function BulletinBoardIndex({ events, featured, explore, is_modal
   const [exploreList, setExploreList] = useState<Explore[]>(explore)
   const [isSearching, setIsSearching] = useState(false)
   const isFirstSearchRender = useRef(true)
+
+  // Hide expired and drafts; sort by start time (missing start_at events won't appear since drafts are filtered).
+  const visibleEvents = useMemo(() => {
+    return events
+      .filter((e) => {
+        const status = computeBulletinEventStatus(e)
+        return status === 'upcoming' || status === 'happening'
+      })
+      .sort((a, b) => {
+        const aStart = a.starts_at ? new Date(a.starts_at).getTime() : Infinity
+        const bStart = b.starts_at ? new Date(b.starts_at).getTime() : Infinity
+        return aStart - bStart
+      })
+  }, [events])
 
   useEffect(() => {
     if (!lightbox) return
@@ -102,16 +120,35 @@ export default function BulletinBoardIndex({ events, featured, explore, is_modal
             <h2 className={styles.sectionHeading}>Events</h2>
 
             <div className={styles.eventsGrid}>
-              {events.length === 0 ? (
+              {visibleEvents.length === 0 ? (
                 <div className={styles.emptyState}>no events yet</div>
               ) : (
-                events.map((event, i) => (
-                  <div key={i} className={styles.eventCard}>
-                    <h3 className={styles.eventCardTitle}>{event.title}</h3>
-                    <div className={styles.eventCardImage} />
-                    <div className={styles.eventCardDate}>{event.date}</div>
-                  </div>
-                ))
+                visibleEvents.map((event) => {
+                  const status = computeBulletinEventStatus(event)
+                  return (
+                    <ModalLink key={event.id} href={`/bulletin_board/events/${event.id}`} className={styles.eventCard}>
+                      <MarqueeText text={event.title} className={styles.eventCardTitle} />
+                      <div className={styles.eventCardImageWrap}>
+                        {event.image_url && (
+                          <img src={event.image_url} alt="" className={styles.eventCardImage} loading="lazy" />
+                        )}
+                      </div>
+                      <div className={styles.eventCardFooter}>
+                        <span className={styles.eventCardDate}>
+                          {event.starts_at ? formatEventDateTime(event.starts_at) : 'Live'}
+                        </span>
+                        <span
+                          className={clsx(
+                            styles.eventCardStatus,
+                            status === 'happening' && styles.eventCardStatusHappening,
+                          )}
+                        >
+                          {status === 'happening' ? 'Happening now' : 'Upcoming'}
+                        </span>
+                      </div>
+                    </ModalLink>
+                  )
+                })
               )}
             </div>
 

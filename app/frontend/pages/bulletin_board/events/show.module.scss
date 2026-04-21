@@ -1,0 +1,40 @@
+$md: 768px;
+$xl: 1280px;
+
+.standalonePage {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  min-height: 100vh;
+
+  padding: 1rem;
+
+  background-color: var(--color-backdrop);
+
+  @media (min-width: $md) {
+    padding: 1.5rem;
+  }
+}
+
+.standaloneInner {
+  width: 100%;
+  max-width: 42rem;
+}
+
+.modalPanel {
+  width: 100%;
+  max-width: 100%;
+
+  padding: 1rem;
+
+  @media (min-width: $md) {
+    padding: 1.5rem;
+  }
+
+  @media (min-width: $xl) {
+    max-width: 42rem;
+    margin-left: auto;
+    margin-right: auto;
+  }
+}
