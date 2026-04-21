@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_04_17_132117) do
+ActiveRecord::Schema[8.1].define(version: 2026_04_21_150452) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -141,23 +141,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_17_132117) do
     t.index ["discarded_at"], name: "index_collaborators_on_discarded_at"
     t.index ["user_id", "collaboratable_type", "collaboratable_id"], name: "index_collaborators_uniqueness", unique: true
     t.index ["user_id"], name: "index_collaborators_on_user_id"
-  end
-
-  create_table "collapse_timelapses", force: :cascade do |t|
-    t.string "collapse_session_id", null: false
-    t.datetime "created_at", null: false
-    t.datetime "last_refreshed_at"
-    t.string "name"
-    t.integer "screenshot_count"
-    t.text "session_token", null: false
-    t.string "status"
-    t.string "thumbnail_url"
-    t.integer "tracked_seconds"
-    t.datetime "updated_at", null: false
-    t.bigint "user_id", null: false
-    t.string "video_url"
-    t.index ["collapse_session_id"], name: "index_collapse_timelapses_on_collapse_session_id", unique: true
-    t.index ["user_id"], name: "index_collapse_timelapses_on_user_id"
   end
 
   create_table "critters", force: :cascade do |t|
@@ -529,6 +512,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_17_132117) do
     t.string "image_url"
     t.string "name"
     t.integer "price"
+    t.boolean "requires_shipping", default: true, null: false
     t.string "status", default: "available", null: false
     t.datetime "updated_at", null: false
     t.index ["status"], name: "index_shop_items_on_status"
@@ -777,6 +761,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_17_132117) do
     t.datetime "last_refreshed_at"
     t.string "live_broadcast_content"
     t.datetime "published_at"
+    t.integer "stretch_multiplier", default: 1, null: false
     t.text "tags"
     t.string "thumbnail_url"
     t.string "title"
@@ -794,12 +779,11 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_17_132117) do
   add_foreign_key "collaboration_invites", "users", column: "invitee_id"
   add_foreign_key "collaboration_invites", "users", column: "inviter_id"
   add_foreign_key "collaborators", "users"
-  add_foreign_key "collapse_timelapses", "users"
   add_foreign_key "critters", "journal_entries"
   add_foreign_key "critters", "users"
   add_foreign_key "design_reviews", "ships"
   add_foreign_key "design_reviews", "users", column: "reviewer_id"
-  add_foreign_key "dialog_campaigns", "users", name: "dialog_campaigns_user_id_fkey"
+  add_foreign_key "dialog_campaigns", "users"
   add_foreign_key "gold_transactions", "users"
   add_foreign_key "gold_transactions", "users", column: "actor_id"
   add_foreign_key "hcb_connections", "users", column: "connected_by_id"
