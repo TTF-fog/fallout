@@ -32,6 +32,8 @@ class Api::V1::UsersController < Api::V1::BaseController
     {
       slack_id: user.slack_id,
       display_name: user.display_name,
+      koi: user.koi,
+      gold: user.gold,
       critters: {
         total: user.critters.size,
         shiny_count: user.critters.count(&:shiny?),
