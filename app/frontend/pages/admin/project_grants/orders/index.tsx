@@ -7,6 +7,7 @@ import { Badge } from '@/components/admin/ui/badge'
 import { Button } from '@/components/admin/ui/button'
 import { hcbGrantUrl } from '@/lib/hcb'
 import TimeAgo from '@/components/shared/TimeAgo'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/admin/ui/tooltip'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -125,7 +126,7 @@ export default function AdminProjectGrantsOrdersIndex({
   warning_kind_descriptions: Record<string, WarningKindDescription>
   last_scan_at: string | null
   hcb_auth_status: 'connected' | 'expired' | 'disconnected' | 'not_configured'
-  stats: { issued_cents: number; active_cards: number; transactions: number }
+  stats: { issued_actual_cents: number; issued_expected_cents: number; active_cards: number; transactions: number }
   rates: Rates
   hours_configured: boolean
   is_hcb: boolean
@@ -245,9 +246,45 @@ export default function AdminProjectGrantsOrdersIndex({
       {/* Top-level stats. Cheap aggregates from the controller — no deferred props. */}
       <div className="grid grid-cols-3 gap-3 mb-4">
         <div className="rounded-md border border-border p-3">
-          <div className="text-xs text-muted-foreground uppercase tracking-wide">$ Issued</div>
-          <div className="text-2xl font-semibold font-mono mt-1">{formatDollars(stats.issued_cents)}</div>
-          <div className="text-[11px] text-muted-foreground mt-1">sum of every HCB grant card's amount</div>
+          <div className="text-xs text-muted-foreground uppercase tracking-wide">
+            $ Issued <span className="normal-case tracking-normal">(actual / expected)</span>
+          </div>
+          <div className="text-2xl font-semibold font-mono mt-1">
+            {(() => {
+              const actual = stats.issued_actual_cents
+              const expected = stats.issued_expected_cents
+              const match = actual === expected
+              const gapNote = match
+                ? ''
+                : ` — ${formatDollars(Math.abs(actual - expected))} ${actual > expected ? 'extra on HCB' : 'missing from HCB'}`
+              return (
+                <TooltipProvider>
+                  <span className={match ? '' : 'text-red-700'}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="cursor-default">{formatDollars(actual)}</span>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        Actual — HCB's authoritative amount_cents across all grant cards (reality){gapNote}
+                      </TooltipContent>
+                    </Tooltip>
+                    <span className="text-muted-foreground"> / </span>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="cursor-default text-muted-foreground">{formatDollars(expected)}</span>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        Expected — Fallout's ledger net (in minus out across all completed topups)
+                      </TooltipContent>
+                    </Tooltip>
+                  </span>
+                </TooltipProvider>
+              )
+            })()}
+          </div>
+          <div className="text-[11px] text-muted-foreground mt-1">
+            Fallout ledger vs HCB authority — drift means a card was touched outside of Fallout
+          </div>
         </div>
         <div className="rounded-md border border-border p-3">
           <div className="text-xs text-muted-foreground uppercase tracking-wide">Cards Active</div>

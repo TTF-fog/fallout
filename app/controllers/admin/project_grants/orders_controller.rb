@@ -48,8 +48,17 @@ class Admin::ProjectGrants::OrdersController < Admin::ApplicationController
     # Transactions stat counts only `purchase` rows — org↔card transfers (topups,
     # withdrawals, initial grants) aren't user-visible activity and shouldn't inflate
     # the number.
+    # `actual` vs `expected`:
+    #   actual   = HCB's authoritative amount_cents across all grant cards (reality)
+    #   expected = Fallout's ledger net — what we think we've sent (our record)
+    # A drift means either external HCB activity (actual > expected) or a missing sync
+    # on our side (expected > actual). Same framing is used per-card on
+    # admin/users/show.
     stats = {
-      issued_cents: HcbGrantCard.sum(:amount_cents),
+      issued_actual_cents: HcbGrantCard.sum(:amount_cents),
+      issued_expected_cents: ProjectFundingTopup.kept.where(status: "completed").sum(
+        Arel.sql("CASE direction WHEN 'out' THEN -amount_cents ELSE amount_cents END")
+      ),
       active_cards: HcbGrantCard.where(status: "active").count,
       transactions: HcbTransaction.purchases.count
     }

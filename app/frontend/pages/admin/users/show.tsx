@@ -381,26 +381,7 @@ function HcbGrantCardsSection({ cards }: { cards: AdminHcbGrantCard[] }) {
                 <th className="p-2">HCB id</th>
                 <th className="p-2">Status</th>
                 <th className="p-2">Purpose</th>
-                <th className="p-2">
-                  Transferred in{' '}
-                  <span className="text-muted-foreground font-normal">
-                    (
-                    <span
-                      className="underline decoration-dotted cursor-help"
-                      title="Fallout's ledger net (in minus out) for this card — what we think was sent"
-                    >
-                      actual
-                    </span>
-                    {' / '}
-                    <span
-                      className="underline decoration-dotted cursor-help"
-                      title="HCB's authoritative amount_cents on the card — what HCB agrees was sent"
-                    >
-                      expected
-                    </span>
-                    )
-                  </span>
-                </th>
+                <th className="p-2">Transferred in</th>
                 <th className="p-2" title="Authoritative card balance from the last HCB sync">
                   Balance
                 </th>
@@ -443,12 +424,12 @@ function HcbGrantCardsSection({ cards }: { cards: AdminHcbGrantCard[] }) {
                   <td className="p-2">{c.purpose ?? '—'}</td>
                   <td className="p-2 font-mono">
                     {(() => {
-                      const actual = c.transferred_in_cents
-                      const expected = c.amount_cents
+                      const actual = c.amount_cents
+                      const expected = c.transferred_in_cents
                       const match = actual === expected
                       const gapNote = match
                         ? ''
-                        : ` — ${formatDollars(Math.abs(actual - expected))} ${actual > expected ? 'over' : 'short'}`
+                        : ` — ${formatDollars(Math.abs(actual - expected))} ${actual > expected ? 'extra on HCB' : 'missing from HCB'}`
                       return (
                         <TooltipProvider>
                           <span className={match ? '' : 'text-red-700'}>
@@ -456,14 +437,18 @@ function HcbGrantCardsSection({ cards }: { cards: AdminHcbGrantCard[] }) {
                               <TooltipTrigger asChild>
                                 <span className="cursor-default">{formatDollars(actual)}</span>
                               </TooltipTrigger>
-                              <TooltipContent>Actual — Fallout's ledger net (in minus out){gapNote}</TooltipContent>
+                              <TooltipContent>
+                                Actual — HCB's amount_cents on this card (reality){gapNote}
+                              </TooltipContent>
                             </Tooltip>
                             <span className="text-muted-foreground"> / </span>
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <span className="cursor-default text-muted-foreground">{formatDollars(expected)}</span>
                               </TooltipTrigger>
-                              <TooltipContent>Expected — HCB's authoritative amount_cents</TooltipContent>
+                              <TooltipContent>
+                                Expected — Fallout's ledger net (in minus out) for this card
+                              </TooltipContent>
                             </Tooltip>
                           </span>
                         </TooltipProvider>
