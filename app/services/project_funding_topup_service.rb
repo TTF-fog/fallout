@@ -35,14 +35,28 @@ module ProjectFundingTopupService
   # Net transferred = completed in-topups minus completed out-refunds. Refunds
   # are ledger-only entries admins create after manually withdrawing on HCB; they
   # drop the transferred total so the service won't re-top-up what was reversed.
+  #
+  # This is the "all rows" sum used by the HCB parity check (ledger_divergence
+  # warning) and the UI "expected (ledger)" label. It includes manual adjustments
+  # regardless of whether they count toward issued funding.
   def transferred_usd_cents(user)
     user.project_funding_topups.kept.where(status: "completed").sum(
       Arel.sql("CASE direction WHEN 'out' THEN -amount_cents ELSE amount_cents END")
     )
   end
 
+  # Funding-only sum — counts toward "issued funding" for the purpose of delta
+  # math. Manual adjustments the admin marked as out-of-band HCB events
+  # (counts_toward_funding = false) reflect reality on the card but don't reduce
+  # what future orders send.
+  def funding_transferred_usd_cents(user)
+    user.project_funding_topups.kept.where(status: "completed", counts_toward_funding: true).sum(
+      Arel.sql("CASE direction WHEN 'out' THEN -amount_cents ELSE amount_cents END")
+    )
+  end
+
   def delta_cents(user)
-    expected_usd_cents(user) - transferred_usd_cents(user)
+    expected_usd_cents(user) - funding_transferred_usd_cents(user)
   end
 
   def settle!(user, triggering_order: nil)

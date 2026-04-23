@@ -39,6 +39,7 @@ type Topup = {
   amount_cents: number
   direction: 'in' | 'out'
   status: 'pending' | 'completed' | 'failed'
+  counts_toward_funding: boolean
   note: string | null
   completed_at: string | null
   failed_reason: string | null
@@ -246,9 +247,7 @@ export default function AdminProjectGrantsOrdersIndex({
       {/* Top-level stats. Cheap aggregates from the controller — no deferred props. */}
       <div className="grid grid-cols-3 gap-3 mb-4">
         <div className="rounded-md border border-border p-3">
-          <div className="text-xs text-muted-foreground uppercase tracking-wide">
-            $ Issued <span className="normal-case tracking-normal">(actual / expected)</span>
-          </div>
+          <div className="text-xs text-muted-foreground uppercase tracking-wide">$ Issued</div>
           <div className="text-2xl font-semibold font-mono mt-1">
             {(() => {
               const actual = stats.issued_actual_cents
@@ -283,7 +282,7 @@ export default function AdminProjectGrantsOrdersIndex({
             })()}
           </div>
           <div className="text-[11px] text-muted-foreground mt-1">
-            Fallout ledger vs HCB authority — drift means a card was touched outside of Fallout
+            Drift means a card was touched outside of Fallout
           </div>
         </div>
         <div className="rounded-md border border-border p-3">
@@ -696,6 +695,15 @@ export default function AdminProjectGrantsOrdersIndex({
                       <Badge variant={t.direction === 'out' ? 'destructive' : 'default'} className="font-mono">
                         {t.direction}
                       </Badge>
+                      {!t.counts_toward_funding && (
+                        <Badge
+                          variant="outline"
+                          className="ml-1 text-[9px] py-0 px-1 font-normal"
+                          title="Ledger-only: does not count towards issued funding, so it won't reduce future order topup amounts"
+                        >
+                          ledger-only
+                        </Badge>
+                      )}
                     </td>
                     <td className="p-3 font-mono">
                       {t.direction === 'out' ? '−' : ''}

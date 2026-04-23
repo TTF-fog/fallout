@@ -7,6 +7,7 @@
 #  id                     :bigint           not null, primary key
 #  amount_cents           :integer          not null
 #  completed_at           :datetime
+#  counts_toward_funding  :boolean          default(TRUE), not null
 #  direction              :string           default("in"), not null
 #  discarded_at           :datetime
 #  failed_reason          :string
@@ -20,6 +21,7 @@
 #
 # Indexes
 #
+#  index_project_funding_topups_on_counts_toward_funding   (counts_toward_funding)
 #  index_project_funding_topups_on_direction               (direction)
 #  index_project_funding_topups_on_discarded_at            (discarded_at)
 #  index_project_funding_topups_on_hcb_grant_card_id       (hcb_grant_card_id)

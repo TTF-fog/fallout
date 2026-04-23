@@ -67,6 +67,10 @@ export default function AdminProjectGrantsAdjustmentsNew({ prefill_user_id }: { 
     direction: 'in' as 'in' | 'out',
     amount_dollars: '',
     note: '',
+    // Unchecked by default — admin must explicitly opt in to "this counts as
+    // issued funding". Safer in both directions: if they forget, future orders
+    // aren't accidentally reduced; if they check it, they've thought about it.
+    counts_toward_funding: false,
   })
 
   // Debounced ledger fetch: as the admin types a user ID, we ask the server for that
@@ -281,6 +285,24 @@ export default function AdminProjectGrantsAdjustmentsNew({ prefill_user_id }: { 
               <p className="text-xs text-muted-foreground mt-1">
                 Always a positive number. Direction determines sign in the ledger.
               </p>
+            </label>
+
+            <label className="flex items-start gap-2 p-2 rounded-md border border-border bg-muted/20">
+              <input
+                type="checkbox"
+                checked={form.data.counts_toward_funding}
+                onChange={(e) => form.setData('counts_toward_funding', e.target.checked)}
+                className="mt-0.5"
+              />
+              <span className="text-sm">
+                <span className="font-medium">Count towards issued funding</span>
+                <span className="block text-xs text-muted-foreground mt-0.5">
+                  Check this if the movement was funded by the project funding program (e.g. you topped up HCB by hand
+                  because an auto-settle failed). Future order topups will be reduced by this amount. Leave unchecked
+                  for out-of-band HCB activity (someone else credited the card, unrelated disbursement, etc.) — the
+                  ledger still records it but it won't offset future order amounts.
+                </span>
+              </span>
             </label>
 
             <label className="block">

@@ -232,6 +232,7 @@ class Admin::ProjectGrants::OrdersController < Admin::ApplicationController
       amount_cents: topup.amount_cents,
       direction: topup.direction,
       status: topup.status,
+      counts_toward_funding: topup.counts_toward_funding,
       note: topup.note,
       completed_at: topup.completed_at&.strftime("%b %d, %Y %H:%M"),
       failed_reason: topup.failed_reason,

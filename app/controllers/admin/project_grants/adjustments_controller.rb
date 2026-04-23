@@ -73,6 +73,12 @@ class Admin::ProjectGrants::AdjustmentsController < Admin::ApplicationController
       return
     end
 
+    # ActiveRecord coerces "1"/"0"/"true"/"false" → boolean when assigning to a
+    # boolean column, so we can take the raw param. Checkbox unchecked → not
+    # present → defaults to false, which is the safer choice for adjustments
+    # (admin must opt in to "this is issued funding").
+    counts_toward_funding = ActiveModel::Type::Boolean.new.cast(adjustment_params[:counts_toward_funding])
+
     topup = ProjectFundingTopup.new(
       user: user,
       hcb_grant_card: card,
@@ -82,6 +88,7 @@ class Admin::ProjectGrants::AdjustmentsController < Admin::ApplicationController
       # action (admin topped up HCB by hand, or invoiced the user back). Terminal on create.
       status: "completed",
       completed_at: Time.current,
+      counts_toward_funding: counts_toward_funding,
       note: "[Manual adjustment by #{current_user.display_name}] #{note}"
     )
 
@@ -97,6 +104,6 @@ class Admin::ProjectGrants::AdjustmentsController < Admin::ApplicationController
   private
 
   def adjustment_params
-    params.expect(project_grant_adjustment: [ :user_id, :direction, :amount_dollars, :note ])
+    params.expect(project_grant_adjustment: [ :user_id, :direction, :amount_dollars, :note, :counts_toward_funding ])
   end
 end

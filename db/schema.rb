@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_04_23_000000) do
+ActiveRecord::Schema[8.1].define(version: 2026_04_23_100000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -463,6 +463,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_23_000000) do
   create_table "project_funding_topups", force: :cascade do |t|
     t.integer "amount_cents", null: false
     t.datetime "completed_at"
+    t.boolean "counts_toward_funding", default: true, null: false
     t.datetime "created_at", null: false
     t.string "direction", default: "in", null: false
     t.datetime "discarded_at"
@@ -473,6 +474,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_23_000000) do
     t.string "status", default: "pending", null: false
     t.datetime "updated_at", null: false
     t.bigint "user_id", null: false
+    t.index ["counts_toward_funding"], name: "index_project_funding_topups_on_counts_toward_funding"
     t.index ["direction"], name: "index_project_funding_topups_on_direction"
     t.index ["discarded_at"], name: "index_project_funding_topups_on_discarded_at"
     t.index ["hcb_grant_card_id"], name: "index_project_funding_topups_on_hcb_grant_card_id"
