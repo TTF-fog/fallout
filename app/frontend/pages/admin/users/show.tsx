@@ -17,6 +17,7 @@ import { DataTable } from '@/components/admin/DataTable'
 import { Skeleton } from '@/components/admin/ui/skeleton'
 import { ChevronLeftIcon, ExternalLinkIcon, SearchIcon, ShieldIcon, SlidersHorizontalIcon } from 'lucide-react'
 import { hcbGrantUrl } from '@/lib/hcb'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/admin/ui/tooltip'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -449,18 +450,23 @@ function HcbGrantCardsSection({ cards }: { cards: AdminHcbGrantCard[] }) {
                         ? ''
                         : ` — ${formatDollars(Math.abs(actual - expected))} ${actual > expected ? 'over' : 'short'}`
                       return (
-                        <span className={match ? '' : 'text-red-700'}>
-                          <span title={`Actual — Fallout's ledger net (in minus out) for this card${gapNote}`}>
-                            {formatDollars(actual)}
+                        <TooltipProvider>
+                          <span className={match ? '' : 'text-red-700'}>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span className="cursor-default">{formatDollars(actual)}</span>
+                              </TooltipTrigger>
+                              <TooltipContent>Actual — Fallout's ledger net (in minus out){gapNote}</TooltipContent>
+                            </Tooltip>
+                            <span className="text-muted-foreground"> / </span>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span className="cursor-default text-muted-foreground">{formatDollars(expected)}</span>
+                              </TooltipTrigger>
+                              <TooltipContent>Expected — HCB's authoritative amount_cents</TooltipContent>
+                            </Tooltip>
                           </span>
-                          <span className="text-muted-foreground"> / </span>
-                          <span
-                            className="text-muted-foreground"
-                            title="Expected — HCB's authoritative amount_cents on the card"
-                          >
-                            {formatDollars(expected)}
-                          </span>
-                        </span>
+                        </TooltipProvider>
                       )
                     })()}
                   </td>
