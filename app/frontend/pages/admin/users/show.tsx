@@ -380,11 +380,25 @@ function HcbGrantCardsSection({ cards }: { cards: AdminHcbGrantCard[] }) {
                 <th className="p-2">HCB id</th>
                 <th className="p-2">Status</th>
                 <th className="p-2">Purpose</th>
-                <th
-                  className="p-2"
-                  title="Actual / Expected. Actual = net of Fallout's ledger (in minus out). Expected = HCB's authoritative amount_cents on the card. A mismatch means either external HCB activity or a ledger gap."
-                >
-                  Transferred in
+                <th className="p-2">
+                  Transferred in{' '}
+                  <span className="text-muted-foreground font-normal">
+                    (
+                    <span
+                      className="underline decoration-dotted cursor-help"
+                      title="Fallout's ledger net (in minus out) for this card — what we think was sent"
+                    >
+                      actual
+                    </span>
+                    {' / '}
+                    <span
+                      className="underline decoration-dotted cursor-help"
+                      title="HCB's authoritative amount_cents on the card — what HCB agrees was sent"
+                    >
+                      expected
+                    </span>
+                    )
+                  </span>
                 </th>
                 <th className="p-2" title="Authoritative card balance from the last HCB sync">
                   Balance
