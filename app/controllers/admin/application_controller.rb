@@ -19,11 +19,15 @@ class Admin::ApplicationController < ApplicationController
       # Role-based access for sidebar and frontend gating
       admin_permissions: {
         is_admin: current_user&.admin? || false,
+        is_hcb: current_user&.hcb? || false, # Gates money-moving controls in the project grants UI
         can_review_time_audits: current_user&.can_review?(:time_audit) || false,
         can_review_requirements_checks: current_user&.can_review?(:requirements_check) || false,
         can_review_design_reviews: current_user&.can_review?(:design_review) || false,
         can_review_build_reviews: current_user&.can_review?(:build_review) || false
-      }
+      },
+      # Base URL for deep-linking to HCB resources (e.g. /grants/:hcb_id for card grants).
+      # Driven by HCB_OAUTH_HOST so dev/staging/prod all link to the right place.
+      hcb_host: HcbService.host
     }
   end
 

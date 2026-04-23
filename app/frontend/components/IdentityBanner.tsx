@@ -17,7 +17,8 @@ export default function IdentityBanner() {
         }
       case 'pending':
         return {
-          message: "Your verification is under review on auth.hackclub.com — you'll be able to claim grants & prizes once approved",
+          message:
+            "Your verification is under review on auth.hackclub.com — you'll be able to claim grants & prizes once approved",
           href: verify_url,
         }
       case 'verified_no_address':

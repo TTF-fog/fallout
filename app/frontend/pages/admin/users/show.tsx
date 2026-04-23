@@ -16,6 +16,7 @@ import {
 import { DataTable } from '@/components/admin/DataTable'
 import { Skeleton } from '@/components/admin/ui/skeleton'
 import { ChevronLeftIcon, ExternalLinkIcon, SearchIcon, ShieldIcon, SlidersHorizontalIcon } from 'lucide-react'
+import { hcbGrantUrl } from '@/lib/hcb'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -97,6 +98,20 @@ const projectColumns: ColumnDef<AdminProjectRow>[] = [
   },
 ]
 
+interface AdminHcbGrantCard {
+  id: number
+  hcb_id: string | null
+  status: 'active' | 'canceled' | 'expired'
+  purpose: string | null
+  expires_on: string | null
+  amount_cents: number
+  balance_cents: number | null
+  transferred_in_cents: number
+  created_at: string
+  canceled_at: string | null
+  last_synced_at: string | null
+}
+
 interface PageProps {
   user: AdminUserDetail
   valid_roles: string[]
@@ -104,6 +119,8 @@ interface PageProps {
   streak_data?: AdminStreakData
   project_data?: AdminProjectData
   audit_log?: AuditLogEntry[]
+  hcb_grant_cards?: AdminHcbGrantCard[]
+  project_grant_warnings_count: number
   query: string
   include_deleted: boolean
   hide_unlisted: boolean
@@ -120,10 +137,14 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 }
 
 function RolesEditor({ user, validRoles, isSelf }: { user: AdminUserDetail; validRoles: string[]; isSelf: boolean }) {
-  const editableRoles = validRoles.filter((r) => r !== 'user')
-  const [selectedRoles, setSelectedRoles] = useState<string[]>(user.roles.filter((r) => r !== 'user'))
+  // `hcb` is backend-only (console-granted) and is already excluded from validRoles,
+  // but we also filter it out of the "current" state so change detection doesn't flag
+  // a spurious diff and so the posted `selectedRoles` doesn't need to carry it.
+  const NON_EDITABLE = ['user', 'hcb']
+  const editableRoles = validRoles.filter((r) => !NON_EDITABLE.includes(r))
+  const [selectedRoles, setSelectedRoles] = useState<string[]>(user.roles.filter((r) => !NON_EDITABLE.includes(r)))
   const [processing, setProcessing] = useState(false)
-  const currentEditable = user.roles.filter((r) => r !== 'user')
+  const currentEditable = user.roles.filter((r) => !NON_EDITABLE.includes(r))
   const hasChanges = JSON.stringify([...selectedRoles].sort()) !== JSON.stringify([...currentEditable].sort())
 
   function toggleRole(role: string) {
@@ -340,6 +361,79 @@ function ProjectsSection({
   )
 }
 
+function formatDollars(cents: number): string {
+  return `$${(cents / 100).toFixed(2)}`
+}
+
+function HcbGrantCardsSection({ cards }: { cards: AdminHcbGrantCard[] }) {
+  const hcbHost = usePage().props.hcb_host as string | undefined
+  return (
+    <div>
+      <h2 className="text-lg font-semibold tracking-tight mb-4">HCB Grant Cards</h2>
+      {cards.length === 0 ? (
+        <p className="text-sm text-muted-foreground">This user has no grant cards yet.</p>
+      ) : (
+        <div className="overflow-hidden rounded-md border border-border">
+          <table className="w-full text-sm">
+            <thead className="bg-muted/40 border-b border-border">
+              <tr className="text-left">
+                <th className="p-2">HCB id</th>
+                <th className="p-2">Status</th>
+                <th className="p-2">Purpose</th>
+                <th className="p-2" title="Sum of completed ProjectFundingTopups sent to this card by Fallout">
+                  Transferred in
+                </th>
+                <th className="p-2" title="Authoritative card balance from the last HCB sync">
+                  Balance
+                </th>
+                <th className="p-2">Expires</th>
+                <th className="p-2">Created</th>
+              </tr>
+            </thead>
+            <tbody>
+              {cards.map((c) => (
+                <tr key={c.id} className="border-b border-border last:border-0">
+                  <td className="p-2 font-mono text-xs text-muted-foreground">
+                    {(() => {
+                      const hcbUrl = hcbGrantUrl(hcbHost, c.hcb_id)
+                      if (!c.hcb_id) return '—'
+                      return hcbUrl ? (
+                        <a
+                          href={hcbUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="hover:underline text-primary"
+                        >
+                          {c.hcb_id}
+                        </a>
+                      ) : (
+                        c.hcb_id
+                      )
+                    })()}
+                  </td>
+                  <td className="p-2">
+                    <Badge
+                      variant={c.status === 'active' ? 'default' : 'outline'}
+                      className={c.status === 'canceled' ? 'text-muted-foreground' : ''}
+                    >
+                      {c.status}
+                    </Badge>
+                  </td>
+                  <td className="p-2">{c.purpose ?? '—'}</td>
+                  <td className="p-2 font-mono">{formatDollars(c.transferred_in_cents)}</td>
+                  <td className="p-2 font-mono">{c.balance_cents != null ? formatDollars(c.balance_cents) : '—'}</td>
+                  <td className="p-2 text-muted-foreground">{c.expires_on ?? 'no expiry'}</td>
+                  <td className="p-2 text-muted-foreground">{c.created_at}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function AdminUsersShow({
   user,
   valid_roles,
@@ -347,6 +441,8 @@ export default function AdminUsersShow({
   streak_data,
   project_data,
   audit_log,
+  hcb_grant_cards,
+  project_grant_warnings_count,
   query,
   include_deleted,
   hide_unlisted,
@@ -364,6 +460,29 @@ export default function AdminUsersShow({
         <ChevronLeftIcon className="size-4" />
         Back
       </button>
+
+      {/* Project-grant warnings banner — admin-only visibility. Count is computed
+          inline in the controller (no defer) so it's visible immediately on page load. */}
+      {isAdmin && project_grant_warnings_count > 0 && (
+        <div className="mb-4 rounded-md border-2 border-red-500 bg-red-50 dark:bg-red-950/30 p-3 flex items-center justify-between">
+          <div className="text-sm">
+            <strong className="text-red-700 dark:text-red-400">
+              ⚠ {project_grant_warnings_count} unresolved project-grant warning
+              {project_grant_warnings_count === 1 ? '' : 's'}
+            </strong>{' '}
+            for this user.
+            <span className="text-red-900 dark:text-red-200 block text-xs mt-1">
+              Financial state may be out of sync with HCB. Review and resolve before approving new grants.
+            </span>
+          </div>
+          <Link
+            href="/admin/project_grants/orders"
+            className="text-sm font-medium text-red-700 dark:text-red-400 hover:underline whitespace-nowrap ml-4"
+          >
+            View warnings →
+          </Link>
+        </div>
+      )}
 
       <div className="flex items-end justify-between mb-4">
         <div className="flex items-center gap-3">
@@ -432,6 +551,17 @@ export default function AdminUsersShow({
           with_journals={with_journals}
         />
       </Deferred>
+
+      {isAdmin && hcb_grant_cards !== undefined && (
+        <div className="mt-8">
+          <Deferred
+            data="hcb_grant_cards"
+            fallback={<p className="text-sm text-muted-foreground">Loading grant cards…</p>}
+          >
+            <HcbGrantCardsSection cards={hcb_grant_cards!} />
+          </Deferred>
+        </div>
+      )}
 
       {isAdmin && audit_log !== undefined && (
         <div className="mt-8">

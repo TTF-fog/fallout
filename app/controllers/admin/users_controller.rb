@@ -27,7 +27,8 @@ class Admin::UsersController < Admin::ApplicationController
 
     props = {
       user: serialize_user_detail(@user),
-      valid_roles: current_user.admin? ? User::VALID_ROLES : [], # Only admins can edit roles
+      # `hcb` is intentionally omitted — it can only be granted via the Rails console.
+      valid_roles: current_user.admin? ? User::ADMIN_ASSIGNABLE_ROLES : [],
       is_self: @user == current_user,
       streak_data: InertiaRails.defer {
         streak_days = @user.streak_days.chronological.pluck(:date, :status)
@@ -63,6 +64,39 @@ class Admin::UsersController < Admin::ApplicationController
       hide_unlisted: params[:hide_unlisted] == "1",
       with_journals: params[:with_journals] == "1"
     }
+    # Inline (not deferred) so the warning banner is visible immediately on page load.
+    # Cheap query: count unresolved warnings for this user.
+    props[:project_grant_warnings_count] = if current_user.admin?
+      ProjectGrantWarning.unresolved.where(user_id: @user.id).count
+    else
+      0
+    end
+    props[:hcb_grant_cards] = InertiaRails.defer { # Financial data — admin-only visibility
+      cards = @user.hcb_grant_cards.order(created_at: :desc).to_a
+      # Batch the net-transferred totals per card (in minus out). Single grouped query
+      # so we don't N+1 one per card.
+      transferred_by_card = ProjectFundingTopup.kept.where(
+        hcb_grant_card_id: cards.map(&:id),
+        status: "completed"
+      ).group(:hcb_grant_card_id)
+        .sum(Arel.sql("CASE direction WHEN 'out' THEN -amount_cents ELSE amount_cents END"))
+
+      cards.map do |card|
+        {
+          id: card.id,
+          hcb_id: card.hcb_id,
+          status: card.status,
+          purpose: card.purpose,
+          expires_on: card.expires_on&.iso8601,
+          amount_cents: card.amount_cents,
+          balance_cents: card.balance_cents,
+          transferred_in_cents: transferred_by_card[card.id] || 0,
+          created_at: card.created_at.strftime("%b %d, %Y"),
+          canceled_at: card.canceled_at&.strftime("%b %d, %Y"),
+          last_synced_at: card.last_synced_at&.strftime("%b %d, %Y %H:%M")
+        }
+      end
+    } if current_user.admin?
     props[:audit_log] = InertiaRails.defer { # Audit log — admin-only
       streak_day_ids = @user.streak_days.select(:id)
       streak_versions = PaperTrail::Version.where(item_type: "StreakDay", item_id: streak_day_ids).to_a
@@ -81,10 +115,15 @@ class Admin::UsersController < Admin::ApplicationController
     @user = User.find(params[:id])
     authorize @user
 
-    roles = Array(params[:roles]).map(&:to_s) & User::VALID_ROLES
-    # Preserve the user role — it's not editable through this endpoint
+    # Intersect with admin-assignable only — this silently drops any `hcb` (or `user`)
+    # values a malicious client might try to slip in.
+    roles = Array(params[:roles]).map(&:to_s) & User::ADMIN_ASSIGNABLE_ROLES
+    # Preserve structural `user` role exactly as it was — this endpoint doesn't manage it.
     roles |= [ "user" ] if @user.has_role?(:user)
     roles -= [ "user" ] unless @user.has_role?(:user)
+    # Preserve `hcb` exactly as it was — only the Rails console may add or remove it.
+    roles |= [ "hcb" ] if @user.has_role?(:hcb)
+    roles -= [ "hcb" ] unless @user.has_role?(:hcb)
 
     # Admins cannot remove the admin role from themselves
     if @user == current_user && @user.admin? && roles.exclude?("admin")

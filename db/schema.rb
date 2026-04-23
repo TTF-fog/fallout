@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_04_22_155629) do
+ActiveRecord::Schema[8.1].define(version: 2026_04_22_240000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -251,11 +251,14 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_22_155629) do
     t.string "email"
     t.date "expires_on"
     t.string "hcb_id"
+    t.text "instructions"
+    t.text "invite_message"
     t.string "keyword_lock"
     t.string "last4"
     t.datetime "last_synced_at"
     t.string "merchant_lock", default: [], null: false, array: true
     t.boolean "one_time_use", default: false, null: false
+    t.boolean "pre_authorization_required", default: false, null: false
     t.string "purpose"
     t.string "status", default: "active", null: false
     t.datetime "updated_at", null: false
@@ -264,6 +267,24 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_22_155629) do
     t.index ["user_id", "status"], name: "index_hcb_grant_cards_on_user_id_and_status"
     t.index ["user_id"], name: "index_hcb_grant_cards_on_user_id"
     t.index ["user_id"], name: "index_hcb_grant_cards_on_user_id_active_unique", unique: true, where: "((status)::text = 'active'::text)"
+  end
+
+  create_table "hcb_grant_settings", force: :cascade do |t|
+    t.string "category_lock", default: [], null: false, array: true
+    t.datetime "created_at", null: false
+    t.integer "default_expiry_days"
+    t.text "instructions"
+    t.text "invite_message"
+    t.string "keyword_lock"
+    t.integer "koi_to_cents_denominator", default: 7, null: false
+    t.integer "koi_to_cents_numerator", default: 500, null: false
+    t.integer "koi_to_hours_denominator"
+    t.integer "koi_to_hours_numerator"
+    t.string "merchant_lock", default: [], null: false, array: true
+    t.boolean "one_time_use", default: false, null: false
+    t.boolean "pre_authorization_required", default: false, null: false
+    t.string "purpose"
+    t.datetime "updated_at", null: false
   end
 
   create_table "hcb_transactions", force: :cascade do |t|
@@ -435,6 +456,69 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_22_155629) do
     t.index ["project_id"], name: "index_project_flags_on_project_id"
     t.index ["ship_id"], name: "index_project_flags_on_ship_id"
     t.index ["user_id"], name: "index_project_flags_on_user_id"
+  end
+
+  create_table "project_funding_topups", force: :cascade do |t|
+    t.integer "amount_cents", null: false
+    t.datetime "completed_at"
+    t.datetime "created_at", null: false
+    t.string "direction", default: "in", null: false
+    t.datetime "discarded_at"
+    t.string "failed_reason"
+    t.bigint "hcb_grant_card_id", null: false
+    t.text "note"
+    t.bigint "project_grant_order_id"
+    t.string "status", default: "pending", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "user_id", null: false
+    t.index ["direction"], name: "index_project_funding_topups_on_direction"
+    t.index ["discarded_at"], name: "index_project_funding_topups_on_discarded_at"
+    t.index ["hcb_grant_card_id"], name: "index_project_funding_topups_on_hcb_grant_card_id"
+    t.index ["project_grant_order_id"], name: "index_project_funding_topups_on_project_grant_order_id"
+    t.index ["status"], name: "index_project_funding_topups_on_status"
+    t.index ["user_id"], name: "index_project_funding_topups_on_pending_per_user", unique: true, where: "(((status)::text = 'pending'::text) AND (discarded_at IS NULL))"
+    t.index ["user_id"], name: "index_project_funding_topups_on_user_id"
+    t.check_constraint "amount_cents > 0", name: "project_funding_topups_amount_cents_positive"
+  end
+
+  create_table "project_grant_orders", force: :cascade do |t|
+    t.text "admin_note"
+    t.datetime "created_at", null: false
+    t.datetime "discarded_at"
+    t.integer "frozen_koi_amount", null: false
+    t.integer "frozen_usd_cents", null: false
+    t.string "state", default: "pending", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "user_id", null: false
+    t.index ["discarded_at"], name: "index_project_grant_orders_on_discarded_at"
+    t.index ["state"], name: "index_project_grant_orders_on_state"
+    t.index ["user_id"], name: "index_project_grant_orders_on_user_id"
+    t.check_constraint "frozen_koi_amount > 0", name: "project_grant_orders_frozen_koi_amount_positive"
+    t.check_constraint "frozen_usd_cents > 0", name: "project_grant_orders_frozen_usd_cents_positive"
+  end
+
+  create_table "project_grant_warnings", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.jsonb "details", default: {}, null: false
+    t.integer "detection_count", default: 1, null: false
+    t.bigint "hcb_grant_card_id"
+    t.string "kind", null: false
+    t.datetime "last_detected_at", default: -> { "CURRENT_TIMESTAMP" }, null: false
+    t.text "message", null: false
+    t.bigint "project_funding_topup_id"
+    t.bigint "project_grant_order_id"
+    t.text "resolution_note"
+    t.datetime "resolved_at"
+    t.bigint "resolved_by_id"
+    t.datetime "updated_at", null: false
+    t.bigint "user_id"
+    t.index ["hcb_grant_card_id"], name: "index_project_grant_warnings_on_hcb_grant_card_id"
+    t.index ["kind"], name: "index_project_grant_warnings_on_kind"
+    t.index ["project_funding_topup_id"], name: "index_project_grant_warnings_on_project_funding_topup_id"
+    t.index ["project_grant_order_id"], name: "index_project_grant_warnings_on_project_grant_order_id"
+    t.index ["resolved_at"], name: "index_project_grant_warnings_on_resolved_at"
+    t.index ["resolved_by_id"], name: "index_project_grant_warnings_on_resolved_by_id"
+    t.index ["user_id"], name: "index_project_grant_warnings_on_user_id"
   end
 
   create_table "projects", force: :cascade do |t|
@@ -732,12 +816,14 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_22_155629) do
 
   create_table "streak_goals", force: :cascade do |t|
     t.datetime "created_at", null: false
+    t.datetime "discarded_at"
     t.boolean "notify_streak_events", default: true, null: false
     t.date "started_on", null: false
     t.integer "target_days", null: false
     t.datetime "updated_at", null: false
     t.bigint "user_id", null: false
-    t.index ["user_id"], name: "index_streak_goals_on_user_id", unique: true
+    t.index ["discarded_at"], name: "index_streak_goals_on_discarded_at"
+    t.index ["user_id"], name: "index_streak_goals_on_user_id_kept", unique: true, where: "(discarded_at IS NULL)"
   end
 
   create_table "time_audit_reviews", force: :cascade do |t|
@@ -865,6 +951,15 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_22_155629) do
   add_foreign_key "project_flags", "projects"
   add_foreign_key "project_flags", "ships"
   add_foreign_key "project_flags", "users"
+  add_foreign_key "project_funding_topups", "hcb_grant_cards"
+  add_foreign_key "project_funding_topups", "project_grant_orders"
+  add_foreign_key "project_funding_topups", "users"
+  add_foreign_key "project_grant_orders", "users"
+  add_foreign_key "project_grant_warnings", "hcb_grant_cards"
+  add_foreign_key "project_grant_warnings", "project_funding_topups"
+  add_foreign_key "project_grant_warnings", "project_grant_orders"
+  add_foreign_key "project_grant_warnings", "users"
+  add_foreign_key "project_grant_warnings", "users", column: "resolved_by_id"
   add_foreign_key "projects", "users"
   add_foreign_key "recordings", "journal_entries"
   add_foreign_key "recordings", "users"

@@ -91,6 +91,8 @@ class User < ApplicationRecord
   has_many :dialog_campaigns, dependent: :destroy
   has_many :hcb_grant_cards, dependent: :destroy
   has_one :active_hcb_grant_card, -> { where(status: "active") }, class_name: "HcbGrantCard"
+  has_many :project_grant_orders, dependent: :restrict_with_error
+  has_many :project_funding_topups, dependent: :restrict_with_error
   has_many :reviewer_notes
   has_many :project_flags
 
@@ -103,8 +105,12 @@ class User < ApplicationRecord
   validates :avatar, :display_name, :email, :timezone, presence: true
   validates :slack_id, presence: true, unless: :trial?
   validates :hca_id, presence: true, unless: :trial?
-  VALID_ROLES = %w[user admin time_auditor requirements_checker pass2_reviewer].freeze
+  VALID_ROLES = %w[user admin time_auditor requirements_checker pass2_reviewer hcb].freeze
   REVIEWER_ROLES = %w[time_auditor requirements_checker pass2_reviewer].freeze
+  # Roles assignable through the admin UI. `user` is structural (managed elsewhere).
+  # `hcb` gates real money movement and is deliberately console-only to prevent an
+  # admin UI compromise from leading directly to HCB writes.
+  ADMIN_ASSIGNABLE_ROLES = (VALID_ROLES - %w[user hcb]).freeze
   SLACK_WELCOME_CHANNELS = %w[C037157AL30 C0ACG0XQWGN C0ACJ290090].freeze
 
   # Ban types in priority order (highest first). Higher-priority bans take precedence.
@@ -155,6 +161,13 @@ class User < ApplicationRecord
 
   def pass2_reviewer?
     has_role?(:pass2_reviewer)
+  end
+
+  # The "hcb" role gates real money movement on HCB (issuing project funding grants
+  # and topping them up). Admins without this role can still review/edit grant orders
+  # and adjust HCB grant settings, but cannot push the button that moves money.
+  def hcb?
+    has_role?(:hcb)
   end
 
   # True if user can review in a specific queue
@@ -377,7 +390,8 @@ class User < ApplicationRecord
     return 0 if trial? # Trial users cannot earn or spend koi
 
     koi_transactions.sum(:amount) -
-      shop_orders.joins(:shop_item).where(shop_items: { currency: "koi" }).where.not(state: :rejected).sum("frozen_price * quantity")
+      shop_orders.joins(:shop_item).where(shop_items: { currency: "koi" }).where.not(state: :rejected).sum("frozen_price * quantity") -
+      project_grant_orders.kept.where.not(state: :rejected).sum(:frozen_koi_amount)
   end
 
   def gold

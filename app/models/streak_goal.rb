@@ -3,6 +3,7 @@
 # Table name: streak_goals
 #
 #  id                   :bigint           not null, primary key
+#  discarded_at         :datetime
 #  notify_streak_events :boolean          default(TRUE), not null
 #  started_on           :date             not null
 #  target_days          :integer          not null
@@ -12,7 +13,8 @@
 #
 # Indexes
 #
-#  index_streak_goals_on_user_id  (user_id) UNIQUE
+#  index_streak_goals_on_discarded_at  (discarded_at)
+#  index_streak_goals_on_user_id_kept  (user_id) UNIQUE WHERE (discarded_at IS NULL)
 #
 # Foreign Keys
 #

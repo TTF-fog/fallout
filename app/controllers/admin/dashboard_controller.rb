@@ -31,10 +31,10 @@ class Admin::DashboardController < Admin::ApplicationController
     counts = Hash.new(0)
 
     [
-      [TimeAuditReview, "time_audit_reviews"],
-      [DesignReview, "design_reviews"],
-      [BuildReview, "build_reviews"],
-      [RequirementsCheckReview, "requirements_check_reviews"]
+      [ TimeAuditReview, "time_audit_reviews" ],
+      [ DesignReview, "design_reviews" ],
+      [ BuildReview, "build_reviews" ],
+      [ RequirementsCheckReview, "requirements_check_reviews" ]
     ].each do |klass, table|
       scope = klass.where(status: terminal_statuses).where.not(reviewer_id: nil)
       scope = scope.where("#{table}.updated_at >= ?", since) if since

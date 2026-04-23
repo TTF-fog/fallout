@@ -16,10 +16,16 @@ function MailShow({ mail, is_modal }: PageProps) {
   const modal = useModal()
 
   function handleDismiss() {
-    router.post(`/mails/${mail.id}/dismiss`, {}, {
-      preserveScroll: true,
-      onSuccess: () => { if (is_modal) modal.close() },
-    })
+    router.post(
+      `/mails/${mail.id}/dismiss`,
+      {},
+      {
+        preserveScroll: true,
+        onSuccess: () => {
+          if (is_modal) modal.close()
+        },
+      },
+    )
   }
 
   const content = (

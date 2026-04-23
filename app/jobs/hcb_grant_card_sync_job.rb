@@ -11,6 +11,10 @@ class HcbGrantCardSyncJob < ApplicationJob
     return if connection.token_expired?
 
     sync_grant_cards
+    # After every card's amount_cents has been refreshed from HCB, scan for
+    # ledger/reality divergence so admins see current-state warnings without
+    # having to trigger a topup to discover issues.
+    ProjectGrantWarning.scan_all!
   rescue HcbService::Error => e
     ErrorReporter.capture_exception(e, contexts: { hcb: { event: "grant_card_sync_failure" } })
   rescue Faraday::Error => e

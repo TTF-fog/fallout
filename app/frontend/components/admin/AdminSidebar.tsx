@@ -24,6 +24,7 @@ import {
   ShoppingCart,
   Fish,
   Soup,
+  ReceiptText,
 } from 'lucide-react'
 
 interface AdminStats {
@@ -39,6 +40,7 @@ interface AdminStats {
 
 interface AdminPermissions {
   is_admin: boolean
+  is_hcb: boolean
   can_review_time_audits: boolean
   can_review_requirements_checks: boolean
   can_review_design_reviews: boolean
@@ -140,6 +142,18 @@ function buildNavSections(): { items: NavItem[] }[] {
     {
       items: [
         {
+          label: 'Project Grants',
+          href: '/admin/project_grants/orders',
+          icon: ReceiptText,
+          statKey: null,
+          requirePermission: 'is_admin',
+        },
+        // Grant Settings lives as a Settings button on the Project Grants page itself.
+      ],
+    },
+    {
+      items: [
+        {
           label: 'Jobs',
           href: '/jobs',
           icon: BriefcaseBusiness,
@@ -199,6 +213,7 @@ export default function AdminSidebar() {
   >().props
   const perms: AdminPermissions = admin_permissions ?? {
     is_admin: auth.user?.is_admin ?? false,
+    is_hcb: false,
     can_review_time_audits: false,
     can_review_requirements_checks: false,
     can_review_design_reviews: false,

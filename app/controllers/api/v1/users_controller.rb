@@ -1,5 +1,5 @@
 class Api::V1::UsersController < Api::V1::BaseController
-  # A key for the critters API (for the community pokidex) 
+  # A key for the critters API (for the community pokidex)
   def authenticate_api_key!
     api_key = request.headers["Authorization"]&.delete_prefix("Bearer ")
     unless api_key.present? && ActiveSupport::SecurityUtils.secure_compare(api_key, ENV.fetch("CRITTERS_API_KEY"))

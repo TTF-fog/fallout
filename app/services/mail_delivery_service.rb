@@ -92,7 +92,7 @@ class MailDeliveryService
         **2.** One random human who fills out our feedback form gets a **$25 USD Amazon Gift Card!** [forms.hackclub.com/fallout](https://forms.hackclub.com/fallout) (be truthful! answers don't affect your chances)
 
         ---
-        
+
 
         **3.** **Need & Merit-based flight grants!!** (even if you don't think you'll get it, apply! If approved, we'll reimburse you after you reach 60h) [forms.hackclub.com/flyfallout](https://forms.hackclub.com/flyfallout)
 
