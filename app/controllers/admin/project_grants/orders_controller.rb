@@ -18,6 +18,18 @@ class Admin::ProjectGrants::OrdersController < Admin::ApplicationController
       .group(:user_id)
       .sum(Arel.sql("CASE direction WHEN 'out' THEN -amount_cents ELSE amount_cents END"))
 
+    # For fulfilled orders, action_type should reflect history rather than current card
+    # state — otherwise every fulfilled order reads as "Top-up" once any card exists.
+    # The issuing topup for a card is its earliest completed topup (that's the one that
+    # caused card.issue!); the order attached to that topup is the "New grant" order.
+    # Handles card cancel → reissue: each card has its own issuing order.
+    first_topup_per_card = ProjectFundingTopup.kept
+      .where(status: "completed", user_id: user_ids)
+      .group(:hcb_grant_card_id)
+      .minimum(:id)
+    new_grant_order_ids = ProjectFundingTopup.where(id: first_topup_per_card.values)
+      .pluck(:project_grant_order_id).compact.to_set
+
     # Topup ledger lives on the same page as orders (no separate topups tab) — it's a
     # secondary read-only table below the orders. Uses a distinct page param (`tp`) so
     # its pagination doesn't collide with orders' `page`.
@@ -64,7 +76,7 @@ class Admin::ProjectGrants::OrdersController < Admin::ApplicationController
     }
 
     render inertia: "admin/project_grants/orders/index", props: {
-      orders: @orders.map { |o| serialize_row(o, active_card_user_ids, transferred_by_user) },
+      orders: @orders.map { |o| serialize_row(o, active_card_user_ids, transferred_by_user, new_grant_order_ids) },
       pagy: pagy_props(@pagy),
       state_filter: params[:state].to_s,
       topups: topups.map { |t| serialize_topup(t) },
@@ -240,13 +252,22 @@ class Admin::ProjectGrants::OrdersController < Admin::ApplicationController
     }
   end
 
-  def serialize_row(order, active_card_user_ids, transferred_by_user)
+  def serialize_row(order, active_card_user_ids, transferred_by_user, new_grant_order_ids)
+    # For fulfilled orders, reflect what actually happened: orders whose topup was the
+    # first completed topup on its card caused a new grant issue; everything else topped
+    # up an existing card. For unfulfilled orders, predict from current card state.
+    action_type = if order.fulfilled?
+      new_grant_order_ids.include?(order.id) ? "new_grant" : "top_up"
+    else
+      active_card_user_ids.include?(order.user_id) ? "top_up" : "new_grant"
+    end
+
     {
       id: order.id,
       user: { id: order.user.id, display_name: order.user.display_name, email: order.user.email, avatar: order.user.avatar },
       frozen_koi_amount: order.frozen_koi_amount,
       frozen_usd_cents: order.frozen_usd_cents,
-      action_type: active_card_user_ids.include?(order.user_id) ? "top_up" : "new_grant",
+      action_type: action_type,
       user_total_transferred_cents: transferred_by_user[order.user_id] || 0,
       state: order.state,
       created_at: order.created_at.strftime("%b %d, %Y %H:%M")
@@ -258,6 +279,22 @@ class Admin::ProjectGrants::OrdersController < Admin::ApplicationController
     has_active_card = user.hcb_grant_cards.active.exists?
     pending_topup = user.project_funding_topups.kept.where(status: "pending").first
 
+    # For fulfilled orders, check whether this order's topup was the first completed
+    # topup on its card (meaning it caused card.issue!). Handles cancel-and-reissue:
+    # each card has its own "issuing" order. For unfulfilled, predict from card state.
+    action_type = if order.fulfilled?
+      card_ids = user.project_funding_topups.kept
+        .where(status: "completed", project_grant_order_id: order.id)
+        .pluck(:hcb_grant_card_id).uniq
+      issuing_topup_ids = ProjectFundingTopup.kept
+        .where(status: "completed", hcb_grant_card_id: card_ids)
+        .group(:hcb_grant_card_id).minimum(:id).values
+      order_issued_a_card = ProjectFundingTopup.where(id: issuing_topup_ids, project_grant_order_id: order.id).exists?
+      order_issued_a_card ? "new_grant" : "top_up"
+    else
+      has_active_card ? "top_up" : "new_grant"
+    end
+
     {
       id: order.id,
       user: { id: user.id, display_name: user.display_name, email: user.email, avatar: user.avatar },
@@ -266,7 +303,7 @@ class Admin::ProjectGrants::OrdersController < Admin::ApplicationController
       state: order.state,
       admin_note: order.admin_note,
       created_at: order.created_at.strftime("%b %d, %Y %H:%M"),
-      action_type: has_active_card ? "top_up" : "new_grant",
+      action_type: action_type,
       pending_topup: pending_topup && {
         id: pending_topup.id,
         amount_cents: pending_topup.amount_cents,

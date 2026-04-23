@@ -3,7 +3,10 @@ class ProjectGrantsController < ApplicationController
   wrap_parameters :project_grant_order
 
   def index
-    @orders = policy_scope(ProjectGrantOrder).kept.order(created_at: :desc)
+    # The shared policy scope returns scope.all for admins (for the admin namespace).
+    # Pin to current_user here so admins browsing their own public page only see their
+    # own orders. policy_scope still runs to satisfy verify_policy_scoped.
+    @orders = policy_scope(ProjectGrantOrder).kept.where(user_id: current_user.id).order(created_at: :desc)
 
     render inertia: "project_grants/index", props: {
       orders: @orders.map { |o| serialize(o) },
