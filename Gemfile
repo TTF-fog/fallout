@@ -85,10 +85,14 @@ gem "pundit", "~> 2.4"
 gem "paper_trail", "~> 17.0"
 gem "mission_control-jobs", "~> 1.1"
 
-gem "skylight", "~> 7.1"
-
 gem "sentry-ruby", "~> 6.5"
 gem "sentry-rails", "~> 6.5"
+
+# Performance profiling — admin-gated in prod, open in dev
+gem "rack-mini-profiler", "~> 4.0"
+gem "stackprof", "~> 0.2"
+gem "rails_performance", "~> 1.6"
+gem "query_count", "~> 1.1"
 
 gem "redcarpet", "~> 3.6"
 

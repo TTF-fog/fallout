@@ -878,3 +878,39 @@ textarea:focus {
     @apply font-sans;
   }
 }
+
+/* Admin perf badges (rack-mini-profiler + #db-query-badge). Toggled by Shift+\ in inertia.ts. */
+#db-query-badge {
+  position: fixed;
+  top: 0;
+  right: 0;
+  z-index: 9999;
+  max-width: 360px;
+  padding: 4px 8px;
+  font-family: ui-monospace, SFMono-Regular, monospace;
+  font-size: 11px;
+  line-height: 1.35;
+  text-align: right;
+  background: rgba(0, 0, 0, 0.75);
+  color: #fff;
+  border-bottom-left-radius: 4px;
+  cursor: pointer;
+  word-spacing: 0.05em;
+  user-select: none;
+}
+#db-query-badge .short {
+  display: inline;
+}
+#db-query-badge .long {
+  display: none;
+}
+#db-query-badge.expanded .short {
+  display: none;
+}
+#db-query-badge.expanded .long {
+  display: inline;
+}
+.perf-badges-hidden #db-query-badge,
+.perf-badges-hidden .profiler-results {
+  display: none !important;
+}

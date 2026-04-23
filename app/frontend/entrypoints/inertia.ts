@@ -12,6 +12,61 @@ import type { ReactNode } from 'react'
 
 axios.defaults.headers.common['X-Browser-Timezone'] = Intl.DateTimeFormat().resolvedOptions().timeZone
 
+// Dev-only re-render overlay — lazy import keeps the dependency out of the prod bundle
+if (import.meta.env.DEV) {
+  import('react-scan').then(({ scan }) => scan({ enabled: true }))
+}
+
+// Admin perf badges (rack-mini-profiler + #db-query-badge): toggle with Shift+\ ("|").
+// Default visible in both envs; localStorage override persists across page loads.
+{
+  const STORAGE_KEY = 'fallout:perf-badges-visible'
+  const stored = localStorage.getItem(STORAGE_KEY)
+  const visible = stored === null ? true : stored === 'true'
+  document.documentElement.classList.toggle('perf-badges-hidden', !visible)
+
+  window.addEventListener('keydown', (e) => {
+    if (e.key !== '|') return
+    const target = e.target as HTMLElement | null
+    // Don't swallow | when typing into a field
+    if (target?.matches('input, textarea, [contenteditable="true"]')) return
+    const nowHidden = document.documentElement.classList.toggle('perf-badges-hidden')
+    localStorage.setItem(STORAGE_KEY, (!nowHidden).toString())
+  })
+
+  // Inertia visits return both X-Perf-Stats (short) + X-Perf-Stats-Long (expanded) for admins.
+  axios.interceptors.response.use((response) => {
+    const stats = response.headers['x-perf-stats']
+    const long = response.headers['x-perf-stats-long']
+    const badge = document.getElementById('db-query-badge')
+    if (badge) {
+      const shortEl = badge.querySelector('.short')
+      const longEl = badge.querySelector('.long')
+      if (shortEl && stats) shortEl.textContent = stats
+      if (longEl && long) longEl.textContent = long
+    }
+    return response
+  })
+
+  // Click the badge to toggle short/expanded view; persists for the session in localStorage.
+  const EXPAND_KEY = 'fallout:perf-badge-expanded'
+  const applyExpanded = () => {
+    const badge = document.getElementById('db-query-badge')
+    if (!badge) return
+    badge.classList.toggle('expanded', localStorage.getItem(EXPAND_KEY) === 'true')
+  }
+  applyExpanded()
+  document.addEventListener('click', (e) => {
+    const target = e.target as HTMLElement | null
+    if (!target?.closest('#db-query-badge')) return
+    const isExpanded = localStorage.getItem(EXPAND_KEY) === 'true'
+    localStorage.setItem(EXPAND_KEY, (!isExpanded).toString())
+    applyExpanded()
+  })
+  // Re-apply on Inertia page swaps in case the badge gets re-rendered without the class
+  router.on('success', applyExpanded)
+}
+
 // sessionStorage can be blocked in sandboxed/privacy contexts; catch gracefully so Inertia doesn't crash
 window.addEventListener('unhandledrejection', (event) => {
   if (
@@ -29,6 +84,7 @@ window.addEventListener('unhandledrejection', (event) => {
 
 Sentry.init({
   dsn: document.querySelector<HTMLMetaElement>('meta[name="sentry-dsn"]')?.content,
+  release: __SENTRY_RELEASE__ ?? undefined, // Ties events + source maps to the same git SHA
   integrations: [Sentry.browserTracingIntegration(), Sentry.replayIntegration(), Sentry.replayCanvasIntegration()],
   tracesSampleRate: 0.2,
   replaysSessionSampleRate: 0,
@@ -64,6 +120,18 @@ router.on('navigate', (event) => {
     category: 'navigation',
     message: event.detail.page.url,
     level: 'info',
+  })
+})
+
+// Capture each Inertia client-side visit as its own Sentry navigation transaction.
+// browserTracingIntegration only auto-instruments the initial pageload — without this hook,
+// every subsequent SPA visit is invisible in Sentry Performance.
+router.on('start', (event) => {
+  const client = Sentry.getClient()
+  if (!client) return
+  Sentry.startBrowserTracingNavigationSpan(client, {
+    name: event.detail.visit.url.pathname,
+    op: 'navigation.inertia',
   })
 })
 

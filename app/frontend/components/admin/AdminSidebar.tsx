@@ -19,6 +19,7 @@ import {
   Users,
   SlidersHorizontal,
   BriefcaseBusiness,
+  Activity,
   Flag,
   Store,
   ShoppingCart,
@@ -45,6 +46,7 @@ interface AdminPermissions {
   can_review_requirements_checks: boolean
   can_review_design_reviews: boolean
   can_review_build_reviews: boolean
+  performance_enabled: boolean
 }
 
 type PermissionKey = keyof AdminPermissions
@@ -169,6 +171,14 @@ function buildNavSections(): { items: NavItem[] }[] {
           statKey: null,
           requirePermission: 'is_admin',
         },
+        {
+          label: 'Performance',
+          href: '/admin/performance',
+          icon: Activity,
+          external: true,
+          statKey: null,
+          requirePermission: 'performance_enabled',
+        },
       ],
     },
   ]
@@ -218,6 +228,7 @@ export default function AdminSidebar() {
     can_review_requirements_checks: false,
     can_review_design_reviews: false,
     can_review_build_reviews: false,
+    performance_enabled: false,
   }
   const pathname = typeof window !== 'undefined' ? window.location.pathname : ''
   const [collapsed, setCollapsed] = useState(() => {

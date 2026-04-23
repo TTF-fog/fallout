@@ -268,6 +268,8 @@ Rails.application.routes.draw do
   constraints Constraints::AdminConstraint.new do
     mount MissionControl::Jobs::Engine, at: "/jobs"
     mount Flipper::UI.app(Flipper), at: "/flipper" # Feature flag dashboard — admin-only
+    # Engine renders its dashboard with @datasource = nil when Redis isn't configured — only mount when usable
+    mount RailsPerformance::Engine, at: "/admin/performance", as: "rails_performance" if ENV["REDIS_URL"].present?
 
     namespace :admin do
       resources :users, only: [] do

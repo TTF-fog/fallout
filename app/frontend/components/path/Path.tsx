@@ -10,6 +10,7 @@ import React, {
   type ReactNode,
 } from 'react'
 import { motion } from 'motion/react'
+import * as Sentry from '@sentry/react'
 
 // Must be module-scope (before any component renders) to prevent browser scroll
 // restoration from flashing a stale position on reload
@@ -153,7 +154,7 @@ type PathProps = {
   }
 }
 
-export default function Path({ nodes, introTransition }: PathProps) {
+function Path({ nodes, introTransition }: PathProps) {
   const billboards = useMemo(() => generateBillboards(nodes.length), [nodes.length])
 
   const [ready, setReady] = useState(false)
@@ -789,3 +790,5 @@ export default function Path({ nodes, introTransition }: PathProps) {
     </ScrollToNodeContext.Provider>
   )
 }
+
+export default Sentry.withProfiler(Path, { name: 'Path' })

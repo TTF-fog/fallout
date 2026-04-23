@@ -23,7 +23,9 @@ class Admin::ApplicationController < ApplicationController
         can_review_time_audits: current_user&.can_review?(:time_audit) || false,
         can_review_requirements_checks: current_user&.can_review?(:requirements_check) || false,
         can_review_design_reviews: current_user&.can_review?(:design_review) || false,
-        can_review_build_reviews: current_user&.can_review?(:build_review) || false
+        can_review_build_reviews: current_user&.can_review?(:build_review) || false,
+        # Performance dashboard needs Redis to render — hide the link in dev where REDIS_URL is unset
+        performance_enabled: (current_user&.admin? && ENV["REDIS_URL"].present?) || false
       },
       # Base URL for deep-linking to HCB resources (e.g. /grants/:hcb_id for card grants).
       # Driven by HCB_OAUTH_HOST so dev/staging/prod all link to the right place.

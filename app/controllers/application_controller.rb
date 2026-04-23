@@ -7,6 +7,12 @@ class ApplicationController < ActionController::Base
 
   before_action :set_paper_trail_whodunnit # Track who made changes in PaperTrail audit log
   before_action :sync_browser_timezone
+  before_action :allow_profiler # rack-mini-profiler badge + ?pp=* tools — admin-gated in prod
+  before_action :bullet_for_admins # Hide Bullet N+1 footer from non-admins in prod
+  before_action :initialize_cache_counters # Reset Thread.current cache counters for the admin perf badge
+  before_action :track_request # Increment RequestCounter for req/sec stat
+  before_action :track_active_user # Mark this user/session as active for the active-users stat
+  after_action :expose_query_count # X-Perf-Stats header for the admin top-right badge
   after_action :track_page_view
 
   after_action :verify_authorized, except: :index
@@ -112,5 +118,38 @@ class ApplicationController < ActionController::Base
   def user_not_authorized
     flash[:alert] = "You are not authorized to perform this action."
     redirect_back(fallback_location: root_path)
+  end
+
+  def allow_profiler
+    return unless defined?(Rack::MiniProfiler)
+    if current_user&.admin? || Rails.env.development?
+      Rack::MiniProfiler.authorize_request # Gates the badge + ?pp=flamegraph/profile-* params
+    end
+  end
+
+  def bullet_for_admins
+    return unless defined?(Bullet)
+    Bullet.add_footer = current_user&.admin? || Rails.env.development?
+  end
+
+  def initialize_cache_counters
+    Thread.current[:cache_hits] = 0
+    Thread.current[:cache_misses] = 0
+  end
+
+  def track_request
+    RequestCounter.increment
+  end
+
+  def track_active_user
+    ActiveUserTracker.track(user_id: current_user&.id, session_id: session.id.to_s)
+  end
+
+  # Compose perf badge strings and ship them via response headers (short + expanded).
+  # Same gate as the layout render + rack-mini-profiler: admins only in prod, all users in dev.
+  def expose_query_count
+    return unless current_user&.admin? || Rails.env.development?
+    response.set_header("X-Perf-Stats", AdminPerfStats.compose)
+    response.set_header("X-Perf-Stats-Long", AdminPerfStats.compose_long)
   end
 end

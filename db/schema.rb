@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_04_23_100000) do
+ActiveRecord::Schema[8.1].define(version: 2026_04_23_120000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -628,7 +628,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_23_100000) do
     t.text "admin_note"
     t.datetime "created_at", null: false
     t.integer "frozen_price", null: false
-    t.string "phone"
+    t.text "phone"
     t.integer "quantity", default: 1, null: false
     t.bigint "shop_item_id", null: false
     t.string "state", default: "pending", null: false

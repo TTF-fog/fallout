@@ -32,6 +32,21 @@ module Fallout
     # Load Flipper feature flag descriptions for the Flipper UI dashboard
     config.flipper_features = config_for(:flipper_features)
 
+    # Per-request cache hit/miss counters for the admin perf badge (read in expose_query_count)
+    ActiveSupport::Notifications.subscribe("cache_read.active_support") do |*args|
+      event = ActiveSupport::Notifications::Event.new(*args)
+      if event.payload[:hit]
+        Thread.current[:cache_hits] = (Thread.current[:cache_hits] || 0) + 1
+      else
+        Thread.current[:cache_misses] = (Thread.current[:cache_misses] || 0) + 1
+      end
+    rescue StandardError
+      Rails.logger.warn("perf badge: failed to record cache event")
+    end
+    ActiveSupport::Notifications.subscribe("cache_fetch_hit.active_support") do |*_args|
+      Thread.current[:cache_hits] = (Thread.current[:cache_hits] || 0) + 1
+    end
+
     # Configuration for the application, engines, and railties goes here.
     #
     # These settings can be overridden in specific environments using the files

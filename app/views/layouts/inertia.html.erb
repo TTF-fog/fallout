@@ -29,5 +29,11 @@
 
   <body>
     <%= yield %>
+    <% if current_user&.admin? || Rails.env.development? %>
+      <div id="db-query-badge" title="Click to expand">
+        <span class="short"><%= AdminPerfStats.compose %></span>
+        <span class="long"><%= AdminPerfStats.compose_long %></span>
+      </div>
+    <% end %>
   </body>
 </html>
