@@ -120,8 +120,12 @@ class Admin::Reviews::RequirementsChecksController < Admin::Reviews::BaseControl
 
     return render json: { error: "No Gerber files found in zip" }, status: :unprocessable_entity if files.empty?
 
-    # Render top+bottom board SVGs via pcb-stackup in Node
-    stdout, stderr, status = Open3.capture3("node #{node_script}", stdin_data: files.to_json)
+    # Render top+bottom board SVGs via pcb-stackup in Node.
+    # Pass the command as an array so the shell isn't invoked — avoids any
+    # chance of command injection via the script path (brakeman flagged the
+    # prior `"node #{...}"` string form even though node_script is a fixed
+    # Rails.root path).
+    stdout, stderr, status = Open3.capture3("node", node_script, stdin_data: files.to_json)
     unless status.success?
       return render json: { error: "Render failed: #{stderr.truncate(200)}" }, status: :internal_server_error
     end

@@ -30,14 +30,14 @@ class Admin::DashboardController < Admin::ApplicationController
   def review_count_stats(terminal_statuses, since:)
     counts = Hash.new(0)
 
-    [
-      [ TimeAuditReview, "time_audit_reviews" ],
-      [ DesignReview, "design_reviews" ],
-      [ BuildReview, "build_reviews" ],
-      [ RequirementsCheckReview, "requirements_check_reviews" ]
-    ].each do |klass, table|
+    [ TimeAuditReview, DesignReview, BuildReview, RequirementsCheckReview ].each do |klass|
       scope = klass.where(status: terminal_statuses).where.not(reviewer_id: nil)
-      scope = scope.where("#{table}.updated_at >= ?", since) if since
+      # Use Arel to reference each class's own table instead of interpolating a
+      # table-name string. Brakeman flagged the prior `"#{table}.updated_at"`
+      # form even though `table` came from a fixed allowlist; the Arel form is
+      # the idiomatic fix and keeps the qualified column to disambiguate
+      # `updated_at` (important when a future join is added).
+      scope = scope.where(klass.arel_table[:updated_at].gteq(since)) if since
       scope.group(:reviewer_id).count.each { |id, n| counts[id] += n }
     end
 
