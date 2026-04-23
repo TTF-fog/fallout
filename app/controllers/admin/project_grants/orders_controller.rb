@@ -45,10 +45,13 @@ class Admin::ProjectGrants::OrdersController < Admin::ApplicationController
     end
 
     # Header stats — cheap aggregate queries; cents summed so we can format client-side.
+    # Transactions stat counts only `purchase` rows — org↔card transfers (topups,
+    # withdrawals, initial grants) aren't user-visible activity and shouldn't inflate
+    # the number.
     stats = {
       issued_cents: HcbGrantCard.sum(:amount_cents),
       active_cards: HcbGrantCard.where(status: "active").count,
-      transactions: HcbTransaction.count
+      transactions: HcbTransaction.purchases.count
     }
 
     render inertia: "admin/project_grants/orders/index", props: {

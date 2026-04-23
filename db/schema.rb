@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_04_22_240000) do
+ActiveRecord::Schema[8.1].define(version: 2026_04_23_000000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -299,10 +299,12 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_22_240000) do
     t.boolean "pending", default: false, null: false
     t.boolean "reversed", default: false, null: false
     t.datetime "transaction_date", null: false
+    t.string "transaction_type"
     t.datetime "updated_at", null: false
     t.index ["hcb_grant_card_id", "transaction_date"], name: "index_hcb_transactions_on_card_and_date"
     t.index ["hcb_grant_card_id"], name: "index_hcb_transactions_on_hcb_grant_card_id"
     t.index ["hcb_id"], name: "index_hcb_transactions_on_hcb_id", unique: true
+    t.index ["transaction_type"], name: "index_hcb_transactions_on_transaction_type"
   end
 
   create_table "journal_entries", force: :cascade do |t|

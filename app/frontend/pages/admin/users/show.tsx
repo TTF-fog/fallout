@@ -380,7 +380,10 @@ function HcbGrantCardsSection({ cards }: { cards: AdminHcbGrantCard[] }) {
                 <th className="p-2">HCB id</th>
                 <th className="p-2">Status</th>
                 <th className="p-2">Purpose</th>
-                <th className="p-2" title="Sum of completed ProjectFundingTopups sent to this card by Fallout">
+                <th
+                  className="p-2"
+                  title="Actual / Expected. Actual = net of Fallout's ledger (in minus out). Expected = HCB's authoritative amount_cents on the card. A mismatch means either external HCB activity or a ledger gap."
+                >
                   Transferred in
                 </th>
                 <th className="p-2" title="Authoritative card balance from the last HCB sync">
@@ -423,7 +426,26 @@ function HcbGrantCardsSection({ cards }: { cards: AdminHcbGrantCard[] }) {
                     </Badge>
                   </td>
                   <td className="p-2">{c.purpose ?? '—'}</td>
-                  <td className="p-2 font-mono">{formatDollars(c.transferred_in_cents)}</td>
+                  <td className="p-2 font-mono">
+                    {(() => {
+                      const actual = c.transferred_in_cents
+                      const expected = c.amount_cents
+                      const match = actual === expected
+                      return (
+                        <span
+                          className={match ? '' : 'text-red-700'}
+                          title={
+                            match
+                              ? 'Ledger matches HCB'
+                              : `${formatDollars(actual - expected)} gap — ledger ${actual > expected ? 'exceeds' : 'is behind'} HCB`
+                          }
+                        >
+                          {formatDollars(actual)}
+                          <span className="text-muted-foreground"> / {formatDollars(expected)}</span>
+                        </span>
+                      )
+                    })()}
+                  </td>
                   <td className="p-2 font-mono">{c.balance_cents != null ? formatDollars(c.balance_cents) : '—'}</td>
                   <td className="p-2 text-muted-foreground">{c.expires_on ?? 'no expiry'}</td>
                   <td className="p-2 text-muted-foreground">{c.created_at}</td>
