@@ -7,12 +7,32 @@ Rails.application.config.to_prepare do
   end
 end
 
+# Capture SQL traces for the rails_performance "Details" view regardless of log level.
+# Rails 7+ gates ActiveRecord::LogSubscriber#sql behind `subscribe_log_level :sql, :debug`,
+# so rails_performance's prepend never fires at info level → tracings end up empty →
+# drill-in shows "Nothing to show here". Subscribing directly to the notification bypasses
+# the log-level gate without flipping the global log level to :debug in prod.
+if defined?(RailsPerformance)
+  ignore_sql_names = %w[SCHEMA EXPLAIN].freeze
+  ActiveSupport::Notifications.subscribe("sql.active_record") do |*args|
+    event = ActiveSupport::Notifications::Event.new(*args)
+    next if ignore_sql_names.include?(event.payload[:name])
+    next if event.payload[:cached]
+    current = RailsPerformance::Thread::CurrentRequest.current
+    current&.trace({ group: :db, duration: event.duration.round(2), sql: event.payload[:sql] })
+  rescue StandardError
+    # Never let instrumentation break the request
+  end
+end
+
 if defined?(RailsPerformance)
   RailsPerformance.setup do |config|
     config.redis = Redis.new(url: ENV["REDIS_URL"].presence)
     config.duration = 6.hours
     config.recent_requests_time_window = 60.minutes
-    config.slow_requests_time_window = 4.hours
+    # Must equal `duration` — otherwise the slow request list holds IDs for traces that already
+    # expired from the main store, causing "Nothing to show here" when drilling into a request.
+    config.slow_requests_time_window = 6.hours
     config.slow_requests_threshold = 500 # ms
 
     # Noop in dev — no Redis available locally; mirrors flavortown's pattern
