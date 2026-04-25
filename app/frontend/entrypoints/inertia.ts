@@ -6,7 +6,7 @@ import { renderApp } from '@inertiaui/modal-react'
 import * as Sentry from '@sentry/react'
 import axios from 'axios'
 import DefaultLayout from '../layouts/DefaultLayout'
-import IdentityBanner from '../components/IdentityBanner'
+import AnnouncementsBar from '../components/announcements/AnnouncementsBar'
 import { notify } from '../lib/notifications'
 import type { ReactNode } from 'react'
 
@@ -147,12 +147,13 @@ createInertiaApp({
       console.error(`Missing Inertia page component: '${name}.tsx'`)
     }
 
-    // Wrap every page with the IdentityBanner so it renders globally, even on pages that opt out of DefaultLayout.
+    // Wrap every page with the AnnouncementsBar so identity + feedback notes render globally,
+    // even on pages that opt out of DefaultLayout.
     // Guard against re-wrapping — resolve() may run multiple times per page module in dev/HMR.
     if (!page.default.__wrapped) {
       const pageLayout = page.default.layout || ((p: ReactNode) => createElement(DefaultLayout, null, p))
       page.default.layout = (p: ReactNode) =>
-        createElement('div', { className: 'min-h-screen' }, createElement(IdentityBanner, null), pageLayout(p))
+        createElement('div', { className: 'min-h-screen' }, createElement(AnnouncementsBar, null), pageLayout(p))
       page.default.__wrapped = true
     }
     return page

@@ -30,7 +30,6 @@ type PageProps = {
   critter_variants: (string | null)[]
   pending_dialog: string | null
   mail_intro_id: number | null
-  show_feedback_banner: boolean
 }
 
 const PATH_ENTRY_HUD_DELAY_MS = 420
@@ -120,7 +119,6 @@ export default function PathIndex() {
     critter_variants,
     pending_dialog,
     mail_intro_id,
-    show_feedback_banner,
     has_unread_mail,
     features,
     auth: { user: authUser },
@@ -140,10 +138,6 @@ export default function PathIndex() {
   const isDialogOverlayOpen = activeDialog !== null
 
   const { visitModal, stack } = useModalStack()
-
-  const [showBanner, setShowBanner] = useState(
-    () => show_feedback_banner && localStorage.getItem('feedback_banner_dismissed') !== 'true',
-  )
 
   const modalOpen = stack.length > 0
 
@@ -416,31 +410,14 @@ export default function PathIndex() {
         initial={false}
         animate={{ opacity: pathIntro.hudVisible ? 1 : 0 }}
         transition={PATH_ENTRY_FADE_TRANSITION}
-        className="fixed z-20 top-2 left-2 right-2 xs:p-6 flex flex-col gap-2"
-        style={{ pointerEvents: pathIntro.hudVisible ? 'auto' : 'none' }}
+        className="fixed z-20 left-2 right-2 xs:p-6 flex flex-col gap-2"
+        style={{
+          // Shift below the global AnnouncementsBar so the avatar/streak/koi/mail HUD never overlaps it.
+          top: 'calc(0.5rem + var(--announcements-h, 0px))',
+          pointerEvents: pathIntro.hudVisible ? 'auto' : 'none',
+        }}
       >
         <Header koiBalance={user.koi} avatar={user.avatar} displayName={user.display_name} />
-        {showBanner && (
-          <div className="bg-brown text-beige py-2 px-3 lg:px-6 text-sm sm:text-lg w-full xs:w-fit flex gap-x-6 mx-auto hover:bg-light-brown border border-0 border-dark-brown hover:border-2 rounded-xs hover:text-dark-brown transition-all">
-            <a
-              href="http://forms.hackclub.com/fallout"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-center font-medium rounded-xs underline"
-            >
-              Share your Fallout feedback - random person gets $25 USD Amazon Gift Card!
-            </a>
-            <span
-              className="cursor-pointer"
-              onClick={() => {
-                localStorage.setItem('feedback_banner_dismissed', 'true')
-                setShowBanner(false)
-              }}
-            >
-              -
-            </span>
-          </div>
-        )}
       </motion.div>
 
       <motion.div

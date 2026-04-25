@@ -41,6 +41,7 @@ export interface SharedProps {
   current_streak: number
   streak_freezes: number
   identity_gate: IdentityGate | null
+  show_feedback_banner: boolean
   errors: Record<string, string[]>
   [key: string]: unknown
 }
