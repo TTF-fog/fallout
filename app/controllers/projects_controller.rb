@@ -11,7 +11,7 @@ class ProjectsController < ApplicationController
   end
 
   def index
-    scope = policy_scope(Project).where(user: current_user)
+    scope = policy_scope(Project).kept.where(user: current_user)
     if collaborators_enabled?
       collaborated_ids = Collaborator.kept.where(user: current_user, collaboratable_type: "Project").select(:collaboratable_id)
       scope = scope.or(Project.kept.where(id: collaborated_ids))
@@ -27,6 +27,9 @@ class ProjectsController < ApplicationController
       projects: @projects.map { |p| serialize_project_card(p) },
       pagy: pagy_props(@pagy),
       query: params[:query].to_s,
+      # Independent of the search filter — drives whether "New Project" runs the onboarding flow
+      has_any_project: current_user.projects.kept.exists? ||
+        (collaborators_enabled? && Collaborator.kept.where(user: current_user, collaboratable_type: "Project").exists?),
       is_modal: request.headers["X-InertiaUI-Modal"].present?
     }
   end

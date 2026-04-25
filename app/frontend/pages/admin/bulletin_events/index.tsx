@@ -2,7 +2,7 @@ import { useState } from 'react'
 import type { ReactNode } from 'react'
 import { router, usePage } from '@inertiajs/react'
 import type { SharedProps } from '@/types'
-import { Pencil, Trash2, Play, Square, Calendar, Hand, ImageOff } from 'lucide-react'
+import { Pencil, Trash2, Play, Square, Calendar, Hand, ImageOff, FastForward } from 'lucide-react'
 import AdminLayout from '@/layouts/AdminLayout'
 import { Button } from '@/components/admin/ui/button'
 import { Badge } from '@/components/admin/ui/badge'
@@ -25,6 +25,8 @@ import {
   type BulletinEventStatus,
   type SerializedBulletinEvent,
 } from '@/lib/bulletinEventStatus'
+import { useLiveReload } from '@/lib/useLiveReload'
+import { useNowTick } from '@/lib/useNowTick'
 
 type TabKey = 'upcoming' | 'all' | 'expired'
 
@@ -56,6 +58,11 @@ export default function AdminBulletinEventsIndex({ events, current_tab, counts }
   const [editing, setEditing] = useState<SerializedBulletinEvent | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<SerializedBulletinEvent | null>(null)
 
+  const liveProps = useLiveReload<PageProps>({ stream: 'bulletin_events', only: ['events', 'counts'] })
+  const now = useNowTick()
+  const liveEvents = liveProps?.events ?? events
+  const liveCounts = liveProps?.counts ?? counts
+
   function openNew() {
     setEditing(null)
     setSheetOpen(true)
@@ -70,7 +77,7 @@ export default function AdminBulletinEventsIndex({ events, current_tab, counts }
     router.get('/admin/bulletin_events', { tab }, { preserveScroll: true, preserveState: false })
   }
 
-  function patchAction(event: SerializedBulletinEvent, path: 'start_now' | 'end_now') {
+  function patchAction(event: SerializedBulletinEvent, path: 'start_now' | 'force_start_now' | 'end_now') {
     router.patch(`/admin/bulletin_events/${event.id}/${path}`, { tab: current_tab }, { preserveScroll: true })
   }
 
@@ -98,13 +105,13 @@ export default function AdminBulletinEventsIndex({ events, current_tab, counts }
       <Tabs value={current_tab} onValueChange={switchTab}>
         <TabsList>
           <TabsTrigger value="upcoming">
-            Upcoming <span className="ml-1 text-muted-foreground">({counts.upcoming})</span>
+            Upcoming <span className="ml-1 text-muted-foreground">({liveCounts.upcoming})</span>
           </TabsTrigger>
           <TabsTrigger value="all">
-            All <span className="ml-1 text-muted-foreground">({counts.all})</span>
+            All <span className="ml-1 text-muted-foreground">({liveCounts.all})</span>
           </TabsTrigger>
           <TabsTrigger value="expired">
-            Expired <span className="ml-1 text-muted-foreground">({counts.expired})</span>
+            Expired <span className="ml-1 text-muted-foreground">({liveCounts.expired})</span>
           </TabsTrigger>
         </TabsList>
 
@@ -123,7 +130,7 @@ export default function AdminBulletinEventsIndex({ events, current_tab, counts }
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {events.length === 0 ? (
+                {liveEvents.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
                       {current_tab === 'upcoming' && 'No upcoming events. Click "+ New event" to add one.'}
@@ -132,9 +139,10 @@ export default function AdminBulletinEventsIndex({ events, current_tab, counts }
                     </TableCell>
                   </TableRow>
                 ) : (
-                  events.map((event) => {
-                    const liveStatus = computeBulletinEventStatus(event)
+                  liveEvents.map((event) => {
+                    const liveStatus = computeBulletinEventStatus(event, now)
                     const isManualDraft = !event.schedulable && liveStatus === 'draft'
+                    const isScheduledUpcoming = event.schedulable && liveStatus === 'upcoming'
                     const isActive = liveStatus === 'happening'
                     return (
                       <TableRow key={event.id}>
@@ -186,6 +194,16 @@ export default function AdminBulletinEventsIndex({ events, current_tab, counts }
                               {isManualDraft && (
                                 <Button size="sm" variant="outline" onClick={() => patchAction(event, 'start_now')}>
                                   <Play className="size-3.5" /> Start now
+                                </Button>
+                              )}
+                              {isScheduledUpcoming && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => patchAction(event, 'force_start_now')}
+                                  title="Override scheduled start and begin this event now"
+                                >
+                                  <FastForward className="size-3.5" /> Force start
                                 </Button>
                               )}
                               {isActive && (

@@ -4,6 +4,7 @@ import { Deferred as InertiaDeferred, router } from '@inertiajs/react'
 import { Deferred as ModalDeferred, Modal, useModal } from '@inertiaui/modal-react'
 import BookLayout from '@/components/shared/BookLayout'
 import Button from '@/components/shared/Button'
+import ImagePlaceholder from '@/components/shared/ImagePlaceholder'
 import Input from '@/components/shared/Input'
 import MarkdownEditor from '@/components/shared/MarkdownEditor'
 
@@ -576,10 +577,14 @@ function NewJournal({
                       <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                     </svg>
                   </button>
-                  <div
-                    className="aspect-video rounded overflow-hidden bg-light-brown bg-center bg-cover bg-no-repeat"
-                    style={{ backgroundImage: `url(${video.thumbnail_url})` }}
-                  />
+                  {video.thumbnail_url ? (
+                    <div
+                      className="aspect-video rounded overflow-hidden bg-light-brown bg-center bg-cover bg-no-repeat"
+                      style={{ backgroundImage: `url(${video.thumbnail_url})` }}
+                    />
+                  ) : (
+                    <ImagePlaceholder text="No thumbnail" className="aspect-video bg-light-brown rounded w-full" />
+                  )}
                   <div className="mt-1.5">
                     <p className="font-bold text-sm truncate text-white">{video.title}</p>
                     <div className="flex justify-between text-xs text-light-brown">
@@ -785,10 +790,14 @@ function TimelapseBrowser({
                 </svg>
               </div>
             )}
-            <div
-              className="aspect-video rounded overflow-hidden bg-light-brown bg-center bg-contain bg-no-repeat"
-              style={{ backgroundImage: `url(${timelapse.thumbnailUrl})` }}
-            />
+            {timelapse.thumbnailUrl ? (
+              <div
+                className="aspect-video rounded overflow-hidden bg-light-brown bg-center bg-contain bg-no-repeat"
+                style={{ backgroundImage: `url(${timelapse.thumbnailUrl})` }}
+              />
+            ) : (
+              <ImagePlaceholder text="No thumbnail" className="aspect-video bg-light-brown rounded w-full" />
+            )}
             <div className="mt-1.5">
               <p className="font-bold text-sm truncate text-white">{timelapse.name}</p>
               <div className="flex justify-between text-xs text-light-brown">
@@ -849,10 +858,14 @@ function LookoutTimelapseBrowser({
                     </svg>
                   </div>
                 )}
-                <div
-                  className="aspect-video rounded overflow-hidden bg-light-brown bg-center bg-contain bg-no-repeat"
-                  style={recording.thumbnail_url ? { backgroundImage: `url(${recording.thumbnail_url})` } : undefined}
-                />
+                {recording.thumbnail_url ? (
+                  <div
+                    className="aspect-video rounded overflow-hidden bg-light-brown bg-center bg-contain bg-no-repeat"
+                    style={{ backgroundImage: `url(${recording.thumbnail_url})` }}
+                  />
+                ) : (
+                  <ImagePlaceholder text="No thumbnail" className="aspect-video bg-light-brown rounded w-full" />
+                )}
                 <div className="mt-1.5">
                   <p className="font-bold text-sm truncate text-white">{recording.name || 'Lookout Recording'}</p>
                   <div className="flex justify-between text-xs text-light-brown">

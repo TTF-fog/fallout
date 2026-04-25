@@ -1,24 +1,37 @@
 import { useEffect, useRef, useState } from 'react'
 import clsx from 'clsx'
+import TextMorph from './TextMorph'
 import styles from './MarqueeText.module.scss'
 
-export default function MarqueeText({ text, className }: { text: string; className?: string }) {
+type Props = {
+  text: string
+  className?: string
+  morph?: boolean
+}
+
+export default function MarqueeText({ text, className, morph = false }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const trackRef = useRef<HTMLSpanElement>(null)
   const copyRef = useRef<HTMLSpanElement>(null)
+  const probeRef = useRef<HTMLSpanElement>(null)
   const [shouldMarquee, setShouldMarquee] = useState(false)
 
   useEffect(() => {
     const container = containerRef.current
-    const copy = copyRef.current
-    if (!container || !copy) return
+    // Measure a hidden probe with the plain settled text rather than copyRef —
+    // copyRef contains TextMorph's in-flight exit animations, whose characters
+    // linger in layout and would otherwise falsely keep the duplicate visible
+    // after switching from a long title to a short one.
+    const probe = probeRef.current
+    if (!container || !probe) return
 
     const measure = () => {
-      setShouldMarquee(copy.scrollWidth > container.clientWidth + 1)
+      setShouldMarquee(probe.scrollWidth > container.clientWidth + 1)
     }
     measure()
     const observer = new ResizeObserver(measure)
     observer.observe(container)
+    observer.observe(probe)
     return () => observer.disconnect()
   }, [text])
 
@@ -49,17 +62,22 @@ export default function MarqueeText({ text, className }: { text: string; classNa
     return () => animation.cancel()
   }, [shouldMarquee, text])
 
+  const renderContent = () => (morph ? <TextMorph as="span">{text}</TextMorph> : text)
+
   return (
     <div ref={containerRef} className={clsx(styles.marquee, className)}>
       <span ref={trackRef} className={styles.marqueeTrack}>
         <span ref={copyRef} className={styles.marqueeCopy}>
-          {text}
+          {renderContent()}
         </span>
         {shouldMarquee && (
           <span aria-hidden className={styles.marqueeCopy}>
-            {text}
+            {renderContent()}
           </span>
         )}
+      </span>
+      <span ref={probeRef} aria-hidden className={styles.marqueeProbe}>
+        {text}
       </span>
     </div>
   )

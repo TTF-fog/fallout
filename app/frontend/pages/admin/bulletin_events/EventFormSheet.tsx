@@ -1,11 +1,15 @@
 import { useEffect, useState } from 'react'
 import { router } from '@inertiajs/react'
+import { DateTime } from 'luxon'
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/admin/ui/sheet'
 import { Input } from '@/components/admin/ui/input'
 import { Textarea } from '@/components/admin/ui/textarea'
 import { Button } from '@/components/admin/ui/button'
 import { Alert, AlertDescription } from '@/components/admin/ui/alert'
+import DateTimePicker from '@/components/admin/DateTimePicker'
 import type { SerializedBulletinEvent } from '@/lib/bulletinEventStatus'
+
+const LOCAL_INPUT_FORMAT = "yyyy-LL-dd'T'HH:mm"
 
 type Props = {
   open: boolean
@@ -32,22 +36,21 @@ const BLANK: FormState = {
   ends_at: '',
 }
 
-// Builds a `YYYY-MM-DDTHH:MM` string in the viewer's local timezone (matches the
-// datetime-local input format). DO NOT use `toISOString().slice(0,16)` — that
-// returns UTC, which renders with the wrong offset for non-UTC viewers.
 function toLocalInputValue(iso: string | null): string {
   if (!iso) return ''
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return ''
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+  const dt = DateTime.fromISO(iso)
+  return dt.isValid ? dt.toFormat(LOCAL_INPUT_FORMAT) : ''
 }
 
 function toUtcIso(localValue: string): string | null {
   if (!localValue) return null
-  const d = new Date(localValue)
-  if (Number.isNaN(d.getTime())) return null
-  return d.toISOString()
+  const dt = DateTime.fromFormat(localValue, LOCAL_INPUT_FORMAT)
+  return dt.isValid ? dt.toUTC().toISO() : null
+}
+
+function parseLocal(localValue: string): DateTime | null {
+  const dt = DateTime.fromFormat(localValue, LOCAL_INPUT_FORMAT)
+  return dt.isValid ? dt : null
 }
 
 export default function EventFormSheet({ open, onOpenChange, event, currentTab }: Props) {
@@ -68,7 +71,10 @@ export default function EventFormSheet({ open, onOpenChange, event, currentTab }
         ends_at: toLocalInputValue(event.ends_at),
       })
     } else {
-      setForm(BLANK)
+      setForm({
+        ...BLANK,
+        starts_at: DateTime.now().plus({ minutes: 5 }).startOf('minute').toFormat(LOCAL_INPUT_FORMAT),
+      })
     }
   }, [open, event])
 
@@ -78,8 +84,31 @@ export default function EventFormSheet({ open, onOpenChange, event, currentTab }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    setSubmitting(true)
     setErrors({})
+
+    if (form.schedulable) {
+      const starts = parseLocal(form.starts_at)
+      const ends = form.ends_at ? parseLocal(form.ends_at) : null
+      const now = DateTime.now()
+      const clientErrors: Record<string, string[]> = {}
+
+      if (!event && starts && starts < now) {
+        clientErrors.starts_at = ['must be in the future']
+      }
+      if (ends) {
+        if (starts && ends <= starts) {
+          clientErrors.ends_at = ['must be after start time']
+        } else if (!event && ends <= now) {
+          clientErrors.ends_at = ['must be in the future']
+        }
+      }
+      if (Object.keys(clientErrors).length > 0) {
+        setErrors(clientErrors)
+        return
+      }
+    }
+
+    setSubmitting(true)
 
     const payload = {
       bulletin_event: {
@@ -118,6 +147,15 @@ export default function EventFormSheet({ open, onOpenChange, event, currentTab }
   }
 
   const isEdit = !!event
+  const startMinDate = isEdit ? undefined : DateTime.now()
+  const endMinDate = (() => {
+    const candidates: DateTime[] = []
+    if (!isEdit) candidates.push(DateTime.now())
+    const sd = parseLocal(form.starts_at)
+    if (sd) candidates.push(sd)
+    if (candidates.length === 0) return undefined
+    return candidates.reduce((a, b) => (a > b ? a : b))
+  })()
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -209,12 +247,12 @@ export default function EventFormSheet({ open, onOpenChange, event, currentTab }
                 <label htmlFor="starts_at" className="text-sm font-medium">
                   Starts at <span className="text-muted-foreground">(your local time)</span>
                 </label>
-                <Input
+                <DateTimePicker
                   id="starts_at"
-                  type="datetime-local"
                   value={form.starts_at}
-                  onChange={(e) => update('starts_at', e.target.value)}
+                  onChange={(v) => update('starts_at', v)}
                   required={form.schedulable}
+                  minDate={startMinDate}
                 />
               </div>
 
@@ -229,11 +267,12 @@ export default function EventFormSheet({ open, onOpenChange, event, currentTab }
                     </Button>
                   )}
                 </div>
-                <Input
+                <DateTimePicker
                   id="ends_at"
-                  type="datetime-local"
                   value={form.ends_at}
-                  onChange={(e) => update('ends_at', e.target.value)}
+                  onChange={(v) => update('ends_at', v)}
+                  placeholder="Pick an end date"
+                  minDate={endMinDate}
                 />
                 <p className="text-xs text-muted-foreground">Leave blank if you'll end the event manually.</p>
               </div>

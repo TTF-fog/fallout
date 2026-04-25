@@ -29,8 +29,13 @@
 class Project < ApplicationRecord
   include Discardable
   include PgSearch::Model
+  include Broadcastable
 
   has_paper_trail
+
+  # Live-update the owner's path page so the has_projects flag flips on create / discard.
+  # Collaborator fan-out happens via the Collaborator model's own broadcast.
+  broadcasts_updates_to { "path_user_#{user_id}" }
 
   pg_search_scope :search, against: [ :name, :description ], using: { tsearch: { prefix: true } }
 

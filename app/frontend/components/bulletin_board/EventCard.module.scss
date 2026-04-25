@@ -1,0 +1,229 @@
+$image-placeholder-bg: #b98d77;
+
+.cardWrap {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  position: relative;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+
+  width: 100%;
+  min-width: 0;
+
+  aspect-ratio: 3 / 4;
+
+  padding: 1.25rem;
+
+  background-color: var(--color-brown);
+
+  border-radius: 0.75rem;
+
+  text-align: left;
+  text-decoration: none;
+
+  border: none;
+  cursor: pointer;
+}
+
+.title {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--color-light-brown);
+
+  overflow: hidden;
+  max-width: 100%;
+}
+
+.imageWrap {
+  flex: 1 1 0%;
+  min-height: 0;
+
+  background-color: $image-placeholder-bg;
+  border-radius: 0.5rem;
+  overflow: hidden;
+  position: relative;
+}
+
+.image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.placeholder {
+  position: absolute;
+  inset: 0;
+}
+
+.footer {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.55rem;
+  width: 100%;
+  min-width: 0;
+}
+
+.whenGroup {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.1rem;
+  align-self: stretch;
+  min-width: 0;
+}
+
+.whenPrimary {
+  color: var(--color-light-brown);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  letter-spacing: 0.005em;
+  line-height: 1.25;
+  font-variant-numeric: tabular-nums;
+}
+
+.whenSecondary {
+  color: var(--color-light-brown);
+  opacity: 0.55;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  letter-spacing: 0.015em;
+  line-height: 1.3;
+  font-variant-numeric: tabular-nums;
+}
+
+.status {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.2rem 0.55rem;
+  border-radius: 9999px;
+  background-color: var(--color-light-brown);
+  color: var(--color-dark-brown);
+  white-space: nowrap;
+}
+
+.timer {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.5rem;
+
+  background-color: var(--color-dark-brown);
+  color: var(--color-light-brown);
+}
+
+.timerStripes {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image: repeating-linear-gradient(
+    -45deg,
+    rgba(255, 216, 170, 0.03),
+    rgba(255, 216, 170, 0.03) 12px,
+    rgba(255, 216, 170, 0.09) 12px,
+    rgba(255, 216, 170, 0.09) 24px
+  );
+  background-size: 33.94px 33.94px;
+  animation: timerStripe 1.6s linear infinite;
+}
+
+@keyframes timerStripe {
+  0% {
+    background-position: 0 0;
+  }
+  100% {
+    background-position: 33.94px 0;
+  }
+}
+
+.timerLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.timerLabelText {
+  opacity: 0.85;
+}
+
+.liveDot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 9999px;
+  background-color: var(--color-coral);
+  box-shadow:
+    0 0 0.5rem var(--color-coral),
+    0 0 1rem color-mix(in oklab, var(--color-coral) 60%, transparent);
+  flex-shrink: 0;
+  animation: liveDotPulse 1.4s ease-in-out infinite;
+}
+
+@keyframes liveDotPulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.3;
+    transform: scale(1.35);
+  }
+}
+
+.timerDigits {
+  display: flex;
+  align-items: center;
+
+  font-size: 1rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+
+.timerStatic {
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.timerSep {
+  padding: 0 0.1rem;
+}
+
+.progressTrack {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 3px;
+  background-color: var(--color-brown);
+  overflow: hidden;
+}
+
+.progressFill {
+  width: 100%;
+  height: 100%;
+  background-color: var(--color-coral);
+  transform-origin: left;
+}

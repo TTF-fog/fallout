@@ -71,6 +71,13 @@ class Admin::BulletinEventsController < Admin::ApplicationController
     redirect_to admin_bulletin_events_path(tab: params[:tab].presence), notice: "Event started."
   end
 
+  def force_start_now
+    @event = BulletinEvent.find(params[:id])
+    authorize @event
+    @event.force_start_now!
+    redirect_to admin_bulletin_events_path(tab: params[:tab].presence), notice: "Event force-started."
+  end
+
   def end_now
     @event = BulletinEvent.find(params[:id])
     authorize @event

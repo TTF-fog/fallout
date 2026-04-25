@@ -11,6 +11,7 @@ import BgmPlayer from '@/components/path/BgmPlayer'
 import Header from '@/components/path/Header'
 import FlashMessages from '@/components/FlashMessages'
 import { notify } from '@/lib/notifications'
+import { useLiveReload } from '@/lib/useLiveReload'
 import { consumePathEntryTransition } from '@/lib/pathTransition'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/shared/Tooltip'
 import PathDialogOverlay from '@/components/path/PathDialogOverlay'
@@ -18,6 +19,7 @@ import type { DialogScript } from '@/components/path/PathDialogOverlay'
 
 type PageProps = {
   user: {
+    id: number
     display_name: string
     email: string
     koi: number
@@ -124,6 +126,14 @@ export default function PathIndex() {
     auth: { user: authUser },
     sign_in_path,
   } = usePage<PageProps & SharedProps>().props
+  // Refresh path progression props when journal entries, critters, projects, or collaborations
+  // change in another tab/client for this user. Path is a top-level page (no modal ancestor), so
+  // useLiveReload falls through to router.reload({ only }), which re-hydrates these props in place.
+  useLiveReload({
+    stream: `path_user_${user.id}`,
+    only: ['user', 'has_projects', 'journal_entry_count', 'critter_variants', 'pending_dialog'],
+  })
+
   const [notPressed] = useState<boolean>(true)
   const [loggedIn] = useState(false)
   const [activeDialog, setActiveDialog] = useState<DialogScript | null>(null)

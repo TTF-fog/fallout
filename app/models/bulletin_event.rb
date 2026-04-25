@@ -20,6 +20,9 @@
 class BulletinEvent < ApplicationRecord
   URL_FORMAT = URI::DEFAULT_PARSER.make_regexp(%w[http https])
 
+  include Broadcastable
+  broadcasts_updates_to :bulletin_events
+
   validates :title, :description, presence: true
   validates :image_url, format: { with: URL_FORMAT }, allow_blank: true
   validates :starts_at, presence: true, if: :schedulable?
@@ -48,6 +51,10 @@ class BulletinEvent < ApplicationRecord
   def start_now!
     return if starts_at.present?
 
+    update!(starts_at: Time.current)
+  end
+
+  def force_start_now!
     update!(starts_at: Time.current)
   end
 

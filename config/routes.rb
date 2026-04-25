@@ -267,6 +267,7 @@ Rails.application.routes.draw do
       resources :bulletin_events, only: [ :index, :create, :update, :destroy ] do
         member do
           patch :start_now
+          patch :force_start_now
           patch :end_now
         end
       end

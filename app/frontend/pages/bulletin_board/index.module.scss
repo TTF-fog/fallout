@@ -86,6 +86,120 @@ $beige: var(--color-light-brown);
   color: var(--color-dark-brown);
 }
 
+.eventsArea {
+  position: relative;
+}
+
+.eventsStack {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.eventsGrid {
+  position: relative;
+
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  justify-content: flex-start;
+  gap: 1.5rem;
+
+  > * {
+    flex: 0 0 100%;
+
+    @media (min-width: $sm) {
+      flex: 0 0 calc(50% - 0.75rem);
+    }
+
+    @media (min-width: $lg) {
+      flex: 0 0 calc((100% - 3rem) / 3);
+    }
+  }
+
+  > *[data-exiting] {
+    position: absolute;
+    width: 100%;
+    z-index: 1;
+
+    @media (min-width: $sm) {
+      width: calc(50% - 0.75rem);
+    }
+
+    @media (min-width: $lg) {
+      width: calc((100% - 3rem) / 3);
+    }
+  }
+}
+
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+
+.pageButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  padding: 0;
+  border: 2px solid var(--color-dark-brown);
+  border-bottom-width: 4px;
+  border-right-width: 4px;
+  border-radius: 0.5rem;
+  background-color: var(--color-light-brown);
+  color: var(--color-dark-brown);
+  cursor: pointer;
+  transition:
+    transform 100ms ease-out,
+    border-width 100ms ease-out,
+    background-color 120ms ease-out,
+    opacity 120ms ease-out;
+
+  &:hover:not(:disabled) {
+    background-color: $beige;
+  }
+
+  &:active:not(:disabled) {
+    transform: translate(2px, 2px);
+    border-bottom-width: 2px;
+    border-right-width: 2px;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--color-dark-brown);
+    outline-offset: 2px;
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.4;
+  }
+}
+
+.pageArrow {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.pageInfo {
+  min-width: 3.5rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  font-weight: 600;
+  font-variantwnumeric: tabular-nums;
+  color: var(--color-dark-brown);
+}
+
+.pageInfoSep {
+  opacity: 0.7;
+}
+
 .emptyState {
   grid-column: 1 / -1;
 
@@ -102,92 +216,21 @@ $beige: var(--color-light-brown);
   border-radius: 0.5rem;
 }
 
-.eventsGrid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 1.5rem;
+.eventsEmpty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 18rem;
+  padding: 2rem;
+  color: var(--color-dark-brown);
+  background-color: $events-empty-bg;
+  border-radius: 0.5rem;
+}
 
-  @media (min-width: $sm) {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  @media (min-width: $lg) {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
-  .eventCard {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-
-    width: 100%;
-
-    aspect-ratio: 3 / 4;
-
-    padding: 1.25rem;
-
-    background-color: var(--color-brown);
-
-    text-align: left;
-    text-decoration: none;
-
-    border: none;
-    cursor: pointer;
-
-    transition: transform 120ms ease-out;
-
-    &:hover {
-      transform: translateY(-2px);
-    }
-
-    .eventCardTitle {
-      font-size: 1.125rem;
-      font-weight: 700;
-      color: var(--color-light-brown);
-    }
-
-    .eventCardImageWrap {
-      flex: 1 1 0%;
-      background-color: var(--color-light-brown);
-      border-radius: 0.5rem;
-      overflow: hidden;
-      position: relative;
-    }
-
-    .eventCardImage {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      display: block;
-    }
-
-    .eventCardDate {
-      color: var(--color-light-brown);
-    }
-
-    .eventCardFooter {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 0.5rem;
-    }
-
-    .eventCardStatus {
-      font-size: 0.75rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-      padding: 0.2rem 0.55rem;
-      border-radius: 9999px;
-      background-color: var(--color-light-brown);
-      color: var(--color-dark-brown);
-
-      &.eventCardStatusHappening {
-        background-color: var(--color-green);
-        color: var(--color-dark-brown);
-      }
-    }
-  }
+.tzNote {
+  text-align: center;
+  font-size: 0.8125rem;
+  color: var(--color-dark-brown);
 }
 
 .dmNotice {

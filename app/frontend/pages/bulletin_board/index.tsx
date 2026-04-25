@@ -1,16 +1,18 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { Link } from '@inertiajs/react'
-import { Modal, ModalLink } from '@inertiaui/modal-react'
+import { Modal } from '@inertiaui/modal-react'
 import { ArrowLeftIcon, MagnifyingGlassIcon } from '@heroicons/react/20/solid'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 import clsx from 'clsx'
-import { motion } from 'motion/react'
+import { AnimatePresence, motion } from 'motion/react'
+import { DateTime } from 'luxon'
 import MarqueeText from '@/components/shared/MarqueeText'
-import {
-  computeBulletinEventStatus,
-  formatEventDateTime,
-  type SerializedBulletinEvent,
-} from '@/lib/bulletinEventStatus'
+import { SlidingNumber } from '@/components/shared/SlidingNumber'
+import EventCard from '@/components/bulletin_board/EventCard'
+import { computeBulletinEventStatus, type SerializedBulletinEvent } from '@/lib/bulletinEventStatus'
+import { useLiveReload } from '@/lib/useLiveReload'
+import { useNowTick } from '@/lib/useNowTick'
 import styles from './index.module.scss'
 
 type SortOption = 'newest' | 'top'
@@ -45,26 +47,50 @@ export default function BulletinBoardIndex({ events, featured, explore, is_modal
   const [exploreList, setExploreList] = useState<Explore[]>(explore)
   const [isSearching, setIsSearching] = useState(false)
   const isFirstSearchRender = useRef(true)
+  const PAGE_SIZE = 3
+  const [page, setPage] = useState(0)
 
-  // Hide expired and drafts; sort by start time (missing start_at events won't appear since drafts are filtered).
+  const liveProps = useLiveReload<PageProps>({ stream: 'bulletin_events', only: ['events'] })
+  const now = useNowTick(1000)
+  const liveEvents = liveProps?.events ?? events
+
+  // Happening events first (scheduled-end sorted by end time asc, manual live sorted
+  // by start time asc so longer-running comes first); then upcoming sorted by start time asc.
   const visibleEvents = useMemo(() => {
-    return events
+    const ms = (iso: string | null) => (iso ? DateTime.fromISO(iso).toMillis() : Infinity)
+    const bucket = (e: SerializedBulletinEvent) => {
+      const status = computeBulletinEventStatus(e, now)
+      if (status !== 'happening') return 2
+      return e.ends_at ? 0 : 1
+    }
+    const sortKey = (e: SerializedBulletinEvent, b: number) => (b === 0 ? ms(e.ends_at) : ms(e.starts_at))
+    return liveEvents
       .filter((e) => {
-        const status = computeBulletinEventStatus(e)
+        const status = computeBulletinEventStatus(e, now)
         return status === 'upcoming' || status === 'happening'
       })
       .sort((a, b) => {
-        const aStart = a.starts_at ? new Date(a.starts_at).getTime() : Infinity
-        const bStart = b.starts_at ? new Date(b.starts_at).getTime() : Infinity
-        return aStart - bStart
+        const ba = bucket(a)
+        const bb = bucket(b)
+        if (ba !== bb) return ba - bb
+        return sortKey(a, ba) - sortKey(b, bb)
       })
-  }, [events])
+  }, [liveEvents, now])
+
+  const totalPages = Math.max(1, Math.ceil(visibleEvents.length / PAGE_SIZE))
+  const effectivePage = Math.min(page, totalPages - 1)
+  useEffect(() => {
+    if (page !== effectivePage) setPage(effectivePage)
+  }, [effectivePage, page])
+  const pageEvents = visibleEvents.slice(effectivePage * PAGE_SIZE, (effectivePage + 1) * PAGE_SIZE)
 
   useEffect(() => {
     if (!lightbox) return
+
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setLightbox(null)
     }
+
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [lightbox])
@@ -116,43 +142,85 @@ export default function BulletinBoardIndex({ events, featured, explore, is_modal
         <div className={styles.stickyHeader}>{backButton}</div>
 
         <div className={styles.inner}>
-          <section className={styles.section}>
+          <motion.section layout className={styles.section}>
             <h2 className={styles.sectionHeading}>Events</h2>
 
-            <div className={styles.eventsGrid}>
-              {visibleEvents.length === 0 ? (
-                <div className={styles.emptyState}>no events yet</div>
-              ) : (
-                visibleEvents.map((event) => {
-                  const status = computeBulletinEventStatus(event)
-                  return (
-                    <ModalLink key={event.id} href={`/bulletin_board/events/${event.id}`} className={styles.eventCard}>
-                      <MarqueeText text={event.title} className={styles.eventCardTitle} />
-                      <div className={styles.eventCardImageWrap}>
-                        {event.image_url && (
-                          <img src={event.image_url} alt="" className={styles.eventCardImage} loading="lazy" />
-                        )}
-                      </div>
-                      <div className={styles.eventCardFooter}>
-                        <span className={styles.eventCardDate}>
-                          {event.starts_at ? formatEventDateTime(event.starts_at) : 'Live'}
-                        </span>
-                        <span
-                          className={clsx(
-                            styles.eventCardStatus,
-                            status === 'happening' && styles.eventCardStatusHappening,
-                          )}
-                        >
-                          {status === 'happening' ? 'Happening now' : 'Upcoming'}
-                        </span>
-                      </div>
-                    </ModalLink>
-                  )
-                })
-              )}
-            </div>
+            <motion.div layout className={styles.eventsArea}>
+              <AnimatePresence initial={false} mode="popLayout">
+                {visibleEvents.length === 0 ? (
+                  <motion.div
+                    key="empty"
+                    layout
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.25, ease: 'easeInOut' }}
+                    className={styles.eventsEmpty}
+                  >
+                    no events yet
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    key="events"
+                    layout
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.25, ease: 'easeInOut' }}
+                    className={styles.eventsStack}
+                  >
+                    <AnimatePresence mode="wait" initial={false}>
+                      <motion.div
+                        key={effectivePage}
+                        className={styles.eventsGrid}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.18, ease: 'easeInOut' }}
+                      >
+                        <AnimatePresence initial={false} mode="popLayout">
+                          {pageEvents.map((event) => (
+                            <EventCard key={event.id} event={event} now={now} />
+                          ))}
+                        </AnimatePresence>
+                      </motion.div>
+                    </AnimatePresence>
 
-            <div className={styles.dmNotice}>
+                    <motion.div layout className={styles.pagination}>
+                      <button
+                        type="button"
+                        className={styles.pageButton}
+                        onClick={() => setPage((p) => Math.max(0, p - 1))}
+                        disabled={effectivePage === 0 || totalPages <= 1}
+                        aria-label="Previous page"
+                      >
+                        <ChevronLeft className={styles.pageArrow} />
+                      </button>
+                      <span className={styles.pageInfo} aria-live="polite">
+                        <SlidingNumber value={effectivePage + 1} />
+                        <span className={styles.pageInfoSep}>/</span>
+                        <SlidingNumber value={totalPages} />
+                      </span>
+                      <button
+                        type="button"
+                        className={styles.pageButton}
+                        onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+                        disabled={effectivePage >= totalPages - 1 || totalPages <= 1}
+                        aria-label="Next page"
+                      >
+                        <ChevronRight className={styles.pageArrow} />
+                      </button>
+                    </motion.div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </motion.div>
+
+            <motion.p layout className={styles.tzNote}>
+              times shown in your local timezone
+            </motion.p>
+
+            <motion.div layout className={styles.dmNotice}>
               want to run one? DM
               <a
                 href="https://hackclub.enterprise.slack.com/team/U08R4Q9H8EB"
@@ -162,10 +230,10 @@ export default function BulletinBoardIndex({ events, featured, explore, is_modal
               >
                 @tanishq!
               </a>
-            </div>
-          </section>
+            </motion.div>
+          </motion.section>
 
-          <section className={styles.section}>
+          <motion.section layout className={styles.section}>
             <h2 className={styles.sectionHeading}>Featured</h2>
             <div className={styles.featuredGrid}>
               {featured.length === 0 ? (
@@ -216,9 +284,9 @@ export default function BulletinBoardIndex({ events, featured, explore, is_modal
                 Highway
               </a>
             </div>
-          </section>
+          </motion.section>
 
-          <section className={styles.section}>
+          <motion.section layout className={styles.section}>
             <h2 className={styles.sectionHeading}>Explore</h2>
 
             <div className={styles.searchRow}>
@@ -340,7 +408,7 @@ export default function BulletinBoardIndex({ events, featured, explore, is_modal
                 )}
               </div>
             </div>
-          </section>
+          </motion.section>
         </div>
       </div>
     </div>

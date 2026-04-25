@@ -25,6 +25,10 @@ class BulletinEventPolicy < ApplicationPolicy
     admin? # Only admins can start a manual-mode event
   end
 
+  def force_start_now?
+    admin? # Only admins can force-start a scheduled event
+  end
+
   def end_now?
     admin? # Only admins can end an event
   end

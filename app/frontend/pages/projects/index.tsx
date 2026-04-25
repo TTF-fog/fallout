@@ -1,13 +1,17 @@
 import { useState, useRef } from 'react'
-import { router } from '@inertiajs/react'
+import { router, usePage } from '@inertiajs/react'
 import { Modal, ModalLink, useModal } from '@inertiaui/modal-react'
 import { MagnifyingGlassIcon, BookOpenIcon, ClockIcon, FilmIcon } from '@heroicons/react/16/solid'
 import { ArrowLeftIcon, PlusIcon } from '@heroicons/react/20/solid'
 import Frame from '@/components/shared/Frame'
 import Button from '@/components/shared/Button'
+import ImagePlaceholder from '@/components/shared/ImagePlaceholder'
 import Input from '@/components/shared/Input'
 import Pagination from '@/components/Pagination'
-import type { ProjectCard, PagyProps } from '@/types'
+import { useLiveReload } from '@/lib/useLiveReload'
+import type { ProjectCard, PagyProps, SharedProps } from '@/types'
+
+const PROJECT_LIST_RELOAD_PROPS = ['projects', 'pagy', 'query', 'has_any_project', 'is_modal']
 
 function formatTime(seconds: number): string {
   if (seconds === 0) return '0min'
@@ -21,28 +25,38 @@ export default function ProjectsIndex({
   projects,
   pagy,
   query,
+  has_any_project,
   is_modal,
   onModalEvent,
 }: {
   projects: ProjectCard[]
   pagy: PagyProps
   query: string
+  has_any_project: boolean
   is_modal: boolean
   onModalEvent?: (event: string, ...args: any[]) => void
 }) {
   const modalRef = useRef<{ close: () => void }>(null)
   const modal = useModal()
+  const authUser = usePage<SharedProps>().props.auth.user
   const [searchQuery, setSearchQuery] = useState(query)
 
-  function reloadProjects() {
-    const projectListProps = ['projects', 'pagy', 'query', 'is_modal']
+  // Live-refresh the list across tabs when this user's projects/journals/critters/collaborations
+  // change. Project cards render journal counts and time logged, so journal entry broadcasts
+  // matter too — all of those fan out via the shared per-user stream.
+  useLiveReload({
+    stream: authUser ? `path_user_${authUser.id}` : '',
+    enabled: !!authUser,
+    only: PROJECT_LIST_RELOAD_PROPS,
+  })
 
+  function reloadProjects() {
     if (modal) {
-      modal.reload({ only: projectListProps })
+      modal.reload({ only: PROJECT_LIST_RELOAD_PROPS })
       return
     }
 
-    router.reload({ only: projectListProps })
+    router.reload({ only: PROJECT_LIST_RELOAD_PROPS })
   }
 
   function handleProjectDeleted() {
@@ -70,7 +84,7 @@ export default function ProjectsIndex({
           )}
           <h1 className="font-bold text-3xl md:text-4xl text-dark-brown">My Projects</h1>
         </div>
-        <ModalLink href="/projects/new" onProjectCreated={reloadProjects}>
+        <ModalLink href={has_any_project ? '/projects/new' : '/projects/onboarding'} onProjectCreated={reloadProjects}>
           <button
             className="bg-dark-brown text-light-brown rounded-full w-12 h-12 flex items-center justify-center hover:opacity-90 transition-opacity cursor-pointer shadow-md"
             aria-label="New Project"
@@ -98,9 +112,10 @@ export default function ProjectsIndex({
                       style={{ backgroundImage: `url(${project.cover_image_url})` }}
                     />
                   ) : (
-                    <div className="aspect-video bg-light-brown rounded flex items-center justify-center">
-                      <span className="text-dark-brown text-xl">No image yet</span>
-                    </div>
+                    <ImagePlaceholder
+                      text="No cover yet, upload one!"
+                      className="aspect-video bg-light-brown rounded w-full"
+                    />
                   )}
                   <div className="pt-3 pb-2 px-2">
                     <div className="flex items-center gap-2">

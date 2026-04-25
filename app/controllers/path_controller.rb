@@ -20,6 +20,7 @@ class PathController < ApplicationController
 
     render inertia: {
       user: {
+        id: current_user.id, # Used by the frontend to subscribe to the per-user live-update stream
         display_name: current_user.display_name,
         email: current_user.email,
         koi: current_user.koi,

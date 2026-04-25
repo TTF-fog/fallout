@@ -2,6 +2,16 @@
   display: block;
   width: 100%;
   overflow: hidden;
+  position: relative;
+}
+
+.marqueeProbe {
+  position: absolute;
+  visibility: hidden;
+  pointer-events: none;
+  white-space: nowrap;
+  top: 0;
+  left: 0;
 }
 
 .marqueeTrack {

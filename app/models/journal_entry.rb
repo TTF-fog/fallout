@@ -26,8 +26,14 @@
 #
 class JournalEntry < ApplicationRecord
   include Discardable
+  include Broadcastable
 
   has_paper_trail
+
+  # Live-update the owner's path page on create/update/destroy. Discards are updates
+  # (set discarded_at), so the owner's star count recomputes when entries are discarded.
+  # Collaborator fan-out happens via the Collaborator model's own broadcast.
+  broadcasts_updates_to { "path_user_#{user_id}" }
 
   belongs_to :user
   belongs_to :project
