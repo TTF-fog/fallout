@@ -299,12 +299,15 @@ export default function ProjectsShow({
         date: new Date(entry.created_at_iso).getTime(),
         iso: entry.created_at_iso,
       })),
-      ...ships.map((ship) => ({
-        type: 'ship' as const,
-        ship,
-        date: new Date(ship.created_at_iso).getTime(),
-        iso: ship.created_at_iso,
-      })),
+      ...ships.map((ship) => {
+        const eventIso = ship.status === 'pending' ? ship.created_at_iso : ship.updated_at_iso
+        return {
+          type: 'ship' as const,
+          ship,
+          date: new Date(eventIso).getTime(),
+          iso: eventIso,
+        }
+      }),
       {
         type: 'created' as const,
         date: new Date(project.created_at_iso).getTime(),

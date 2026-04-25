@@ -48,7 +48,7 @@ class ProjectsController < ApplicationController
         { id: c.id, user_id: c.user.id, display_name: c.user.display_name, avatar: c.user.avatar }
       } : [],
       ships: @project.ships.order(created_at: :desc).map { |s|
-        { id: s.id, status: s.status, feedback: s.feedback, created_at_iso: s.created_at.iso8601 }
+        { id: s.id, status: s.status, feedback: s.feedback, created_at_iso: s.created_at.iso8601, updated_at_iso: s.updated_at.iso8601 }
       },
       can: {
         update: policy(@project).update?,

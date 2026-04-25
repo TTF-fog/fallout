@@ -155,6 +155,7 @@ export interface ShipEvent {
   status: string
   feedback: string | null
   created_at_iso: string
+  updated_at_iso: string
 }
 
 export interface ProjectForm {
