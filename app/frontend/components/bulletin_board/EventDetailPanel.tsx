@@ -1,6 +1,6 @@
 import clsx from 'clsx'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { AnimatePresence, motion, useSpring, type MotionValue } from 'motion/react'
+import { animate, AnimatePresence, motion, useSpring, type MotionValue } from 'motion/react'
 import { ArrowLeftIcon } from '@heroicons/react/20/solid'
 import { CalendarDaysIcon, ClockIcon, PhotoIcon } from '@heroicons/react/24/outline'
 import { DateTime } from 'luxon'
@@ -186,19 +186,89 @@ function buildTimer(event: SerializedBulletinEvent, now: Date): TimerConfig | nu
 
 function DescriptionBlock({ description }: { description: string }) {
   const ref = useRef<HTMLParagraphElement>(null)
+  const scrollParentRef = useRef<HTMLElement | null>(null)
+  // Live offset between scrollTop and the body bottom across a height animation.
+  // Constant for collapse (preserves the user's relative view); tweened to 0
+  // for expand-from-near-bottom so the new content lands fully at the bottom.
+  const stickyOffsetRef = useRef<number | null>(null)
+  const offsetAnimationRef = useRef<{ stop: () => void } | null>(null)
+  const [clampedHeight, setClampedHeight] = useState<number | null>(null)
   const [overflows, setOverflows] = useState(false)
   const [expanded, setExpanded] = useState(false)
 
   useLayoutEffect(() => {
-    if (expanded) return
     const el = ref.current
     if (!el) return
-    const check = () => setOverflows(el.scrollHeight > el.clientHeight + 1)
-    check()
-    const ro = new ResizeObserver(check)
+
+    let p: HTMLElement | null = el.parentElement
+    while (p) {
+      const o = getComputedStyle(p).overflowY
+      if (o === 'auto' || o === 'scroll') {
+        scrollParentRef.current = p
+        break
+      }
+      p = p.parentElement
+    }
+
+    const measure = () => {
+      const lh = parseFloat(getComputedStyle(el).lineHeight) || 0
+      const ch = lh * 4
+      setClampedHeight(ch)
+      setOverflows(el.scrollHeight > ch + 1)
+    }
+    measure()
+    const ro = new ResizeObserver(measure)
     ro.observe(el)
     return () => ro.disconnect()
-  }, [description, expanded])
+  }, [description])
+
+  const collapsed = !expanded && overflows && clampedHeight != null
+
+  const handleToggle = () => {
+    if (offsetAnimationRef.current) {
+      offsetAnimationRef.current.stop()
+      offsetAnimationRef.current = null
+    }
+
+    const el = scrollParentRef.current
+    if (!el) {
+      stickyOffsetRef.current = null
+      setExpanded((e) => !e)
+      return
+    }
+
+    const dist = Math.max(0, el.scrollHeight - el.scrollTop - el.clientHeight)
+
+    if (dist > 64) {
+      // Mid-body reader — leave their scroll position alone.
+      stickyOffsetRef.current = null
+    } else {
+      stickyOffsetRef.current = dist
+      if (!expanded && dist > 0) {
+        // Expanding while the toggle button is only partially in view: tween
+        // the offset from `dist` to 0 alongside the height spring (same params
+        // → same curve). scrollTop = scrollHeight - clientHeight - offset
+        // therefore evaluates to oldScrollTop on the first frame (no jump) and
+        // to the new max bottom at settle (button fully in view).
+        offsetAnimationRef.current = animate(dist, 0, {
+          type: 'spring',
+          stiffness: 320,
+          damping: 28,
+          mass: 0.5,
+          onUpdate: (latest) => {
+            if (stickyOffsetRef.current !== null) {
+              stickyOffsetRef.current = latest
+            }
+          },
+          onComplete: () => {
+            offsetAnimationRef.current = null
+          },
+        })
+      }
+    }
+
+    setExpanded((e) => !e)
+  }
 
   return (
     <motion.section
@@ -213,16 +283,37 @@ function DescriptionBlock({ description }: { description: string }) {
       >
         About
       </motion.h2>
-      <p ref={ref} className={clsx(styles.descBody, !expanded && styles.descBodyClamped)}>
-        {description}
-      </p>
+      <motion.div
+        initial={false}
+        animate={{ height: collapsed ? clampedHeight! : 'auto' }}
+        transition={{ type: 'spring', stiffness: 320, damping: 28, mass: 0.5 }}
+        onUpdate={() => {
+          const offset = stickyOffsetRef.current
+          if (offset === null) return
+          const el = scrollParentRef.current
+          if (!el) return
+          el.scrollTop = Math.max(0, el.scrollHeight - el.clientHeight - offset)
+        }}
+        onAnimationComplete={() => {
+          if (offsetAnimationRef.current) {
+            offsetAnimationRef.current.stop()
+            offsetAnimationRef.current = null
+          }
+          stickyOffsetRef.current = null
+        }}
+        style={{ overflow: 'hidden' }}
+      >
+        <p ref={ref} className={styles.descBody}>
+          {description}
+        </p>
+      </motion.div>
       {overflows && (
         <motion.button
           layout="position"
           transition={{ type: 'spring', stiffness: 320, damping: 28, mass: 0.5 }}
           type="button"
           className={styles.descToggle}
-          onClick={() => setExpanded((e) => !e)}
+          onClick={handleToggle}
           aria-expanded={expanded}
         >
           {expanded ? 'Read less' : 'Read more'}

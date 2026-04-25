@@ -186,39 +186,38 @@ export default function BulletinBoardIndex({ events, featured, explore, is_modal
                       </motion.div>
                     </AnimatePresence>
 
-                    <motion.div layout className={styles.pagination}>
-                      <button
-                        type="button"
-                        className={styles.pageButton}
-                        onClick={() => setPage((p) => Math.max(0, p - 1))}
-                        disabled={effectivePage === 0 || totalPages <= 1}
-                        aria-label="Previous page"
-                      >
-                        <ChevronLeft className={styles.pageArrow} />
-                      </button>
-                      <span className={styles.pageInfo} aria-live="polite">
-                        <SlidingNumber value={effectivePage + 1} />
-                        <span className={styles.pageInfoSep}>/</span>
-                        <SlidingNumber value={totalPages} />
-                      </span>
-                      <button
-                        type="button"
-                        className={styles.pageButton}
-                        onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
-                        disabled={effectivePage >= totalPages - 1 || totalPages <= 1}
-                        aria-label="Next page"
-                      >
-                        <ChevronRight className={styles.pageArrow} />
-                      </button>
+                    <motion.div layout className={styles.eventsFooter}>
+                      <span className={styles.tzNote}>times shown in your local timezone</span>
+                      <div className={styles.pagination}>
+                        <button
+                          type="button"
+                          className={styles.pageButton}
+                          onClick={() => setPage((p) => Math.max(0, p - 1))}
+                          disabled={effectivePage === 0 || totalPages <= 1}
+                          aria-label="Previous page"
+                        >
+                          <ChevronLeft className={styles.pageArrow} />
+                        </button>
+                        <span className={styles.pageInfo} aria-live="polite">
+                          <SlidingNumber value={effectivePage + 1} />
+                          <span className={styles.pageInfoSep}>/</span>
+                          <SlidingNumber value={totalPages} />
+                        </span>
+                        <button
+                          type="button"
+                          className={styles.pageButton}
+                          onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+                          disabled={effectivePage >= totalPages - 1 || totalPages <= 1}
+                          aria-label="Next page"
+                        >
+                          <ChevronRight className={styles.pageArrow} />
+                        </button>
+                      </div>
                     </motion.div>
                   </motion.div>
                 )}
               </AnimatePresence>
             </motion.div>
-
-            <motion.p layout className={styles.tzNote}>
-              times shown in your local timezone
-            </motion.p>
 
             <motion.div layout className={styles.dmNotice}>
               want to run one? DM
