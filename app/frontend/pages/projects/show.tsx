@@ -1,13 +1,14 @@
 import { useState, useMemo, useRef } from 'react'
 import { router, usePage } from '@inertiajs/react'
-// @ts-expect-error useModal lacks type declarations in this beta package
 import { Modal, ModalLink, useModal } from '@inertiaui/modal-react'
 import { BookOpenIcon, ClockIcon } from '@heroicons/react/16/solid'
 import { EllipsisHorizontalIcon } from '@heroicons/react/20/solid'
+import { ArrowLeft, Pencil, Trash2, Feather, Loader2 } from 'lucide-react'
 import BookLayout from '@/components/shared/BookLayout'
 import Button from '@/components/shared/Button'
 import InlineUser from '@/components/shared/InlineUser'
 import Input from '@/components/shared/Input'
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/shared/Tooltip'
 import { performModalMutation } from '@/lib/modalMutation'
 import { notify } from '@/lib/notifications'
 import TimeAgo from '@/components/shared/TimeAgo'
@@ -348,26 +349,41 @@ export default function ProjectsShow({
   ]
 
   function renderNewJournalEntryButton() {
+    const iconButtonClasses =
+      'bg-brown text-light-brown border-2 border-dark-brown rounded w-10 h-10 flex items-center justify-center hover:opacity-80 cursor-pointer'
+
     if (can.create_journal_entry) {
       return (
-        <ModalLink
-          href={`/projects/${project.id}/journal_entries/new`}
-          className="bg-brown text-light-brown border-2 border-dark-brown px-4 py-2 font-bold uppercase text-sm hover:opacity-80"
-        >
-          New Journal Entry
-        </ModalLink>
+        <Tooltip side="top" gap={8}>
+          <TooltipTrigger asChild>
+            <ModalLink
+              href={`/projects/${project.id}/journal_entries/new`}
+              aria-label="New journal entry"
+              className={iconButtonClasses}
+            >
+              <Feather className="w-5 h-5" />
+            </ModalLink>
+          </TooltipTrigger>
+          <TooltipContent>New journal entry</TooltipContent>
+        </Tooltip>
       )
     }
 
     if (isTrial) {
       return (
-        <button
-          type="button"
-          onClick={() => notify('alert', 'This is locked. Verify your account to continue!')}
-          className="bg-brown text-light-brown border-2 border-dark-brown px-4 py-2 font-bold uppercase text-sm hover:opacity-80 cursor-pointer"
-        >
-          New Journal Entry
-        </button>
+        <Tooltip side="top" gap={8}>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              onClick={() => notify('alert', 'This is locked. Verify your account to continue!')}
+              aria-label="New journal entry"
+              className={iconButtonClasses}
+            >
+              <Feather className="w-5 h-5" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent>New journal entry</TooltipContent>
+        </Tooltip>
       )
     }
 
@@ -437,38 +453,57 @@ export default function ProjectsShow({
             </div>
           )}
 
-          <div className="flex gap-4 mt-auto pt-6 flex-wrap">
-            {is_modal && (
-              <button
-                onClick={handleBack}
-                className="py-2 px-6 text-sm border-2 font-bold uppercase cursor-pointer bg-transparent text-dark-brown border-dark-brown"
-              >
-                Back
-              </button>
-            )}
-            {can.update && (
-              <ModalLink
-                href={`/projects/${project.id}/edit`}
-                onProjectSaved={handleProjectSaved}
-                className="bg-brown text-light-brown border-2 border-dark-brown px-6 py-2 font-bold uppercase hover:opacity-80 flex items-center justify-center text-sm"
-              >
-                Edit
-              </ModalLink>
-            )}
-            {can.destroy && (
-              <Button
-                onClick={deleteProject}
-                disabled={deleting}
-                className="bg-coral px-6 py-2 text-sm flex-1 xl:flex-none"
-              >
-                {deleting ? 'Deleting...' : 'Delete Project'}
-              </Button>
-            )}
+          <div className="flex items-center justify-between gap-4 mt-auto pt-6">
+            <div className="flex items-center gap-2">
+              {is_modal && (
+                <Tooltip side="top" gap={8}>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      onClick={handleBack}
+                      aria-label="Back"
+                      className="bg-transparent text-dark-brown border-2 border-dark-brown rounded w-10 h-10 flex items-center justify-center cursor-pointer hover:bg-light-brown"
+                    >
+                      <ArrowLeft className="w-5 h-5" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent>Back</TooltipContent>
+                </Tooltip>
+              )}
+              {can.update && (
+                <Tooltip side="top" gap={8}>
+                  <TooltipTrigger asChild>
+                    <ModalLink
+                      href={`/projects/${project.id}/edit`}
+                      onProjectSaved={handleProjectSaved}
+                      aria-label="Edit project"
+                      className="bg-brown text-light-brown border-2 border-dark-brown rounded w-10 h-10 flex items-center justify-center hover:opacity-80 cursor-pointer"
+                    >
+                      <Pencil className="w-5 h-5" />
+                    </ModalLink>
+                  </TooltipTrigger>
+                  <TooltipContent>Edit</TooltipContent>
+                </Tooltip>
+              )}
+              {can.destroy && (
+                <Tooltip side="top" gap={8}>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      onClick={deleteProject}
+                      disabled={deleting}
+                      aria-label="Delete project"
+                      className="bg-coral text-light-brown border-2 border-dark-brown rounded w-10 h-10 flex items-center justify-center hover:opacity-80 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {deleting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Trash2 className="w-5 h-5" />}
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent>Delete project</TooltipContent>
+                </Tooltip>
+              )}
+            </div>
             {can.ship && (
-              <Button
-                onClick={() => router.visit(`/projects/${project.id}/ship`)}
-                className="px-6 py-2 text-sm flex-1 xl:flex-none"
-              >
+              <Button onClick={() => router.visit(`/projects/${project.id}/ship`)} className="px-6 py-2 text-sm">
                 Submit
               </Button>
             )}

@@ -86,6 +86,37 @@ $beige: var(--color-light-brown);
   color: var(--color-dark-brown);
 }
 
+.eventsHeader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.eventCountLine {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  column-gap: 0.5rem;
+  row-gap: 0.25rem;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--color-dark-brown);
+}
+
+.eventCountSegment {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.eventCountSeparator {
+  display: inline-flex;
+  align-items: center;
+}
+
 .eventsArea {
   position: relative;
 }
@@ -350,20 +381,29 @@ $beige: var(--color-light-brown);
 // paper-craft layer. Crimson #d94b3d for focus/active accents matches the
 // heart icon for cohesion across "live" affordances.
 .sortTabs {
-  display: inline-flex;
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.25rem;
   padding: 0.3rem;
   border: 1.5px solid rgba(94, 66, 55, 0.18);
   border-radius: 9999px;
   background-color: #f4dfc0;
   flex-shrink: 0;
+  isolation: isolate;
   box-shadow:
     0 1px 2px rgba(58, 36, 25, 0.08),
     0 4px 10px rgba(58, 36, 25, 0.1);
+
+  &[data-active-index='1'] .sortTabActiveBg {
+    transform: translateX(calc(100% + 0.25rem));
+  }
 }
 
 .sortTab {
   position: relative;
+  z-index: 1;
+  min-width: 5.25rem;
   padding: 0.4rem 1rem;
   border: none;
   border-radius: 9999px;
@@ -385,23 +425,38 @@ $beige: var(--color-light-brown);
 
 .sortTabActiveBg {
   position: absolute;
-  inset: 0;
+  top: 0.3rem;
+  bottom: 0.3rem;
+  left: 0.3rem;
+  width: calc((100% - 0.85rem) / 2);
   border-radius: 9999px;
   background-color: var(--color-dark-brown);
   z-index: 0;
+  pointer-events: none;
+  transition: transform 420ms cubic-bezier(0.2, 1.25, 0.35, 1);
+  will-change: transform;
 }
 
 .sortTabLabel {
   position: relative;
   z-index: 1;
+  white-space: nowrap;
 }
 
 .exploreScroll {
-  max-height: min(70vh, 48rem);
+  min-height: 0;
+  height: min(62dvh, 36rem);
   overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
   padding: 1rem;
   scrollbar-width: thin;
   scrollbar-color: var(--color-dark-brown) transparent;
+
+  @media (min-width: $md) {
+    height: min(70dvh, 48rem);
+  }
 }
 
 .exploreLoading {
@@ -409,7 +464,7 @@ $beige: var(--color-light-brown);
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 18rem;
+  min-height: 100%;
   padding: 2rem;
   background-color: $events-empty-bg;
   border-radius: 0.5rem;
@@ -504,9 +559,18 @@ $beige: var(--color-light-brown);
   background-clip: padding-box;
 }
 
+.exploreResults,
+.exploreCardMotion {
+  width: 100%;
+}
+
+.exploreResults {
+  min-height: 100%;
+}
+
 .exploreEmpty {
   width: 100%;
-  min-height: 18rem;
+  min-height: 100%;
   padding: 2rem;
 
   display: flex;

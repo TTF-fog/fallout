@@ -1,4 +1,28 @@
-$image-placeholder-bg: #b98d77;
+$card-bg: #f4dfc0;
+$card-border: rgba(94, 66, 55, 0.18);
+$card-border-hover: rgba(94, 66, 55, 0.32);
+$ink-primary: #4a3120;
+$ink-secondary: #7a5945;
+$focus-ring: #8b5e44;
+$timer-bg: #6b4a3c;
+$timer-text: #fff4d9;
+$timer-stripe-soft: rgba(255, 244, 217, 0.035);
+$timer-stripe-strong: rgba(255, 244, 217, 0.095);
+$timer-progress-track: #80604f;
+
+$placeholder-gradient: linear-gradient(
+  160deg,
+  color-mix(in oklab, var(--color-brown) 28%, var(--color-light-brown)) 0%,
+  color-mix(in oklab, var(--color-brown) 60%, var(--color-light-brown)) 100%
+);
+
+$shadow-rest:
+  0 1px 3px rgba(58, 36, 25, 0.12),
+  0 6px 18px rgba(58, 36, 25, 0.16);
+
+$shadow-hover:
+  0 3px 6px rgba(58, 36, 25, 0.18),
+  0 16px 36px rgba(58, 36, 25, 0.26);
 
 .cardWrap {
   display: flex;
@@ -19,21 +43,36 @@ $image-placeholder-bg: #b98d77;
 
   padding: 1.25rem;
 
-  background-color: var(--color-brown);
+  background-color: $card-bg;
+  box-shadow: $shadow-rest;
+  color: $ink-primary;
 
   border-radius: 0.75rem;
 
   text-align: left;
   text-decoration: none;
 
-  border: none;
+  border: 1px solid $card-border;
   cursor: pointer;
+  transition:
+    box-shadow 220ms ease-out,
+    border-color 220ms ease-out;
+
+  &:hover {
+    box-shadow: $shadow-hover;
+    border-color: $card-border-hover;
+  }
+
+  &:focus-visible {
+    outline: 2px solid $focus-ring;
+    outline-offset: 3px;
+  }
 }
 
 .title {
   font-size: 1.125rem;
   font-weight: 700;
-  color: var(--color-light-brown);
+  color: $ink-primary;
 
   overflow: hidden;
   max-width: 100%;
@@ -43,7 +82,8 @@ $image-placeholder-bg: #b98d77;
   flex: 1 1 0%;
   min-height: 0;
 
-  background-color: $image-placeholder-bg;
+  background: $placeholder-gradient;
+  border: 1px solid $card-border;
   border-radius: 0.5rem;
   overflow: hidden;
   position: relative;
@@ -59,6 +99,7 @@ $image-placeholder-bg: #b98d77;
 .placeholder {
   position: absolute;
   inset: 0;
+  color: $ink-secondary;
 }
 
 .footer {
@@ -80,7 +121,7 @@ $image-placeholder-bg: #b98d77;
 }
 
 .whenPrimary {
-  color: var(--color-light-brown);
+  color: $ink-primary;
   font-size: 0.9375rem;
   font-weight: 600;
   letter-spacing: 0.005em;
@@ -89,8 +130,7 @@ $image-placeholder-bg: #b98d77;
 }
 
 .whenSecondary {
-  color: var(--color-light-brown);
-  opacity: 0.55;
+  color: $ink-secondary;
   font-size: 0.8125rem;
   font-weight: 500;
   letter-spacing: 0.015em;
@@ -99,6 +139,12 @@ $image-placeholder-bg: #b98d77;
 }
 
 .status {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  isolation: isolate;
+  overflow: hidden;
+
   font-size: 0.75rem;
   font-weight: 700;
   text-transform: uppercase;
@@ -108,6 +154,48 @@ $image-placeholder-bg: #b98d77;
   background-color: var(--color-light-brown);
   color: var(--color-dark-brown);
   white-space: nowrap;
+
+  > * {
+    position: relative;
+    z-index: 1;
+  }
+}
+
+.statusHappening::after {
+  --happening-now-spread: 42px;
+  --happening-now-shimmer: color-mix(in oklab, var(--color-beige) 30%, transparent);
+
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image: linear-gradient(
+    108deg,
+    transparent calc(50% - var(--happening-now-spread)),
+    var(--happening-now-shimmer),
+    transparent calc(50% + var(--happening-now-spread))
+  );
+  background-repeat: no-repeat;
+  background-size: 250% 100%;
+  background-position: 100% center;
+  animation: happeningNowGlint 4.8s linear infinite;
+}
+
+@keyframes happeningNowGlint {
+  0% {
+    background-position: 100% center;
+  }
+  100% {
+    background-position: 0% center;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .statusHappening::after {
+    animation: none;
+    background-position: 0% center;
+  }
 }
 
 .timer {
@@ -123,8 +211,8 @@ $image-placeholder-bg: #b98d77;
   padding: 0.5rem 0.75rem;
   border-radius: 0.5rem;
 
-  background-color: var(--color-dark-brown);
-  color: var(--color-light-brown);
+  background-color: $timer-bg;
+  color: $timer-text;
 }
 
 .timerStripes {
@@ -134,10 +222,10 @@ $image-placeholder-bg: #b98d77;
   pointer-events: none;
   background-image: repeating-linear-gradient(
     -45deg,
-    rgba(255, 216, 170, 0.03),
-    rgba(255, 216, 170, 0.03) 12px,
-    rgba(255, 216, 170, 0.09) 12px,
-    rgba(255, 216, 170, 0.09) 24px
+    $timer-stripe-soft,
+    $timer-stripe-soft 12px,
+    $timer-stripe-strong 12px,
+    $timer-stripe-strong 24px
   );
   background-size: 33.94px 33.94px;
   animation: timerStripe 1.6s linear infinite;
@@ -217,7 +305,7 @@ $image-placeholder-bg: #b98d77;
   right: 0;
   bottom: 0;
   height: 3px;
-  background-color: var(--color-brown);
+  background-color: $timer-progress-track;
   overflow: hidden;
 }
 

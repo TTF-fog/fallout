@@ -1,4 +1,5 @@
 import { ModalLink } from '@inertiaui/modal-react'
+import clsx from 'clsx'
 import { AnimatePresence, motion, useIsPresent, useSpring, type MotionValue } from 'motion/react'
 import { useEffect, useLayoutEffect, useRef } from 'react'
 import { DateTime } from 'luxon'
@@ -251,7 +252,7 @@ export default function EventCard({ event, now }: Props) {
           <motion.span
             layout
             transition={{ type: 'spring', stiffness: 320, damping: 28, mass: 0.5 }}
-            className={styles.status}
+            className={clsx(styles.status, status === 'happening' && styles.statusHappening)}
             style={{ backgroundColor: pillBg, color: pillColor }}
           >
             <TextMorph as="span">{status === 'happening' ? 'Happening now' : 'Upcoming'}</TextMorph>

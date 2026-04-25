@@ -7,7 +7,7 @@ import { Textarea } from '@/components/admin/ui/textarea'
 import { Button } from '@/components/admin/ui/button'
 import { Alert, AlertDescription } from '@/components/admin/ui/alert'
 import DateTimePicker from '@/components/admin/DateTimePicker'
-import type { SerializedBulletinEvent } from '@/lib/bulletinEventStatus'
+import { computeBulletinEventStatus, type SerializedBulletinEvent } from '@/lib/bulletinEventStatus'
 
 const LOCAL_INPUT_FORMAT = "yyyy-LL-dd'T'HH:mm"
 
@@ -25,6 +25,15 @@ type FormState = {
   schedulable: boolean
   starts_at: string
   ends_at: string
+}
+
+type EventPayload = {
+  title: string
+  description: string
+  image_url: string | null
+  schedulable: boolean
+  starts_at?: string | null
+  ends_at?: string | null
 }
 
 const BLANK: FormState = {
@@ -82,6 +91,32 @@ export default function EventFormSheet({ open, onOpenChange, event, currentTab }
     setForm((prev) => ({ ...prev, [field]: value }))
   }
 
+  function timingAttrsForSubmit(): Pick<EventPayload, 'starts_at' | 'ends_at'> | Record<string, never> {
+    if (form.schedulable) {
+      return {
+        starts_at: toUtcIso(form.starts_at),
+        ends_at: toUtcIso(form.ends_at),
+      }
+    }
+
+    if (!event) {
+      return { starts_at: null, ends_at: null }
+    }
+
+    if (!event.schedulable) {
+      return {}
+    }
+
+    const status = computeBulletinEventStatus(event)
+    if (status === 'happening') {
+      return { starts_at: event.starts_at, ends_at: null }
+    }
+    if (status === 'expired') {
+      return { starts_at: event.starts_at, ends_at: event.ends_at }
+    }
+    return { starts_at: null, ends_at: null }
+  }
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setErrors({})
@@ -110,15 +145,16 @@ export default function EventFormSheet({ open, onOpenChange, event, currentTab }
 
     setSubmitting(true)
 
+    const bulletinEvent: EventPayload = {
+      title: form.title,
+      description: form.description,
+      image_url: form.image_url || null,
+      schedulable: form.schedulable,
+      ...timingAttrsForSubmit(),
+    }
+
     const payload = {
-      bulletin_event: {
-        title: form.title,
-        description: form.description,
-        image_url: form.image_url || null,
-        schedulable: form.schedulable,
-        starts_at: form.schedulable ? toUtcIso(form.starts_at) : null,
-        ends_at: form.schedulable ? toUtcIso(form.ends_at) : null,
-      },
+      bulletin_event: bulletinEvent,
       tab: currentTab,
     }
 

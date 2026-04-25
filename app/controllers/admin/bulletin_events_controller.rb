@@ -44,7 +44,7 @@ class Admin::BulletinEventsController < Admin::ApplicationController
     @event = BulletinEvent.find(params[:id])
     authorize @event
 
-    if @event.update(event_params)
+    if @event.update(normalized_event_params)
       redirect_to admin_bulletin_events_path(tab: params[:tab].presence), notice: "Event saved."
     else
       redirect_back fallback_location: admin_bulletin_events_path,
@@ -89,5 +89,35 @@ class Admin::BulletinEventsController < Admin::ApplicationController
 
   def event_params
     params.expect(bulletin_event: [ :title, :description, :image_url, :schedulable, :starts_at, :ends_at ])
+  end
+
+  def normalized_event_params
+    attrs = event_params.to_h.symbolize_keys
+    return attrs unless attrs.key?(:schedulable)
+
+    next_schedulable = ActiveModel::Type::Boolean.new.cast(attrs[:schedulable])
+
+    if @event.schedulable? && !next_schedulable
+      normalize_scheduled_to_manual_attrs(attrs)
+    elsif !@event.schedulable? && !next_schedulable
+      attrs.delete(:starts_at) if attrs[:starts_at].blank?
+      attrs.delete(:ends_at) if attrs[:ends_at].blank?
+    end
+
+    attrs
+  end
+
+  def normalize_scheduled_to_manual_attrs(attrs)
+    case @event.status
+    when :draft, :upcoming
+      attrs[:starts_at] = nil
+      attrs[:ends_at] = nil
+    when :happening
+      attrs[:starts_at] = @event.starts_at || Time.current
+      attrs[:ends_at] = nil
+    when :expired
+      attrs[:starts_at] = @event.starts_at
+      attrs[:ends_at] = @event.ends_at
+    end
   end
 end

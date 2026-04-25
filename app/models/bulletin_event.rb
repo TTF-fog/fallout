@@ -29,18 +29,35 @@ class BulletinEvent < ApplicationRecord
   validate :ends_at_after_starts_at
 
   scope :happening, -> {
-    where.not(starts_at: nil)
-      .where("starts_at <= ?", Time.current)
-      .where("ends_at IS NULL OR ends_at > ?", Time.current)
+    where(
+      "(schedulable = FALSE AND starts_at IS NOT NULL AND ends_at IS NULL) OR " \
+      "(schedulable = TRUE AND starts_at IS NOT NULL AND starts_at <= :now AND (ends_at IS NULL OR ends_at > :now))",
+      now: Time.current
+    )
   }
   scope :upcoming_or_happening, -> {
-    where("ends_at IS NULL OR ends_at > ?", Time.current)
+    where(
+      "(schedulable = FALSE AND ends_at IS NULL) OR " \
+      "(schedulable = TRUE AND (ends_at IS NULL OR ends_at > :now))",
+      now: Time.current
+    )
   }
   scope :expired, -> {
-    where("ends_at IS NOT NULL AND ends_at <= ?", Time.current)
+    where(
+      "(schedulable = FALSE AND ends_at IS NOT NULL) OR " \
+      "(schedulable = TRUE AND ends_at IS NOT NULL AND ends_at <= :now)",
+      now: Time.current
+    )
   }
 
   def status(now = Time.current)
+    unless schedulable?
+      return :expired if ends_at.present?
+      return :draft   if starts_at.nil?
+
+      return :happening
+    end
+
     return :expired if ends_at.present? && ends_at <= now
     return :draft   if starts_at.nil?
     return :upcoming if starts_at > now

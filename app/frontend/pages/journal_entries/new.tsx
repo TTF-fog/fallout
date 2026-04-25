@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useMemo, type ReactNode } from 'react'
 import { Deferred as InertiaDeferred, router } from '@inertiajs/react'
+import type { FormDataConvertible } from '@inertiajs/core'
 // @ts-expect-error useModal lacks type declarations in this beta package
 import { Deferred as ModalDeferred, Modal, useModal } from '@inertiaui/modal-react'
 import BookLayout from '@/components/shared/BookLayout'
@@ -304,7 +305,7 @@ function NewJournal({
   function handleSubmit() {
     if (!canSubmit) return
     setSubmitting(true)
-    const data: Record<string, unknown> = {
+    const data: Record<string, FormDataConvertible> = {
       timelapse_ids: Array.from(selectedTimelapses),
       youtube_video_ids: youtubeVideos.map((v) => v.id),
       lookout_tokens: Array.from(selectedLookoutTokens),

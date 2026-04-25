@@ -5,10 +5,11 @@ import { Modal } from '@inertiaui/modal-react'
 import { ArrowLeftIcon, MagnifyingGlassIcon } from '@heroicons/react/20/solid'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import clsx from 'clsx'
-import { AnimatePresence, motion } from 'motion/react'
+import { AnimatePresence, motion, type Transition } from 'motion/react'
 import { DateTime } from 'luxon'
 import MarqueeText from '@/components/shared/MarqueeText'
 import { SlidingNumber } from '@/components/shared/SlidingNumber'
+import TextMorph from '@/components/shared/TextMorph'
 import EventCard from '@/components/bulletin_board/EventCard'
 import ExploreCard from '@/components/bulletin_board/ExploreCard'
 import Masonry from 'react-masonry-css'
@@ -19,7 +20,23 @@ import styles from './index.module.scss'
 
 type SortOption = 'newest' | 'top'
 type SourceOption = 'journals' | 'projects'
-const SEARCH_DEBOUNCE_MS = 300
+const EXPLORE_FILTER_DEBOUNCE_MS = 300
+const EVENT_COUNT_TRANSITION: Transition = {
+  type: 'spring',
+  stiffness: 260,
+  damping: 34,
+  mass: 0.35,
+}
+const EXPLORE_POSITION_TRANSITION: Transition = {
+  type: 'spring',
+  stiffness: 320,
+  damping: 34,
+  mass: 0.4,
+}
+const EXPLORE_FADE_TRANSITION: Transition = {
+  duration: 0.18,
+  ease: 'easeOut',
+}
 
 type Featured = { image: string; title: string; username: string }
 type Explore = {
@@ -49,13 +66,27 @@ export default function BulletinBoardIndex({ events, featured, explore, is_modal
   const [source, setSource] = useState<SourceOption>('journals')
   const [exploreList, setExploreList] = useState<Explore[]>(explore)
   const [isSearching, setIsSearching] = useState(false)
-  const isFirstSearchRender = useRef(true)
+  const isFirstExploreFetchRender = useRef(true)
   const PAGE_SIZE = 3
   const [page, setPage] = useState(0)
 
   const liveProps = useLiveReload<PageProps>({ stream: 'bulletin_events', only: ['events'] })
   const now = useNowTick(1000)
   const liveEvents = liveProps?.events ?? events
+
+  const eventCounts = useMemo(
+    () =>
+      liveEvents.reduce(
+        (counts, event) => {
+          const status = computeBulletinEventStatus(event, now)
+          if (status === 'happening') counts.happening += 1
+          if (status === 'upcoming') counts.upcoming += 1
+          return counts
+        },
+        { happening: 0, upcoming: 0 },
+      ),
+    [liveEvents, now],
+  )
 
   // Happening events first (scheduled-end sorted by end time asc, manual live sorted
   // by start time asc so longer-running comes first); then upcoming sorted by start time asc.
@@ -99,14 +130,14 @@ export default function BulletinBoardIndex({ events, featured, explore, is_modal
   }, [lightbox])
 
   useEffect(() => {
-    if (isFirstSearchRender.current) {
-      isFirstSearchRender.current = false
+    if (isFirstExploreFetchRender.current) {
+      isFirstExploreFetchRender.current = false
       return
     }
     setIsSearching(true)
     const abort = new AbortController()
     const timer = setTimeout(() => {
-      const params = new URLSearchParams({ q: query, sort, source })
+      const params = new URLSearchParams({ sort, source })
       fetch(`/bulletin_board/search?${params}`, {
         headers: { Accept: 'application/json' },
         signal: abort.signal,
@@ -122,12 +153,12 @@ export default function BulletinBoardIndex({ events, featured, explore, is_modal
             setIsSearching(false)
           }
         })
-    }, SEARCH_DEBOUNCE_MS)
+    }, EXPLORE_FILTER_DEBOUNCE_MS)
     return () => {
       clearTimeout(timer)
       abort.abort()
     }
-  }, [query, sort, source])
+  }, [sort, source])
 
   const backButton = is_modal ? (
     <button type="button" onClick={() => modalRef.current?.close()} aria-label="Back" className={styles.backButton}>
@@ -139,6 +170,24 @@ export default function BulletinBoardIndex({ events, featured, explore, is_modal
     </Link>
   )
 
+  const hasEventCounts = eventCounts.happening > 0 || eventCounts.upcoming > 0
+  const eventCountLabel = [
+    eventCounts.happening > 0
+      ? `${eventCounts.happening} ${eventCounts.happening === 1 ? 'event' : 'events'} happening now`
+      : null,
+    eventCounts.upcoming > 0
+      ? `${eventCounts.upcoming} upcoming ${eventCounts.upcoming === 1 ? 'event' : 'events'}`
+      : null,
+  ]
+    .filter(Boolean)
+    .join(' • ')
+  const exploreStateKey = isSearching
+    ? 'loading'
+    : exploreList.length === 0
+      ? `empty-${source}-${sort}`
+      : `results-${source}-${sort}`
+  const exploreEmptyLabel = source === 'journals' ? 'no journals yet' : 'no projects yet'
+
   const content = (
     <div className={clsx(styles.content, is_modal ? styles.contentModal : styles.contentStandalone)}>
       <div className={styles.panel}>
@@ -146,7 +195,72 @@ export default function BulletinBoardIndex({ events, featured, explore, is_modal
 
         <div className={styles.inner}>
           <motion.section layout className={styles.section}>
-            <h2 className={styles.sectionHeading}>Events</h2>
+            <motion.div layout className={styles.eventsHeader}>
+              <h2 className={styles.sectionHeading}>Events</h2>
+
+              <AnimatePresence initial={false}>
+                {hasEventCounts && (
+                  <motion.div
+                    key="event-counts"
+                    layout
+                    aria-label={eventCountLabel}
+                    className={styles.eventCountLine}
+                    initial={{ opacity: 0, y: -4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -4 }}
+                    transition={EVENT_COUNT_TRANSITION}
+                  >
+                    <AnimatePresence initial={false} mode="popLayout">
+                      {eventCounts.happening > 0 && (
+                        <motion.span
+                          key="happening"
+                          layout
+                          className={styles.eventCountSegment}
+                          initial={{ opacity: 0, y: -2 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -2 }}
+                          transition={EVENT_COUNT_TRANSITION}
+                        >
+                          <SlidingNumber value={eventCounts.happening} />
+                          <TextMorph as="span" transition={EVENT_COUNT_TRANSITION}>
+                            {eventCounts.happening === 1 ? 'event happening now' : 'events happening now'}
+                          </TextMorph>
+                        </motion.span>
+                      )}
+                      {eventCounts.happening > 0 && eventCounts.upcoming > 0 && (
+                        <motion.span
+                          key="separator"
+                          layout
+                          className={styles.eventCountSeparator}
+                          initial={{ opacity: 0, y: -2 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -2 }}
+                          transition={EVENT_COUNT_TRANSITION}
+                        >
+                          •
+                        </motion.span>
+                      )}
+                      {eventCounts.upcoming > 0 && (
+                        <motion.span
+                          key="upcoming"
+                          layout
+                          className={styles.eventCountSegment}
+                          initial={{ opacity: 0, y: -2 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -2 }}
+                          transition={EVENT_COUNT_TRANSITION}
+                        >
+                          <SlidingNumber value={eventCounts.upcoming} />
+                          <TextMorph as="span" transition={EVENT_COUNT_TRANSITION}>
+                            {eventCounts.upcoming === 1 ? 'upcoming event' : 'upcoming events'}
+                          </TextMorph>
+                        </motion.span>
+                      )}
+                    </AnimatePresence>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </motion.div>
 
             <motion.div layout className={styles.eventsArea}>
               <AnimatePresence initial={false} mode="popLayout">
@@ -288,10 +402,12 @@ export default function BulletinBoardIndex({ events, featured, explore, is_modal
             </div>
           </motion.section>
 
-          <motion.section layout className={styles.section}>
-            <h2 className={styles.sectionHeading}>Explore</h2>
+          <motion.section layout="position" transition={EXPLORE_POSITION_TRANSITION} className={styles.section}>
+            <motion.h2 layout="position" transition={EXPLORE_POSITION_TRANSITION} className={styles.sectionHeading}>
+              Explore
+            </motion.h2>
 
-            <div className={styles.searchRow}>
+            <motion.div layout="position" transition={EXPLORE_POSITION_TRANSITION} className={styles.searchRow}>
               <div className={styles.searchSection}>
                 <MagnifyingGlassIcon className={styles.searchIcon} />
 
@@ -303,10 +419,16 @@ export default function BulletinBoardIndex({ events, featured, explore, is_modal
                   onChange={(e) => setQuery(e.target.value)}
                 />
               </div>
-            </div>
+            </motion.div>
 
-            <div className={styles.filterRow}>
-              <div className={styles.sortTabs} role="group" aria-label="Source">
+            <motion.div layout="position" transition={EXPLORE_POSITION_TRANSITION} className={styles.filterRow}>
+              <div
+                className={styles.sortTabs}
+                data-active-index={source === 'journals' ? 0 : 1}
+                role="group"
+                aria-label="Source"
+              >
+                <span className={styles.sortTabActiveBg} aria-hidden />
                 {(['journals', 'projects'] as const).map((key) => {
                   const active = source === key
 
@@ -318,13 +440,6 @@ export default function BulletinBoardIndex({ events, featured, explore, is_modal
                       onClick={() => setSource(key)}
                       className={styles.sortTab}
                     >
-                      {active && (
-                        <motion.span
-                          layoutId="sourcePillIndicator"
-                          className={styles.sortTabActiveBg}
-                          transition={{ type: 'spring', stiffness: 500, damping: 32 }}
-                        />
-                      )}
                       <span className={styles.sortTabLabel}>
                         {key.substring(0, 1).toUpperCase() + key.substring(1)}
                       </span>
@@ -333,7 +448,13 @@ export default function BulletinBoardIndex({ events, featured, explore, is_modal
                 })}
               </div>
 
-              <div className={styles.sortTabs} role="group" aria-label="Sort projects">
+              <div
+                className={styles.sortTabs}
+                data-active-index={sort === 'newest' ? 0 : 1}
+                role="group"
+                aria-label="Sort explore results"
+              >
+                <span className={styles.sortTabActiveBg} aria-hidden />
                 {(['newest', 'top'] as const).map((key) => {
                   const active = sort === key
 
@@ -345,14 +466,6 @@ export default function BulletinBoardIndex({ events, featured, explore, is_modal
                       onClick={() => setSort(key)}
                       className={styles.sortTab}
                     >
-                      {active && (
-                        <motion.span
-                          layoutId="sortPillIndicator"
-                          className={styles.sortTabActiveBg}
-                          transition={{ type: 'spring', stiffness: 500, damping: 32 }}
-                        />
-                      )}
-
                       <span className={styles.sortTabLabel}>
                         {key.substring(0, 1).toUpperCase() + key.substring(1).replace(/_/g, ' ')}
                       </span>
@@ -360,27 +473,68 @@ export default function BulletinBoardIndex({ events, featured, explore, is_modal
                   )
                 })}
               </div>
-            </div>
+            </motion.div>
 
-            <div className={styles.exploreScroll}>
-              {isSearching ? (
-                <div className={styles.exploreLoading} role="status" aria-label="Loading projects">
-                  <div className={styles.spinner} aria-hidden />
-                </div>
-              ) : exploreList.length === 0 ? (
-                <div className={styles.exploreEmpty}>{query.trim() ? 'no projects found' : 'no projects yet'}</div>
-              ) : (
-                <Masonry
-                  breakpointCols={{ default: 3, 1023: 2, 767: 1 }}
-                  className={styles.exploreMasonry}
-                  columnClassName={styles.exploreMasonryColumn}
-                >
-                  {exploreList.map((entry, i) => (
-                    <ExploreCard key={i} entry={entry} />
-                  ))}
-                </Masonry>
-              )}
-            </div>
+            <motion.div layout="position" transition={EXPLORE_POSITION_TRANSITION} className={styles.exploreScroll}>
+              <AnimatePresence initial={false} mode="popLayout">
+                {isSearching ? (
+                  <motion.div
+                    key={exploreStateKey}
+                    layout="position"
+                    className={styles.exploreLoading}
+                    role="status"
+                    aria-label="Loading explore results"
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -6 }}
+                    transition={EXPLORE_FADE_TRANSITION}
+                  >
+                    <div className={styles.spinner} aria-hidden />
+                  </motion.div>
+                ) : exploreList.length === 0 ? (
+                  <motion.div
+                    key={exploreStateKey}
+                    layout="position"
+                    className={styles.exploreEmpty}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -6 }}
+                    transition={EXPLORE_FADE_TRANSITION}
+                  >
+                    {exploreEmptyLabel}
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    key={exploreStateKey}
+                    layout="position"
+                    className={styles.exploreResults}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -6 }}
+                    transition={EXPLORE_FADE_TRANSITION}
+                  >
+                    <Masonry
+                      breakpointCols={{ default: 3, 1023: 2, 767: 1 }}
+                      className={styles.exploreMasonry}
+                      columnClassName={styles.exploreMasonryColumn}
+                    >
+                      {exploreList.map((entry, i) => (
+                        <motion.div
+                          key={`${entry.username}-${entry.project_name}-${entry.date}-${i}`}
+                          className={styles.exploreCardMotion}
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -6 }}
+                          transition={{ ...EXPLORE_FADE_TRANSITION, delay: Math.min(i * 0.025, 0.15) }}
+                        >
+                          <ExploreCard entry={entry} />
+                        </motion.div>
+                      ))}
+                    </Masonry>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </motion.div>
           </motion.section>
         </div>
       </div>

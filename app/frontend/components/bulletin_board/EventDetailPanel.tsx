@@ -323,11 +323,7 @@ function DescriptionBlock({ description }: { description: string }) {
   )
 }
 
-function buildWhenLine(
-  event: SerializedBulletinEvent,
-  status: BulletinEventStatus,
-  now: Date,
-): string {
+function buildWhenLine(event: SerializedBulletinEvent, status: BulletinEventStatus, now: Date): string {
   if (!event.schedulable) {
     if (status === 'draft') return 'Not started yet'
     if (status === 'happening' && event.starts_at) {
@@ -386,12 +382,6 @@ export default function EventDetailPanel({ event, onBack }: Props) {
   return (
     <Frame showBorderOnMobile className={styles.container}>
       <div className={styles.inner}>
-        <header className={styles.header}>
-          <button type="button" onClick={onBack} aria-label="Back" className={styles.backButton}>
-            <ArrowLeftIcon className={styles.backIcon} />
-          </button>
-        </header>
-
         <div className={styles.body}>
           <motion.div
             layout="position"
@@ -408,6 +398,10 @@ export default function EventDetailPanel({ event, onBack }: Props) {
 
             <div className={styles.heroOverlay} aria-hidden />
 
+            <button type="button" onClick={onBack} aria-label="Back" className={styles.backButton}>
+              <ArrowLeftIcon className={styles.backIcon} />
+            </button>
+
             {isExpired || isDraft ? (
               <span className={clsx(styles.heroStatus, styles.heroStatusMuted)}>
                 <TextMorph as="span">{STATUS_LABEL[status]}</TextMorph>
@@ -416,7 +410,7 @@ export default function EventDetailPanel({ event, onBack }: Props) {
               <motion.span
                 layout
                 transition={{ type: 'spring', stiffness: 320, damping: 28, mass: 0.5 }}
-                className={styles.heroStatus}
+                className={clsx(styles.heroStatus, status === 'happening' && styles.heroStatusHappening)}
                 style={{ backgroundColor: pillBg, color: pillColor }}
               >
                 {status === 'happening' && <span className={styles.heroStatusDot} aria-hidden />}
@@ -454,9 +448,7 @@ export default function EventDetailPanel({ event, onBack }: Props) {
             </div>
           </motion.div>
 
-          {event.description && event.description.trim() && (
-            <DescriptionBlock description={event.description} />
-          )}
+          {event.description && event.description.trim() && <DescriptionBlock description={event.description} />}
         </div>
       </div>
     </Frame>
