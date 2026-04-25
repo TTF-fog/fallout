@@ -2,7 +2,7 @@ class StreakService
   MAX_FREEZES = 5
   MILESTONES = [ 7, 14, 30, 60, 100 ].freeze
   STREAK_THRESHOLD_SECONDS = 1.hour.to_i # Minimum daily recording time to count toward a streak
-  GOAL_KOI_REWARDS = { 3 => 1, 5 => 2, 7 => 5, 14 => 10 }.freeze
+  GOAL_KOI_REWARDS = { 3 => 1, 5 => 2, 7 => 5, 14 => 12 }.freeze
   STREAK_ANNOUNCEMENT_CHANNEL = "C037157AL30" # Public channel for streak goal announcements
 
   def self.record_activity(user)
