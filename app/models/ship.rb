@@ -80,11 +80,11 @@ class Ship < ApplicationRecord
   end
 
   def self.airtable_sync_table_id
-    "tblz2umphZqnDoQDZ"
+    "tbl1LJG0FKSV61wcW"
   end
 
   def self.airtable_sync_sync_id
-    "PLi0fLU8"
+    "5BFGD4ac"
   end
 
   def self.airtable_should_batch
