@@ -65,7 +65,7 @@ class JournalEntry < ApplicationRecord
   # Public Explore feed: kept entries on kept + listed projects. Re-evaluated per request,
   # so a project flipping to is_unlisted or being discarded immediately removes its entries.
   scope :public_for_explore, -> {
-    kept.joins(:project).where(projects: { discarded_at: nil, is_unlisted: false })
+    kept.where(project_id: Project.public_for_explore.select(:id))
   }
 
   private

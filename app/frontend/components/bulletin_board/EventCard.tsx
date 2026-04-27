@@ -6,7 +6,6 @@ import { DateTime } from 'luxon'
 import ImagePlaceholder from '@/components/shared/ImagePlaceholder'
 import MarqueeText from '@/components/shared/MarqueeText'
 import { SlidingNumber } from '@/components/shared/SlidingNumber'
-import TextMorph from '@/components/shared/TextMorph'
 import {
   computeBulletinEventStatus,
   formatEventDateLabel,
@@ -65,9 +64,7 @@ function EventTimer({ config, progress }: { config: TimerConfig; progress?: Moti
             </motion.span>
           )}
         </AnimatePresence>
-        <TextMorph as="span" className={styles.timerLabelText}>
-          {label}
-        </TextMorph>
+        <span className={styles.timerLabelText}>{label}</span>
       </span>
       {staticText != null ? (
         <span className={styles.timerStatic}>{staticText}</span>
@@ -230,7 +227,7 @@ export default function EventCard({ event, now }: Props) {
       className={styles.cardWrap}
     >
       <ModalLink href={`/bulletin_board/events/${event.id}`} className={styles.card}>
-        <MarqueeText text={event.title} morph className={styles.title} />
+        <MarqueeText text={event.title} className={styles.title} />
 
         <div className={styles.imageWrap}>
           {event.image_url ? (
@@ -242,12 +239,8 @@ export default function EventCard({ event, now }: Props) {
 
         <div className={styles.footer}>
           <div className={styles.whenGroup}>
-            <MarqueeText text={whenText} morph className={styles.whenPrimary} />
-            {detailText && (
-              <TextMorph as="span" className={styles.whenSecondary}>
-                {detailText}
-              </TextMorph>
-            )}
+            <MarqueeText text={whenText} className={styles.whenPrimary} />
+            {detailText && <span className={styles.whenSecondary}>{detailText}</span>}
           </div>
           <motion.span
             layout
@@ -255,7 +248,7 @@ export default function EventCard({ event, now }: Props) {
             className={clsx(styles.status, status === 'happening' && styles.statusHappening)}
             style={{ backgroundColor: pillBg, color: pillColor }}
           >
-            <TextMorph as="span">{status === 'happening' ? 'Happening now' : 'Upcoming'}</TextMorph>
+            {status === 'happening' ? 'Happening now' : 'Upcoming'}
           </motion.span>
         </div>
 

@@ -5,14 +5,18 @@ class BulletinBoardController < ApplicationController
 
   EXPLORE_CATEGORIES = %w[projects journals].freeze
   EXPLORE_SORTS = %w[active newest].freeze
-  EXPLORE_LIMIT = 24
-  PROJECT_ACTIVITY_SQL = "COALESCE(latest_activity.last_activity_at, projects.created_at)".freeze
+  EXPLORE_LIMIT = 5
+  EXPLORE_LIMIT_MAX = 50
+  PROJECT_ACTIVITY_NULL_CURSOR_VALUE = "none".freeze
+  PROJECT_ACTIVITY_SQL = "latest_activity.last_activity_at".freeze
   PROJECT_ACTIVITY_SELECT_SQL = "projects.*, #{PROJECT_ACTIVITY_SQL} AS explore_activity_at".freeze
-  PROJECT_ACTIVITY_ORDER_SQL = "#{PROJECT_ACTIVITY_SQL} DESC, projects.id DESC".freeze
+  PROJECT_ACTIVITY_ORDER_SQL = "#{PROJECT_ACTIVITY_SQL} DESC NULLS LAST, projects.id DESC".freeze
   PROJECT_ACTIVITY_CURSOR_SQL = [
     "#{PROJECT_ACTIVITY_SQL} < :cursor_at",
-    "(#{PROJECT_ACTIVITY_SQL} = :cursor_at AND projects.id < :cursor_id)"
+    "(#{PROJECT_ACTIVITY_SQL} = :cursor_at AND projects.id < :cursor_id)",
+    "#{PROJECT_ACTIVITY_SQL} IS NULL"
   ].join(" OR ").freeze
+  PROJECT_ACTIVITY_NULL_CURSOR_SQL = "#{PROJECT_ACTIVITY_SQL} IS NULL AND projects.id < :cursor_id".freeze
 
   allow_unauthenticated_access only: %i[index search event] # Public community hub and Explore feed.
   allow_trial_access only: %i[index search event] # Public community hub, trial users welcome
@@ -44,7 +48,8 @@ class BulletinBoardController < ApplicationController
       category: category,
       sort: category == "journals" ? "newest" : normalized_explore_sort,
       query: params[:query],
-      cursor: params[:cursor]
+      cursor: params[:cursor],
+      limit: normalized_explore_limit
     )
   rescue ArgumentError
     render json: { error: "Invalid cursor" }, status: :bad_request
@@ -85,12 +90,12 @@ class BulletinBoardController < ApplicationController
     }
   end
 
-  def explore_payload(category:, sort:, query:, cursor:)
+  def explore_payload(category:, sort:, query:, cursor:, limit: EXPLORE_LIMIT)
     query = query.to_s.strip.presence
     entries, next_cursor, has_more = if category == "journals"
-      journal_explore_entries(query: query, cursor: cursor)
+      journal_explore_entries(query: query, cursor: cursor, limit: limit)
     else
-      project_explore_entries(sort: sort, query: query, cursor: cursor)
+      project_explore_entries(sort: sort, query: query, cursor: cursor, limit: limit)
     end
 
     {
@@ -103,15 +108,15 @@ class BulletinBoardController < ApplicationController
     }
   end
 
-  def project_explore_entries(sort:, query:, cursor:)
+  def project_explore_entries(sort:, query:, cursor:, limit: EXPLORE_LIMIT)
     scope = policy_scope(Project).public_for_explore
     scope = search_projects_for_explore(scope, query) if query.present?
     scope = order_projects_for_explore(scope, sort)
     scope = apply_project_cursor(scope, sort: sort, cursor: cursor)
 
-    projects = scope.limit(EXPLORE_LIMIT + 1).preload(:user).to_a
-    has_more = projects.size > EXPLORE_LIMIT
-    projects = projects.first(EXPLORE_LIMIT)
+    projects = scope.limit(limit + 1).preload(:user).to_a
+    has_more = projects.size > limit
+    projects = projects.first(limit)
     preload_project_explore_context(projects)
 
     [
@@ -127,26 +132,30 @@ class BulletinBoardController < ApplicationController
     scope.where(id: project_matches).or(scope.where(id: journal_matches))
   end
 
-  def journal_explore_entries(query:, cursor:)
+  def journal_explore_entries(query:, cursor:, limit: EXPLORE_LIMIT)
     scope = JournalEntry.public_for_explore
     scope = scope.search(query) if query.present?
 
     latest_ids = scope
       .select("DISTINCT ON (journal_entries.project_id) journal_entries.id")
-      .order("journal_entries.project_id, journal_entries.created_at DESC, journal_entries.id DESC")
+      .reorder("journal_entries.project_id, journal_entries.created_at DESC, journal_entries.id DESC")
 
     entries_scope = JournalEntry.where(id: latest_ids).order(created_at: :desc, id: :desc)
     entries_scope = apply_journal_cursor(entries_scope, cursor)
-    entries = entries_scope
-      .limit(EXPLORE_LIMIT + 1)
-      .preload(:user, :project, { recordings: :recordable }, images_attachments: :blob)
-      .to_a
+    entries = entries_scope.limit(limit + 1).to_a
 
-    has_more = entries.size > EXPLORE_LIMIT
-    entries = entries.first(EXPLORE_LIMIT)
+    has_more = entries.size > limit
+    entries = entries.first(limit)
+    # Preload after slicing so Bullet doesn't flag the discarded +1 row's associations as unused.
+    ActiveRecord::Associations::Preloader.new(
+      records: entries,
+      associations: [ :user, :project, { images_attachments: :blob } ]
+    ).call
+    markdown_docs = rendered_journal_markdown_documents(entries)
+    preload_journal_recording_media(entries, markdown_docs)
 
     [
-      entries.map { |entry| serialize_journal_for_explore(entry) },
+      entries.map { |entry| serialize_journal_for_explore(entry, markdown_docs.fetch(entry.id)) },
       has_more ? encode_journal_cursor(entries.last) : nil,
       has_more
     ]
@@ -165,9 +174,19 @@ class BulletinBoardController < ApplicationController
 
     cursor_at, cursor_id = decode_project_cursor(cursor)
     if sort == "newest"
+      raise ArgumentError if cursor_at.nil?
+
       scope.where("projects.created_at < :cursor_at OR (projects.created_at = :cursor_at AND projects.id < :cursor_id)", cursor_at: cursor_at, cursor_id: cursor_id)
     else
+      apply_active_project_cursor(scope, cursor_at, cursor_id)
+    end
+  end
+
+  def apply_active_project_cursor(scope, cursor_at, cursor_id)
+    if cursor_at
       scope.where(PROJECT_ACTIVITY_CURSOR_SQL, cursor_at: cursor_at, cursor_id: cursor_id)
+    else
+      scope.where(PROJECT_ACTIVITY_NULL_CURSOR_SQL, cursor_id: cursor_id)
     end
   end
 
@@ -185,17 +204,31 @@ class BulletinBoardController < ApplicationController
     EXPLORE_SORTS.include?(sort) ? sort : "active"
   end
 
+  # Live-refresh callers pass the count of entries currently rendered so the response replaces the
+  # whole loaded slice. Capped to bound query cost when a user has scrolled deep.
+  def normalized_explore_limit
+    requested = params[:limit].to_i
+    return EXPLORE_LIMIT if requested <= 0
+
+    requested.clamp(1, EXPLORE_LIMIT_MAX)
+  end
+
   def encode_project_cursor(project, sort:)
     return nil unless project
 
-    Base64.urlsafe_encode64("#{project_cursor_time(project, sort: sort).iso8601(6)}|#{project.id}", padding: false)
+    cursor_time = project_cursor_time(project, sort: sort)
+    cursor_time_value = cursor_time ? cursor_time.iso8601(6) : PROJECT_ACTIVITY_NULL_CURSOR_VALUE
+    Base64.urlsafe_encode64("#{cursor_time_value}|#{project.id}", padding: false)
   end
 
   def decode_project_cursor(cursor)
     cursor_at, cursor_id = Base64.urlsafe_decode64(cursor).split("|", 2)
     raise ArgumentError if cursor_at.blank? || cursor_id.blank?
 
-    [ Time.iso8601(cursor_at), Integer(cursor_id) ]
+    [
+      cursor_at == PROJECT_ACTIVITY_NULL_CURSOR_VALUE ? nil : Time.iso8601(cursor_at),
+      Integer(cursor_id)
+    ]
   end
 
   def apply_journal_cursor(scope, cursor)
@@ -219,8 +252,16 @@ class BulletinBoardController < ApplicationController
   end
 
   def project_cursor_time(project, sort:)
-    timestamp = sort == "newest" ? project.created_at : project.read_attribute("explore_activity_at").presence || project.created_at
+    timestamp = sort == "newest" ? project.created_at : project_explore_activity_at(project)
+    return nil if timestamp.blank?
+
     timestamp.respond_to?(:iso8601) ? timestamp : Time.zone.parse(timestamp.to_s)
+  end
+
+  def project_explore_activity_at(project)
+    return unless project.has_attribute?("explore_activity_at")
+
+    project.read_attribute("explore_activity_at").presence
   end
 
   def preload_project_explore_context(projects)
@@ -266,7 +307,7 @@ class BulletinBoardController < ApplicationController
     elsif latest_entry
       journal_cover_url(latest_entry, latest_markdown_doc)
     end
-    last_activity_at = project.read_attribute("explore_activity_at").presence || latest_entry&.created_at || project.created_at
+    last_activity_at = project_explore_activity_at(project) || latest_entry&.created_at
 
     {
       id: project.id,
@@ -286,9 +327,7 @@ class BulletinBoardController < ApplicationController
     }
   end
 
-  def serialize_journal_for_explore(entry)
-    markdown_doc = rendered_user_markdown_document(entry.content.to_s)
-
+  def serialize_journal_for_explore(entry, markdown_doc)
     {
       id: entry.id,
       type: "journal",
@@ -311,7 +350,7 @@ class BulletinBoardController < ApplicationController
       }
     end
 
-    markdown_image_url = markdown_doc.at_css("img[src]")&.[]("src").presence
+    markdown_image_url = journal_markdown_image_url(markdown_doc)
     return { kind: "image", url: markdown_image_url } if markdown_image_url
 
     entry.recordings.sort_by(&:created_at).each do |recording|
@@ -341,6 +380,8 @@ class BulletinBoardController < ApplicationController
   end
 
   def project_time_iso8601(timestamp)
+    return nil if timestamp.blank?
+
     timestamp.respond_to?(:iso8601) ? timestamp.iso8601 : Time.zone.parse(timestamp.to_s).iso8601
   end
 
@@ -348,9 +389,31 @@ class BulletinBoardController < ApplicationController
     Nokogiri::HTML::DocumentFragment.parse(helpers.render_user_markdown(content))
   end
 
+  def rendered_journal_markdown_documents(entries)
+    entries.to_h { |entry| [ entry.id, rendered_user_markdown_document(entry.content.to_s) ] }
+  end
+
+  def preload_journal_recording_media(entries, markdown_docs)
+    entries_for_recordings = entries.reject { |entry| journal_has_image_media?(entry, markdown_docs.fetch(entry.id)) }
+    return if entries_for_recordings.empty?
+
+    ActiveRecord::Associations::Preloader.new(
+      records: entries_for_recordings,
+      associations: { recordings: :recordable }
+    ).call
+  end
+
   def journal_cover_url(entry, markdown_doc)
     return url_for(entry.images.first) if entry.images.attached?
 
+    journal_markdown_image_url(markdown_doc)
+  end
+
+  def journal_has_image_media?(entry, markdown_doc)
+    entry.images.attached? || journal_markdown_image_url(markdown_doc).present?
+  end
+
+  def journal_markdown_image_url(markdown_doc)
     markdown_doc.at_css("img[src]")&.[]("src").presence
   end
 

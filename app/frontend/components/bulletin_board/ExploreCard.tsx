@@ -1,10 +1,10 @@
 import { ModalLink } from '@inertiaui/modal-react'
 import { Play } from 'lucide-react'
 import { motion, type Transition } from 'motion/react'
-import { DateTime } from 'luxon'
 import ImagePlaceholder from '@/components/shared/ImagePlaceholder'
 import { SlidingNumber } from '@/components/shared/SlidingNumber'
 import TextMorph from '@/components/shared/TextMorph'
+import { relativeAgeParts } from '@/lib/relativeAge'
 import styles from './ExploreCard.module.scss'
 
 const JOURNAL_AGE_TRANSITION: Transition = { type: 'spring', stiffness: 260, damping: 34, mass: 0.35 }
@@ -19,7 +19,7 @@ export type ExploreEntry = {
   tags: string[]
   href: string
   created_at?: string
-  last_activity_at?: string
+  last_activity_at?: string | null
   image?: string | null
   project_description?: string
   latest_journal_excerpt?: string | null
@@ -62,36 +62,6 @@ function hasJournalMedia(entry: ExploreEntry): boolean {
   return media?.kind === 'image' || media?.kind === 'video' || (media?.kind === 'youtube' && !!media.thumbnail_url)
 }
 
-function journalAgeParts(iso: string | undefined, now: Date): { value: number; unit: string } | null {
-  if (!iso) return null
-
-  const dt = DateTime.fromISO(iso).toLocal()
-  if (!dt.isValid) return null
-
-  const nowDt = DateTime.fromJSDate(now).toLocal()
-  const seconds = Math.max(0, nowDt.diff(dt, 'seconds').seconds)
-
-  if (seconds < 60) return { value: 0, unit: 'minutes' }
-  if (seconds < 3_600) {
-    const value = Math.max(1, Math.floor(seconds / 60))
-    return { value, unit: value === 1 ? 'minute' : 'minutes' }
-  }
-  if (seconds < 86_400) {
-    const value = Math.max(1, Math.floor(seconds / 3_600))
-    return { value, unit: value === 1 ? 'hour' : 'hours' }
-  }
-  if (seconds < 2_592_000) {
-    const value = Math.max(1, Math.floor(seconds / 86_400))
-    return { value, unit: value === 1 ? 'day' : 'days' }
-  }
-
-  const months = Math.max(1, Math.floor(nowDt.diff(dt, 'months').months))
-  if (months < 12) return { value: months, unit: months === 1 ? 'month' : 'months' }
-
-  const years = Math.max(1, Math.floor(nowDt.diff(dt, 'years').years))
-  return { value: years, unit: years === 1 ? 'year' : 'years' }
-}
-
 function JournalAge({
   iso,
   now,
@@ -101,12 +71,20 @@ function JournalAge({
   now: Date
   className?: string
 }) {
-  const age = journalAgeParts(iso, now)
+  const age = relativeAgeParts(iso, now)
 
   if (!age) {
     return (
       <TextMorph as="span" className={className}>
         recently posted
+      </TextMorph>
+    )
+  }
+
+  if (age.kind === 'now') {
+    return (
+      <TextMorph as="span" className={className} transition={JOURNAL_AGE_TRANSITION}>
+        {age.label}
       </TextMorph>
     )
   }

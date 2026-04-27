@@ -528,6 +528,7 @@ $beige: var(--color-light-brown);
   position: relative;
   width: 100%;
   overflow: hidden;
+  overflow-anchor: none;
 }
 
 .exploreMeasured {
@@ -730,44 +731,17 @@ $beige: var(--color-light-brown);
 .loadMoreRow {
   display: flex;
   justify-content: center;
+  align-items: center;
+  min-height: 3rem;
   padding-top: 0.75rem;
 }
 
-.loadMoreButton {
-  min-width: 9rem;
-  padding: 0.75rem 1.125rem;
-  border: 2px solid var(--color-dark-brown);
-  border-bottom-width: 4px;
-  border-right-width: 4px;
-  border-radius: 0.625rem;
-  background-color: var(--color-light-brown);
-  color: var(--color-dark-brown);
-  font-weight: 700;
-  cursor: pointer;
-  transition:
-    transform 100ms ease-out,
-    border-width 100ms ease-out,
-    background-color 120ms ease-out;
-
-  &:hover:not(:disabled) {
-    background-color: $beige;
-  }
-
-  &:active:not(:disabled) {
-    transform: translate(2px, 2px);
-    border-bottom-width: 2px;
-    border-right-width: 2px;
-  }
-
-  &:focus-visible {
-    outline: 2px solid var(--color-dark-brown);
-    outline-offset: 2px;
-  }
-
-  &:disabled {
-    cursor: not-allowed;
-    background-color: $events-empty-bg;
-  }
+.loadMoreSpinner {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
 }
 
 .exploreEmpty {
@@ -826,7 +800,6 @@ $beige: var(--color-light-brown);
   &:focus {
     outline: none;
     border-color: var(--color-black);
-    background-color: var(--color-beige);
   }
 }
 

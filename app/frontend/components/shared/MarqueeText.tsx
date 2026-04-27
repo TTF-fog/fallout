@@ -62,17 +62,15 @@ export default function MarqueeText({ text, className, morph = false }: Props) {
     return () => animation.cancel()
   }, [shouldMarquee, text])
 
-  const renderContent = () => (morph ? <TextMorph as="span">{text}</TextMorph> : text)
-
   return (
     <div ref={containerRef} className={clsx(styles.marquee, className)}>
       <span ref={trackRef} className={styles.marqueeTrack}>
         <span ref={copyRef} className={styles.marqueeCopy}>
-          {renderContent()}
+          {morph ? <TextMorph as="span">{text}</TextMorph> : text}
         </span>
         {shouldMarquee && (
           <span aria-hidden className={styles.marqueeCopy}>
-            {renderContent()}
+            {text}
           </span>
         )}
       </span>

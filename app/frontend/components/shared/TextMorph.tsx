@@ -1,6 +1,5 @@
 import { type CSSProperties, type ElementType, memo, useId, useMemo } from 'react'
-import { AnimatePresence, motion, type Transition, type Variants } from 'motion/react'
-import { cn } from '@/lib/utils'
+import { AnimatePresence, motion, type Transition, type Variants, useReducedMotion } from 'motion/react'
 
 export type TextMorphProps = {
   children: string
@@ -26,37 +25,34 @@ const defaultTransition: Transition = {
 
 function TextMorph({ children, as: Component = 'p', className, style, variants, transition }: TextMorphProps) {
   const uniqueId = useId()
+  const prefersReducedMotion = useReducedMotion()
 
   const characters = useMemo(() => {
     const chars = Array.from(children)
-
-    const totalCharCounts = chars.reduce<Record<string, number>>((acc, char) => {
-      const lowerChar = char.toLowerCase()
-      acc[lowerChar] = (acc[lowerChar] || 0) + 1
-      return acc
-    }, {})
-
-    const leftCharCounts: Record<string, number> = {}
-    const rightCharCounts = { ...totalCharCounts }
-
+    const leftCounts: Record<string, number> = {}
     return chars.map((char) => {
-      const lowerChar = char.toLowerCase()
-      const leftCount = (leftCharCounts[lowerChar] = (leftCharCounts[lowerChar] || 0) + 1)
-      const rightCount = rightCharCounts[lowerChar]
-
-      if (rightCharCounts[lowerChar] !== undefined) {
-        rightCharCounts[lowerChar] -= 1
-      }
-
+      const lc = char.toLowerCase()
+      const leftCount = (leftCounts[lc] = (leftCounts[lc] || 0) + 1)
       return {
-        id: `${uniqueId}-${lowerChar}-${leftCount}-${rightCount}`,
+        id: `${uniqueId}-${lc}-${leftCount}`,
         label: char === ' ' ? '\u00A0' : char,
       }
     })
   }, [children, uniqueId])
 
+  if (prefersReducedMotion) {
+    return (
+      <Component className={className} style={style}>
+        {children}
+      </Component>
+    )
+  }
+
+  const resolvedVariants = variants ?? defaultVariants
+  const resolvedTransition = transition ?? defaultTransition
+
   return (
-    <Component className={cn(className)} aria-label={children} style={style}>
+    <Component className={className} aria-label={children} style={style}>
       <span className="relative inline-flex whitespace-pre" aria-hidden="true">
         <AnimatePresence mode="popLayout" initial={false}>
           {characters.map((character) => (
@@ -67,8 +63,8 @@ function TextMorph({ children, as: Component = 'p', className, style, variants, 
               initial="initial"
               animate="animate"
               exit="exit"
-              variants={variants ?? defaultVariants}
-              transition={transition ?? defaultTransition}
+              variants={resolvedVariants}
+              transition={resolvedTransition}
             >
               {character.label}
             </motion.span>
