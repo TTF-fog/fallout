@@ -110,11 +110,13 @@ class Ship < ApplicationRecord
     koi_by_ship = KoiTransaction.where(ship_id: ship_ids, reason: "ship_review")
                                 .group(:ship_id).sum(:amount)
 
+    # Only the columns the field mappings actually read — skips heavy JSONB
+    # (TA/DR/BR.annotations, RC.repo_tree) and large text columns we don't sync.
     reviews = {
-      time_audit: TimeAuditReview.where(ship_id: ship_ids).index_by(&:ship_id),
-      requirements_check: RequirementsCheckReview.where(ship_id: ship_ids).index_by(&:ship_id),
-      design: DesignReview.where(ship_id: ship_ids).index_by(&:ship_id),
-      build: BuildReview.where(ship_id: ship_ids).index_by(&:ship_id)
+      time_audit: TimeAuditReview.where(ship_id: ship_ids).select(:id, :ship_id, :status).index_by(&:ship_id),
+      requirements_check: RequirementsCheckReview.where(ship_id: ship_ids).select(:id, :ship_id, :status).index_by(&:ship_id),
+      design: DesignReview.where(ship_id: ship_ids).select(:id, :ship_id, :status, :hours_adjustment, :koi_adjustment).index_by(&:ship_id),
+      build: BuildReview.where(ship_id: ship_ids).select(:id, :ship_id, :status, :hours_adjustment, :koi_adjustment).index_by(&:ship_id)
     }
 
     { project_user: project_user, logged_seconds: logged_seconds, koi: koi_by_ship, reviews: reviews }
