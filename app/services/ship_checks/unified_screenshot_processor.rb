@@ -82,13 +82,30 @@ module ShipChecks
     end
 
     def self.download(url)
-      uri = URI(url)
+      uri = normalize_uri(url)
+      return [ nil, nil ] unless uri
+
       response = Net::HTTP.get_response(uri)
-      response = Net::HTTP.get_response(URI(response["location"])) if response.is_a?(Net::HTTPRedirection)
+      if response.is_a?(Net::HTTPRedirection)
+        redirect = normalize_uri(response["location"])
+        return [ nil, nil ] unless redirect
+        response = Net::HTTP.get_response(redirect)
+      end
       return [ nil, nil ] unless response.is_a?(Net::HTTPSuccess)
       [ response.body, response["content-type"].to_s.split(";").first&.strip ]
     rescue StandardError
       [ nil, nil ]
+    end
+
+    # Source URLs come from raw GitHub paths or markdown image refs that may
+    # include spaces or non-ASCII characters (e.g. "ZINE page.png"). Ruby's
+    # URI() raises on those; Addressable normalizes them into valid percent-
+    # encoded form first.
+    def self.normalize_uri(raw_url)
+      return nil if raw_url.blank?
+      URI(Addressable::URI.parse(raw_url).normalize.to_s)
+    rescue StandardError
+      nil
     end
   end
 end
