@@ -87,10 +87,12 @@ module ShipChecks
           quality = JPEG_INITIAL_QUALITY
           loop do
             pipeline = ImageProcessing::Vips.source(src.path)
-            # vips's PDF loader needs page (default 0 is fine) and dpi to
-            # control raster resolution; image loaders don't accept these so
-            # we apply them only for PDFs to avoid invalid-option errors.
-            pipeline = pipeline.loader(page: 0, dpi: PDF_RENDER_DPI) if content_type == "application/pdf"
+            # vips's PDF loader options: page=0 starts at the first page and
+            # n=1 caps to a single page (vips's default is also 1, but we set
+            # it explicitly so multi-page PDFs never accidentally render
+            # everything). dpi controls raster resolution. Image loaders don't
+            # accept these args, so we apply them only for PDFs.
+            pipeline = pipeline.loader(page: 0, n: 1, dpi: PDF_RENDER_DPI) if content_type == "application/pdf"
             pipeline
               .resize_to_limit(MAX_DIMENSION, MAX_DIMENSION)
               .convert("jpg")
