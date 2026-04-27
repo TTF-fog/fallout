@@ -12,6 +12,8 @@ import Input from '@/components/shared/Input'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/shared/Tooltip'
 import { performModalMutation } from '@/lib/modalMutation'
 import { notify } from '@/lib/notifications'
+import { relativeAgeParts } from '@/lib/relativeAge'
+import { useNowTick } from '@/lib/useNowTick'
 import TimeAgo from '@/components/shared/TimeAgo'
 import Timeline from '@/components/shared/Timeline'
 import { SlidingNumber } from '@/components/shared/SlidingNumber'
@@ -57,12 +59,6 @@ type JournalDateGroup = {
   entries: JournalEntryCard[]
 }
 
-type JournalRelativeParts = {
-  value: number | null
-  label: string
-  suffix: string
-}
-
 function shipStatusLabel(status: string): string {
   switch (status) {
     case 'pending':
@@ -103,63 +99,32 @@ function formatJournalExactTime(iso: string): string {
   return dt ? `${formatJournalDate(dt, iso)} at ${dt.toFormat('t')}` : iso
 }
 
-function journalRelativeParts(iso: string, now: DateTime): JournalRelativeParts {
-  const dt = journalDateTime(iso)
-  if (!dt) return { value: null, label: '', suffix: '' }
-
-  const rawMinutes = now.diff(dt, 'minutes').minutes
-  const past = rawMinutes >= 0
-  const minutes = Math.abs(Math.round(rawMinutes))
-  const suffix = past ? 'ago' : 'from now'
-
-  if (minutes <= 1) return { value: null, label: minutes === 0 ? 'less than a minute' : '1 minute', suffix }
-  if (minutes < 45) return { value: minutes, label: minutes === 1 ? 'minute' : 'minutes', suffix }
-  if (minutes < 90) return { value: 1, label: 'hour', suffix }
-  if (minutes < 1440) {
-    const hours = Math.round(minutes / 60)
-    return { value: hours, label: hours === 1 ? 'hour' : 'hours', suffix }
-  }
-  if (minutes < 2520) return { value: 1, label: 'day', suffix }
-  if (minutes < 43200) {
-    const days = Math.round(minutes / 1440)
-    return { value: days, label: days === 1 ? 'day' : 'days', suffix }
-  }
-  if (minutes < 525600) {
-    const months = Math.round(minutes / 43200)
-    return { value: months, label: months === 1 ? 'month' : 'months', suffix }
-  }
-
-  const years = Math.round(minutes / 525600)
-  return { value: years, label: years === 1 ? 'year' : 'years', suffix }
-}
-
-function formatJournalRelativeTime(iso: string, now: DateTime): string {
-  const parts = journalRelativeParts(iso, now)
-  return parts.value == null ? `${parts.label} ${parts.suffix}`.trim() : `${parts.value} ${parts.label} ${parts.suffix}`
-}
-
 function JournalRelativeTime({ iso, title }: { iso: string; title: string }) {
-  const [now, setNow] = useState(() => DateTime.now())
-  const parts = journalRelativeParts(iso, now)
-  const text = formatJournalRelativeTime(iso, now)
+  const now = useNowTick(60_000)
+  const age = relativeAgeParts(iso, now)
 
-  useEffect(() => {
-    const interval = window.setInterval(() => setNow(DateTime.now()), 60_000)
-    return () => window.clearInterval(interval)
-  }, [])
+  if (!age) {
+    return (
+      <time dateTime={iso} title={title}>
+        {title}
+      </time>
+    )
+  }
 
-  if (parts.value == null) {
+  if (age.kind === 'now') {
     return (
       <span title={title}>
         <time className="sr-only" dateTime={iso}>
-          {text}
+          {age.label}
         </time>
         <span aria-hidden="true">
-          <TextMorph as="span">{text}</TextMorph>
+          <TextMorph as="span">{age.label}</TextMorph>
         </span>
       </span>
     )
   }
+
+  const text = `${age.value} ${age.unit} ago`
 
   return (
     <div className="inline-flex items-baseline" title={title}>
@@ -167,8 +132,8 @@ function JournalRelativeTime({ iso, title }: { iso: string; title: string }) {
         {text}
       </time>
       <div className="inline-flex" aria-hidden="true">
-        <SlidingNumber value={parts.value} />
-        <TextMorph as="span" className="ml-2">{`${parts.label} ${parts.suffix}`}</TextMorph>
+        <SlidingNumber value={age.value} />
+        <TextMorph as="span" className="ml-2">{`${age.unit} ago`}</TextMorph>
       </div>
     </div>
   )
@@ -251,7 +216,7 @@ export default function ProjectsShow({
     if (rightTab !== 'journal' || !highlight_journal_entry_id) return
 
     const frame = window.requestAnimationFrame(() => {
-      highlightedJournalRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+      highlightedJournalRef.current?.scrollIntoView({ block: 'start', inline: 'nearest', behavior: 'smooth' })
     })
 
     return () => window.cancelAnimationFrame(frame)
@@ -814,7 +779,7 @@ export default function ProjectsShow({
                               key={entry.id}
                               ref={isHighlighted ? highlightedJournalRef : undefined}
                               id={`journal-entry-${entry.id}`}
-                              className={`relative py-1 pl-4 ${
+                              className={`relative scroll-mt-16 py-1 pl-4 ${
                                 isHighlighted ? 'rounded outline outline-2 outline-brown' : ''
                               }`}
                             >
