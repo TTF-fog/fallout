@@ -29,10 +29,33 @@
 class Project < ApplicationRecord
   include Discardable
   include PgSearch::Model
+  include MeiliSearch::Rails
+  include Broadcastable
 
   has_paper_trail
 
+  # Live-update the owner's path page so the has_projects flag flips on create / discard.
+  # Collaborator fan-out happens via the Collaborator model's own broadcast.
+  broadcasts_updates_to { "path_user_#{user_id}" }
+  # Dirty-only public stats refresh; payload intentionally omits project IDs.
+  after_commit :broadcast_bulletin_explore_update
+  after_commit :enqueue_meilisearch_reindex
+
   pg_search_scope :search, against: [ :name, :description ], using: { tsearch: { prefix: true } }
+
+  meilisearch auto_index: false, auto_remove: false do
+    attribute :name, :description, :tags
+    attribute :created_at do
+      created_at.to_i
+    end
+    attribute :journal_count do
+      kept_journal_entries.count
+    end
+    searchable_attributes %w[name description tags]
+    ranking_rules %w[words typo proximity attribute sort exactness]
+    sortable_attributes %w[journal_count created_at]
+    filterable_attributes %w[is_unlisted]
+  end
 
   scoped_search on: :id
   scoped_search on: :name
@@ -83,6 +106,7 @@ class Project < ApplicationRecord
   validates :repo_link, format: { with: /\Ahttps?:\/\/\S+\z/i, message: "must be a valid URL starting with http:// or https://" }, allow_blank: true
 
   scope :listed, -> { where(is_unlisted: false) }
+  scope :public_for_explore, -> { kept.listed }
 
   def self.airtable_sync_table_id
     "tblrwWzDwN6V4avNP"
@@ -161,5 +185,33 @@ class Project < ApplicationRecord
       ActiveRecord::Base.sanitize_sql([ sql, ids: project_ids ])
     )
     result.to_h { |pid, total| [ pid.to_i, total.to_i ] }
+  end
+
+  private
+
+  def enqueue_meilisearch_reindex
+    MeilisearchReindexJob.perform_later(self.class.name, id)
+  end
+
+  def broadcast_bulletin_explore_update
+    return unless bulletin_explore_stats_changed?
+    return unless bulletin_explore_public_now? || bulletin_explore_public_before_last_save?
+
+    ActionCable.server.broadcast("live_updates:bulletin_explore", { stream: "bulletin_explore", action: "update" })
+  end
+
+  def bulletin_explore_stats_changed?
+    previously_new_record? || destroyed? || saved_change_to_discarded_at? || saved_change_to_is_unlisted?
+  end
+
+  def bulletin_explore_public_now?
+    discarded_at.nil? && !is_unlisted?
+  end
+
+  def bulletin_explore_public_before_last_save?
+    kept_before = saved_change_to_discarded_at? ? discarded_at_before_last_save.nil? : discarded_at.nil?
+    listed_before = saved_change_to_is_unlisted? ? !is_unlisted_before_last_save : !is_unlisted?
+
+    kept_before && listed_before
   end
 end

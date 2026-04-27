@@ -218,7 +218,7 @@ class Ship < ApplicationRecord
   def carry_forward_ta_annotations!(ta)
     prev_ship = project.ships.where.not(id: id).order(created_at: :desc).first
     prev_ta = prev_ship&.time_audit_review
-    return unless prev_ta&.approved? && prev_ta.annotations&.dig("recordings")&.any?
+    return unless (prev_ta&.approved? || prev_ta&.returned? || prev_ta&.cancelled?) && prev_ta.annotations&.dig("recordings")&.any?
 
     reviewed_ids = prev_ta.annotations["recordings"].keys.to_set
     current_ids = new_journal_entries
@@ -230,7 +230,7 @@ class Ship < ApplicationRecord
 
     new_recordings = current_ids - reviewed_ids
 
-    if new_recordings.empty?
+    if new_recordings.empty? && prev_ta.approved?
       # All current recordings already reviewed — auto-approve with recomputed time
       ta.update!(
         status: :approved,
@@ -238,7 +238,7 @@ class Ship < ApplicationRecord
         approved_seconds: compute_approved_seconds(carried)
       )
     elsif carried["recordings"].any?
-      # New recordings need review; carry forward existing annotations
+      # New recordings need review; carry forward existing annotations so reviewer only sees the delta
       ta.update_columns(annotations: carried, updated_at: Time.current)
     end
   end
