@@ -866,7 +866,7 @@ export default function DesignReviewsShow({
                       onChange={(e) => setHoursAdjInput(e.target.value)}
                       placeholder="0"
                       className="h-8 text-sm font-mono w-20 text-center"
-                    />
+                    />.
                     <span className="text-muted-foreground">→</span>
                     <span
                       className={`font-mono whitespace-nowrap ${hoursAdj !== 0 ? 'text-foreground font-semibold' : 'text-muted-foreground'}`}
@@ -909,7 +909,10 @@ export default function DesignReviewsShow({
                   className="w-full"
                   variant="default"
                   disabled={submitting || !internalReason.trim()}
-                  onClick={() => handleSubmit('approved')}
+                  onClick={() => {
+                    handleSubmit('approved')
+                    setFeedback(""); setInternalReason("")
+                  }}
                   title={!internalReason.trim() ? 'Internal reason is required when approving' : undefined}
                 >
                   {submitting ? (
@@ -924,7 +927,10 @@ export default function DesignReviewsShow({
                   className="w-full"
                   variant="outline"
                   disabled={submitting || !feedback.trim()}
-                  onClick={() => handleSubmit('returned')}
+                  onClick={() => {
+                    handleSubmit('returned')
+                    setFeedback(""); setInternalReason("")
+                  }}
                   title={!feedback.trim() ? 'Feedback is required when returning' : undefined}
                 >
                   Return (Needs Changes)

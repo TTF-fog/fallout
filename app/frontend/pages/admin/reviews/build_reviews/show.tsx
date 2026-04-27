@@ -909,7 +909,10 @@ export default function BuildReviewsShow({
                   className="w-full"
                   variant="default"
                   disabled={submitting || !internalReason.trim()}
-                  onClick={() => handleSubmit('approved')}
+                  onClick={() => {
+                    handleSubmit('approved')
+                    setFeedback(""); setInternalReason("")
+                  }}
                   title={!internalReason.trim() ? 'Internal reason is required when approving' : undefined}
                 >
                   {submitting ? (
@@ -924,7 +927,10 @@ export default function BuildReviewsShow({
                   className="w-full"
                   variant="outline"
                   disabled={submitting || !feedback.trim()}
-                  onClick={() => handleSubmit('returned')}
+                  onClick={() => {
+                    handleSubmit("returned")
+                    setFeedback(""); setInternalReason("")
+                  }}
                   title={!feedback.trim() ? 'Feedback is required when returning' : undefined}
                 >
                   Return (Needs Changes)

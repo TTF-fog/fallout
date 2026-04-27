@@ -862,7 +862,7 @@ export default function RequirementsChecksShow({
                   className="w-full"
                   variant="default"
                   disabled={submitting}
-                  onClick={() => handleSubmit('approved')}
+                  onClick={() => {handleSubmit('approved'); setFeedback(""); setInternalReason("")}}
                 >
                   {submitting ? (
                     <LoaderIcon className="size-4 animate-spin mr-1" />
@@ -876,7 +876,7 @@ export default function RequirementsChecksShow({
                   className="w-full"
                   variant="outline"
                   disabled={submitting || !feedback.trim()}
-                  onClick={() => handleSubmit('returned')}
+                  onClick={() =>  {handleSubmit('returned'); setFeedback(""); setInternalReason(""); }}
                   title={!feedback.trim() ? 'Feedback is required when returning' : undefined}
                 >
                   Return (Needs Changes)
