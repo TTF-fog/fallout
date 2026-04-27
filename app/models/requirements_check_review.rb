@@ -31,6 +31,16 @@ class RequirementsCheckReview < ApplicationRecord
 
   after_create_commit :fetch_repo_tree
 
+  def self.review_id_prefix
+    "RC"
+  end
+
+  def self.extra_review_field_mappings
+    {
+      "Internal Reason" => :internal_reason
+    }
+  end
+
   private
 
   def fetch_repo_tree

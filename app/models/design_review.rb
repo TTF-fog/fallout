@@ -30,4 +30,16 @@
 #
 class DesignReview < ApplicationRecord
   include Reviewable
+
+  def self.review_id_prefix
+    "DR"
+  end
+
+  def self.extra_review_field_mappings
+    {
+      "Internal Reason" => :internal_reason,
+      "Hours Adjustment" => :hours_adjustment,
+      "Koi Adjustment" => :koi_adjustment
+    }
+  end
 end

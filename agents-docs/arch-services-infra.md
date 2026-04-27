@@ -89,14 +89,18 @@ Creates in-app MailMessage notifications. Not an external integration — purely
 
 ### Airtable — `app/models/airtable_sync.rb`
 
-Bi-directional CRM sync for Users and Projects.
+Outbound sync for Users, Projects, ShopOrders, Ships, and the four review types (TimeAudit/RequirementsCheck/Design/Build).
 
 - **Sync modes**: individual record POST/PATCH, batch CSV upload (up to 10,000+ records)
-- **Change tracking**: `AirtableSync` records store last sync timestamp + Airtable record ID
+- **Change tracking**: `AirtableSync` records store last sync timestamp + Airtable record ID, keyed by `"#{ClassName}##{id}"`
 - **Parallel processing**: 10 worker threads for batch
-- **Config per model**: `airtable_sync_table_id`, `airtable_sync_field_mappings`, optional scope/preload
-- **Scheduled**: every 5 minutes via `AirtableSyncJob` → `AirtableSyncClassJob` per class
-- **Env**: `AIRTABLE_API_KEY`, `AIRTABLE_BASE_ID`, `AIRTABLE_TABLE_ID`
+- **Config per model**: `airtable_sync_table_id`, `airtable_sync_field_mappings`, optional `airtable_sync_sync_id`/`airtable_should_batch`/`airtable_batch_size`/`airtable_sync_preload`/`airtable_sync_scope`
+- **Scheduled**: every 5 minutes via `AirtableSyncJob` → `AirtableSyncClassJob` per class (see `AirtableSyncJob::CLASSES_TO_SYNC`)
+- **Env**: `AIRTABLE_API_KEY`, `AIRTABLE_BASE_ID`
+
+**Unified reviews table**: All four `Reviewable` subclasses sync to one Airtable table (`tblH5ENbMHrWR6hyd`, sync `J3D2bzea`). Shared sync config (table id, sync id, batch flags, ship preload, base field mappings) lives in `Reviewable.class_methods`. Each subclass declares a 2-letter `review_id_prefix` (`TA`/`RC`/`DR`/`BR`) and an `extra_review_field_mappings` override. Rows in Airtable are disambiguated by a prefixed "Review ID" column (e.g. `TA12`, `BR12`). Each class still gets its own `AirtableSync` row in the local table (different `record_identifier`); Airtable upserts merge them server-side via the shared sync source.
+
+**Ships table** (`tblz2umphZqnDoQDZ`, sync `PLi0fLU8`): one row per `Ship`, includes the three hour flavors (`Logged Hours`, `Approved Hours`, `Internal Hours` — see [arch-ship-and-koi.md](arch-ship-and-koi.md) §7), `Koi Awarded` (sum of `KoiTransaction` where `reason='ship_review'`), per-pipeline review statuses, and the user-facing fields (justification/feedback/links). Logged hours uses `Ship.batch_time_logged` (single SQL aggregate over recordings) to avoid N+1 across the sync run.
 
 ## Background Jobs — Solid Queue
 

@@ -79,6 +79,105 @@ class Ship < ApplicationRecord
     end
   end
 
+  def self.airtable_sync_table_id
+    "tblz2umphZqnDoQDZ"
+  end
+
+  def self.airtable_sync_sync_id
+    "PLi0fLU8"
+  end
+
+  def self.airtable_should_batch
+    true
+  end
+
+  def self.airtable_batch_size
+    2000
+  end
+
+  def self.airtable_sync_preload(records)
+    ship_ids = records.map(&:id)
+
+    project_user = Ship.where(id: ship_ids).joins(:project)
+                       .pluck(:id, "projects.id", "projects.user_id")
+                       .to_h { |sid, pid, uid| [ sid, [ pid, uid ] ] }
+
+    logged_seconds = batch_time_logged(ship_ids)
+
+    koi_by_ship = KoiTransaction.where(ship_id: ship_ids, reason: "ship_review")
+                                .group(:ship_id).sum(:amount)
+
+    reviews = {
+      time_audit: TimeAuditReview.where(ship_id: ship_ids).index_by(&:ship_id),
+      requirements_check: RequirementsCheckReview.where(ship_id: ship_ids).index_by(&:ship_id),
+      design: DesignReview.where(ship_id: ship_ids).index_by(&:ship_id),
+      build: BuildReview.where(ship_id: ship_ids).index_by(&:ship_id)
+    }
+
+    { project_user: project_user, logged_seconds: logged_seconds, koi: koi_by_ship, reviews: reviews }
+  end
+
+  def self.airtable_sync_field_mappings
+    {
+      "Ship ID" => :id,
+      "Project ID" => ->(s, pre) { pre[:project_user][s.id]&.first },
+      "User ID" => ->(s, pre) { pre[:project_user][s.id]&.last },
+      "Status" => ->(s) { s.status },
+      "Ship Type" => ->(s) { s.ship_type },
+      "Created At" => ->(s) { s.created_at&.iso8601 },
+      "Updated At" => ->(s) { s.updated_at&.iso8601 },
+
+      # Three flavors of hours (see arch-ship-and-koi.md §7):
+      "Logged Hours" => ->(s, pre) { ((pre[:logged_seconds][s.id] || 0).to_f / 3600.0).round(2) },
+      "Approved Hours" => ->(s) { (s.approved_seconds.to_f / 3600.0).round(2) },
+      "Internal Hours" => ->(s, pre) {
+        dr_adj = pre[:reviews][:design][s.id]&.hours_adjustment.to_i
+        br_adj = pre[:reviews][:build][s.id]&.hours_adjustment.to_i
+        ((s.approved_seconds.to_i + dr_adj + br_adj).to_f / 3600.0).round(2)
+      },
+
+      "Koi Awarded" => ->(s, pre) { pre[:koi][s.id] || 0 },
+
+      "Justification" => :justification,
+      "Feedback" => :feedback,
+      "Demo Link" => :frozen_demo_link,
+      "Repo Link" => :frozen_repo_link,
+
+      # Prefixed review IDs (TA12, RC12, DR12, BR12) match the unified Reviews
+      # table's "Review ID" column so Airtable can link Ship → Review records;
+      # status / feedback / etc. are looked up from the Reviews table.
+      "TA ID" => ->(s, pre) { (r = pre[:reviews][:time_audit][s.id]) && "#{TimeAuditReview.review_id_prefix}#{r.id}" },
+      "RC ID" => ->(s, pre) { (r = pre[:reviews][:requirements_check][s.id]) && "#{RequirementsCheckReview.review_id_prefix}#{r.id}" },
+      "DR ID" => ->(s, pre) { (r = pre[:reviews][:design][s.id]) && "#{DesignReview.review_id_prefix}#{r.id}" },
+      "BR ID" => ->(s, pre) { (r = pre[:reviews][:build][s.id]) && "#{BuildReview.review_id_prefix}#{r.id}" }
+    }
+  end
+
+  # Batch version of total_hours for Airtable preload — single SQL query for many ships.
+  # Mirrors Project.batch_time_logged but keyed by ship_id (entries claimed by the ship).
+  def self.batch_time_logged(ship_ids)
+    return {} if ship_ids.empty?
+    sql = <<~SQL.squish
+      SELECT je.ship_id,
+        COALESCE(SUM(CASE r.recordable_type
+          WHEN 'LapseTimelapse' THEN lt.duration
+          WHEN 'LookoutTimelapse' THEN lot.duration
+          WHEN 'YouTubeVideo' THEN yt.duration_seconds * yt.stretch_multiplier
+          ELSE 0 END), 0) AS total
+      FROM journal_entries je
+      JOIN recordings r ON r.journal_entry_id = je.id
+      LEFT JOIN lapse_timelapses lt ON lt.id = r.recordable_id AND r.recordable_type = 'LapseTimelapse'
+      LEFT JOIN lookout_timelapses lot ON lot.id = r.recordable_id AND r.recordable_type = 'LookoutTimelapse'
+      LEFT JOIN you_tube_videos yt ON yt.id = r.recordable_id AND r.recordable_type = 'YouTubeVideo'
+      WHERE je.ship_id IN (:ids) AND je.discarded_at IS NULL
+      GROUP BY je.ship_id
+    SQL
+    result = ActiveRecord::Base.connection.select_rows(
+      ActiveRecord::Base.sanitize_sql([ sql, ids: ship_ids ])
+    )
+    result.to_h { |sid, total| [ sid.to_i, total.to_i ] }
+  end
+
   def review_status
     {
       time_audit: time_audit_review&.status,

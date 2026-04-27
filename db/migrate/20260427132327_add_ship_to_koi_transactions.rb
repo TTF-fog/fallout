@@ -16,7 +16,7 @@ class AddShipToKoiTransactions < ActiveRecord::Migration[8.1]
                 unique: true,
                 where: "reason = 'ship_review' AND ship_id IS NOT NULL",
                 name: "index_koi_transactions_on_ship_review_uniqueness",
-                algorithm: :concurrent
+                algorithm: :concurrently
     end
 
     unless foreign_key_exists?(:koi_transactions, :ships)

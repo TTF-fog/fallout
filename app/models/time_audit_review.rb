@@ -28,4 +28,14 @@
 #
 class TimeAuditReview < ApplicationRecord
   include Reviewable
+
+  def self.review_id_prefix
+    "TA"
+  end
+
+  def self.extra_review_field_mappings
+    {
+      "Approved Hours" => ->(r) { (r.approved_seconds.to_f / 3600.0).round(2) }
+    }
+  end
 end
