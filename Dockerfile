@@ -127,7 +127,7 @@ RUN mkdir -p /etc/s6-overlay/s6-rc.d/meilisearch && \
 
 # s6 service: Rails (wraps the original entrypoint logic + server start)
 RUN mkdir -p /etc/s6-overlay/s6-rc.d/rails/env && \
-    printf '#!/bin/sh\nexec /rails/bin/docker-entrypoint ./bin/thrust ./bin/rails server\n' \
+    printf '#!/bin/sh\ncd /rails && exec /rails/bin/docker-entrypoint /rails/bin/thrust /rails/bin/rails server\n' \
       > /etc/s6-overlay/s6-rc.d/rails/run && \
     chmod +x /etc/s6-overlay/s6-rc.d/rails/run && \
     echo "longrun" > /etc/s6-overlay/s6-rc.d/rails/type && \
