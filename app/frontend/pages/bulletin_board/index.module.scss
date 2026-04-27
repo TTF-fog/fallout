@@ -435,6 +435,7 @@ $beige: var(--color-light-brown);
 }
 
 .explorePulseTime {
+  gap: 0.25rem;
   min-width: 0;
   overflow-wrap: anywhere;
 }
@@ -742,6 +743,34 @@ $beige: var(--color-light-brown);
   justify-content: center;
   width: 2.5rem;
   height: 2.5rem;
+}
+
+.loadMoreButton {
+  max-width: 100%;
+  padding: 0.55rem 0.875rem;
+  border: 2px solid var(--color-dark-brown);
+  border-radius: 9999px;
+  background-color: var(--color-light-brown);
+  color: var(--color-dark-brown);
+  font-size: 0.875rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    transform 100ms ease-out,
+    background-color 120ms ease-out;
+
+  &:hover {
+    background-color: var(--color-brown);
+  }
+
+  &:active {
+    transform: translateY(1px);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--color-dark-brown);
+    outline-offset: 2px;
+  }
 }
 
 .exploreEmpty {

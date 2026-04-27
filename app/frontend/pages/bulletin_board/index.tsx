@@ -177,6 +177,8 @@ function ExplorePulseTime({
   prefix: string
   emptyLabel: string
 }) {
+  const visiblePrefix = prefix.trimEnd()
+
   if (!age) {
     return (
       <motion.span layout className={styles.explorePulseTime} transition={EVENT_COUNT_TRANSITION}>
@@ -191,7 +193,10 @@ function ExplorePulseTime({
     return (
       <motion.span layout className={styles.explorePulseTime} transition={EVENT_COUNT_TRANSITION}>
         <TextMorph as="span" transition={EVENT_COUNT_TRANSITION}>
-          {`${prefix}just now`}
+          {visiblePrefix}
+        </TextMorph>
+        <TextMorph as="span" transition={EVENT_COUNT_TRANSITION}>
+          {age.label}
         </TextMorph>
       </motion.span>
     )
@@ -199,18 +204,20 @@ function ExplorePulseTime({
 
   return (
     <motion.span layout className={styles.explorePulseTime} transition={EVENT_COUNT_TRANSITION}>
-      <span>{prefix}</span>
+      <TextMorph as="span" transition={EVENT_COUNT_TRANSITION}>
+        {visiblePrefix}
+      </TextMorph>
       <SlidingNumber value={age.value} />
       <TextMorph as="span" transition={EVENT_COUNT_TRANSITION}>
-        {` ${age.unit} ago`}
+        {`${age.unit} ago`}
       </TextMorph>
     </motion.span>
   )
 }
 
 // Memoized so the 1s clock tick in EventsSection does not re-render this subtree. The numeric
-// portion (count, relative-time value) flows through SlidingNumber and only the unit/plural
-// label is morphed via TextMorph — the prefix and "ago" suffix stay static.
+// portion (count, relative-time value) flows through SlidingNumber while surrounding labels
+// morph with TextMorph.
 const ExplorePulse = memo(function ExplorePulse({
   projectsCount,
   journalsCount,
@@ -1316,11 +1323,17 @@ const ExploreSection = memo(function ExploreSection({ explore, exploreStats, inn
                   </LayoutGroup>
 
                   {hasMoreExplore && (
-                    <div ref={exploreSentinelRef} className={styles.loadMoreRow} aria-hidden={!isLoadingMore}>
-                      {isLoadingMore && (
+                    <div ref={exploreSentinelRef} className={styles.loadMoreRow}>
+                      {isLoadingMore ? (
                         <div className={styles.loadMoreSpinner} role="status" aria-label="Loading more">
                           <div className={styles.spinner} aria-hidden />
                         </div>
+                      ) : (
+                        !isSearching && (
+                          <button type="button" className={styles.loadMoreButton} onClick={loadMoreExplore}>
+                            Not loading automatically? Load more manually.
+                          </button>
+                        )
                       )}
                     </div>
                   )}
