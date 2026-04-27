@@ -127,8 +127,10 @@ RUN mkdir -p /etc/s6-overlay/s6-rc.d/meilisearch && \
     touch /etc/s6-overlay/s6-rc.d/user/contents.d/meilisearch
 
 # s6 service: Rails (wraps the original entrypoint logic + server start)
+# with-contenv loads the full container environment (DATABASE_URL, RAILS_MASTER_KEY, etc.)
+# injected by Coolify at runtime — without it those vars never reach the Rails process.
 RUN mkdir -p /etc/s6-overlay/s6-rc.d/rails/env && \
-    printf '#!/bin/sh\nexport RAILS_ENV=production\nexport BUNDLE_PATH=/usr/local/bundle\nexport BUNDLE_DEPLOYMENT=1\nexport BUNDLE_WITHOUT=development\ncd /rails && exec /rails/bin/docker-entrypoint /rails/bin/thrust /rails/bin/rails server\n' \
+    printf '#!/command/with-contenv /bin/sh\ncd /rails && exec /rails/bin/docker-entrypoint /rails/bin/thrust /rails/bin/rails server\n' \
       > /etc/s6-overlay/s6-rc.d/rails/run && \
     chmod +x /etc/s6-overlay/s6-rc.d/rails/run && \
     echo "longrun" > /etc/s6-overlay/s6-rc.d/rails/type && \
