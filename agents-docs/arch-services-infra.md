@@ -1,0 +1,199 @@
+---
+name: Services & Infrastructure Architecture
+description: External service integrations (HCA, Lapse, Lookout, Slack, YouTube, Airtable), background jobs, storage, monitoring, deployment
+type: project
+---
+
+# Services & Infrastructure
+
+Fallout integrates with several Hack Club internal services (HCA for auth, Lapse for timelapses, Lookout for screen recordings) plus external APIs (YouTube, Slack, Airtable). Background jobs run via Solid Queue. Files stored on Cloudflare R2.
+
+## External Service Integrations
+
+### HCA (Hack Club Authentication) — `app/services/hca_service.rb`
+
+OAuth 2.0 identity provider. See [auth-architecture.md](auth-architecture.md) for full flow.
+
+- **Production**: `https://auth.hackclub.com`
+- **Dev**: `https://hca.dinosaurbbq.org`
+- **Scopes** (prod): `email name profile birthdate address verification_status slack_id`
+- **Methods**: `authorize_url`, `exchange_code_for_token`, `me`, `identity`, `address_portal_url`, `verify_portal_url`
+- **Env**: `HCA_CLIENT_ID`, `HCA_CLIENT_SECRET`
+
+### Lapse (Timelapse Tool) — `app/services/lapse_service.rb`
+
+PKCE OAuth + API for timelapse recordings from Hackatime.
+
+- **Host**: `https://api.lapse.hackclub.com`
+- **OAuth**: PKCE flow (S256 code challenge). Token stored encrypted in `user.lapse_token`.
+- **Two access modes**:
+  - **User token** (primary): `my_published_timelapses`, `timelapses_for_project`, `fetch_timelapse`, `hackatime_projects`
+  - **Program key** (fallback): `query_user_by_email`, `find_timelapses_by_user` — for users without Lapse auth
+- **`hackatime_projects(access_token)`**: fetches Hackatime projects linked to the user's Lapse account via `GET /api/user/hackatimeProjects`
+- **Pagination**: cursor-based with configurable limit
+- **Controller**: `LapseAuthController` handles OAuth start/callback
+- **Env**: `LAPSE_CLIENT_ID`, `LAPSE_CLIENT_SECRET`, `LAPSE_PROGRAM_KEY`
+
+### Lookout (Video Recording) — `app/services/lookout_service.rb`
+
+Screen/camera recording sessions with signed URLs. See [lookout-api-docs.md](lookout-api-docs.md) for full API reference.
+
+- **Host**: `ENV["LOOKOUT_URL"]` (default `https://lookout.hackclub.com`)
+- **Auth**: Internal endpoints use `X-API-Key` header; public endpoints use session token in URL
+- **Key methods**:
+  - `create_session(metadata:)` — internal, requires API key
+  - `get_session(token)` — public, returns session data with signed URLs
+  - `get_video_url(token)` / `get_thumbnail_url(token)` — fresh signed URLs (1hr expiry)
+  - `batch_sessions(tokens)` — max 100 tokens per request
+- **Feature flag**: `:"03_18_collapse"` (shared as `lookout` to frontend)
+- **NPM packages**: still named `@collapse/*` pending upstream rename
+- **Env**: `LOOKOUT_URL`, `LOOKOUT_API_KEY`
+
+### YouTube — `app/services/you_tube_service.rb`
+
+Video metadata fetching and caching.
+
+- **API**: YouTube Data API v3 (`/youtube/v3/videos`, snippet + contentDetails)
+- **Methods**:
+  - `find_or_fetch(url)` — returns cached `YouTubeVideo` record or fetches new
+  - `extract_video_id(url)` — parses URLs, **rejects Shorts**
+  - `thumbnail_url(url, quality:)` — generates i.ytimg.com URL
+- **Anti-abuse**: Videos ≤60s that aren't live streams rejected as Shorts
+- **Env**: `YOUTUBE_API_KEY`
+
+### Hackatime — `app/services/hackatime_service.rb`
+
+Time tracking verification.
+
+- **Host**: `https://hackatime.hackclub.com`
+- **Single method**: `me(access_token)` — `GET /api/v1/authenticated/me` with bearer token
+- **Used during**: onboarding/integration validation
+
+### Slack
+
+User messaging and channel management via bot token.
+
+- **Jobs**: `SlackMsgJob` (sends DMs/channel posts), `SlackChannelInviteJob` (invites to channels)
+- **Welcome channels**: `User::SLACK_WELCOME_CHANNELS` constant (invited on trial→full promotion)
+- **Error handling**: gracefully ignores `AlreadyInChannel`, warns on `UserIsRestricted`
+- **Used by**: `AuthController#create` (post-HCA verification welcome), `User#refresh_profile_from_slack`
+- **Env**: `SLACK_BOT_TOKEN`
+
+### MailDeliveryService — `app/services/mail_delivery_service.rb`
+
+Creates in-app MailMessage notifications. Not an external integration — purely internal, but lives in `services/` because it's a stateless service object.
+
+**Methods:**
+- `ship_status_changed(ship)` — creates targeted notification on approval/return/rejection with feedback. Links to project page.
+- `collaboration_invite_sent(invite)` — creates non-dismissable notification for invitee. Links to invite show page. `dismissable: false` forces accept/decline.
+
+### Airtable — `app/models/airtable_sync.rb`
+
+Bi-directional CRM sync for Users and Projects.
+
+- **Sync modes**: individual record POST/PATCH, batch CSV upload (up to 10,000+ records)
+- **Change tracking**: `AirtableSync` records store last sync timestamp + Airtable record ID
+- **Parallel processing**: 10 worker threads for batch
+- **Config per model**: `airtable_sync_table_id`, `airtable_sync_field_mappings`, optional scope/preload
+- **Scheduled**: every 5 minutes via `AirtableSyncJob` → `AirtableSyncClassJob` per class
+- **Env**: `AIRTABLE_API_KEY`, `AIRTABLE_BASE_ID`, `AIRTABLE_TABLE_ID`
+
+## Background Jobs — Solid Queue
+
+**Config** (`config/queue.yml`): 4 worker pools:
+
+| Pool | Queues | Threads | Purpose |
+|---|---|---|---|
+| 1 | `realtime`, `default` | 4 | User-facing: Slack messages, channel invites |
+| 2 | `background`, `ahoy`, `uptime` | 6 | Async: Airtable sync, analytics, health checks |
+| 3 | `active_storage` | 2 | File processing |
+| 4 | `*` (wildcard) | 1 | Catch-all |
+
+**Recurring jobs** (`config/recurring.yml`):
+
+| Job | Schedule | Queue |
+|---|---|---|
+| `clear_solid_queue_finished_jobs` | Hourly (minute 12) | — |
+| `UptimePingJob` | Every minute | `uptime` |
+| `AirtableSyncJob` | Every 5 minutes | `background` |
+
+**Job inventory:**
+- `SlackMsgJob` — send Slack message (default queue)
+- `SlackChannelInviteJob` — invite user to Slack channels (default queue)
+- `AirtableSyncJob` → `AirtableSyncClassJob` — orchestrate per-model Airtable sync (background queue)
+- `UptimePingJob` — health check ping to monitoring service (uptime queue)
+
+Admin dashboard: MissionControl::Jobs at `/jobs` (admin-only constraint).
+
+## Storage
+
+### Active Storage
+- **Dev**: local disk (`storage/` at project root)
+- **Test**: `tmp/storage`
+- **Prod**: Cloudflare R2 (S3-compatible)
+- **Routes prefix**: `/user-attachments` (custom, not `/rails/active_storage`)
+- **Direct upload auth**: patched in `config/initializers/active_storage_auth.rb` — verifies `session[:user_id]` exists because `DirectUploadsController` bypasses `ApplicationController`
+- **Env (R2 production)**: `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`, `R2_ENDPOINT` — all required for production S3-compatible storage
+
+### Caching
+- **Dev**: in-process memory
+- **Prod**: Redis (256MB max, namespaced by env)
+- **Env**: `REDIS_URL` (default `redis://localhost:6379/1`)
+
+## Email — Loops.so
+
+SMTP-based transactional email via `smtp.loops.so:587` (plain auth, STARTTLS).
+
+- **Env**: `LOOPS_API_KEY`, `MAILER_FROM`, `APP_HOST`
+- **Dev**: Letter Opener (opens emails in browser)
+
+No Action Mailbox processors are implemented (inbound email is not used).
+
+## Monitoring
+
+| Service | Purpose | Config |
+|---|---|---|
+| **Sentry** | Error tracking (Ruby + React) | `config/initializers/sentry.rb`, `ErrorReporter` wrapper module |
+| **Skylight** | Rails APM | `config/skylight.yml` |
+| **Ahoy** | Analytics (visits, events) | `config/initializers/ahoy.rb`, geolocation via Hack Club geocoder |
+| **Flipper UI** | Feature flag dashboard | `/flipper` (admin-only) |
+| **MissionControl::Jobs** | Solid Queue dashboard | `/jobs` (admin-only) |
+
+Sentry frontend: browserTracing (20% sample), replayOnError, canvas replay.
+
+## Security Middleware
+
+### Rack::Attack — `config/initializers/rack_attack.rb`
+
+| Throttle | Limit | Scope |
+|---|---|---|
+| Global | 300/5min | per IP |
+| Auth start | 10/min | per IP |
+| HCA callback | 20/min | per IP |
+| Sign out | 10/min | per IP |
+| RSVP | 5/min | per IP |
+| YouTube lookup | 10/min | per IP |
+
+**Blocklist**: Fail2Ban for `/etc/passwd`, `wp-admin`, `wp-login` patterns — 5 attempts in 10 minutes → 1 hour ban.
+
+### CSP — `config/initializers/content_security_policy.rb`
+
+**Currently disabled** — the entire file is commented out (Rails boilerplate). No CSP headers are sent.
+
+## Public API
+
+`/api/v1/` — bearer token auth via `Authorization` header (constant-time comparison against `EXTERNAL_API_KEY`).
+
+**Endpoints:**
+- `GET /api/v1/projects` — paginated, searchable project list
+- `GET /api/v1/projects/:id` — single project detail
+
+## Deployment — Kamal
+
+Docker containers orchestrated by Kamal (`config/deploy.yml`).
+
+**Services**: Puma (web), Solid Queue (workers via `bin/jobs`).
+
+**Note**: `deploy.yml` contains template placeholders (`app.example.com`, `192.168.0.1`) — actual production hosts are configured via Kamal secrets/environment, not checked into the repo.
+
+**Key production settings**: SSL enforced, STDOUT logging with request ID tags, R2 storage, Redis cache.
