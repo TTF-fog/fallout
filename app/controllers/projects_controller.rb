@@ -54,8 +54,8 @@ class ProjectsController < ApplicationController
       journal_entries: journal_entries.map { |je| serialize_journal_entry_card(je) },
       switchable_projects_for_journal: switchable_projects_for_journal,
       collaborators: @project.collaborators.includes(:user).map { |c| serialize_project_collaborator(c) },
-      ships: @project.ships.order(created_at: :desc).map { |s|
-        { id: s.id, status: s.status, feedback: s.feedback, created_at_iso: s.created_at.iso8601, updated_at_iso: s.updated_at.iso8601 }
+      ships: @project.ships.includes(:reviewer).order(created_at: :desc).map { |s|
+        { id: s.id, status: s.status, feedback: s.feedback, created_at_iso: s.created_at.iso8601, updated_at_iso: s.updated_at.iso8601, reviewer_display_name: s.reviewer&.display_name }
       },
       can: {
         update: project_policy.update?,

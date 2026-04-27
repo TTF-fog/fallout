@@ -286,6 +286,11 @@ Rails.application.routes.draw do
     mount RailsPerformance::Engine, at: "/admin/performance", as: "rails_performance" if ENV["REDIS_URL"].present?
 
     namespace :admin do
+      resources :projects, only: [] do
+        member do
+          patch :update_manual_seconds # Admin-only manual time override for legacy projects
+        end
+      end
       resources :users, only: [] do
         member do
           patch :update_roles

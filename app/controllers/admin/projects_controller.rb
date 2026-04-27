@@ -1,4 +1,6 @@
 class Admin::ProjectsController < Admin::ApplicationController
+  before_action :require_admin!, except: :show # Mutations require full admin; show is staff-accessible
+
   def index
     base_scope = policy_scope(Project).includes(:user)
     base_scope = base_scope.kept unless params[:include_deleted] == "1"
@@ -51,6 +53,14 @@ class Admin::ProjectsController < Admin::ApplicationController
     render inertia: props
   end
 
+  def update_manual_seconds
+    @project = Project.find(params[:id])
+    authorize @project, :update_manual_seconds?
+    hours = params[:manual_hours].to_f
+    @project.update!(manual_seconds: (hours * 3600).round)
+    redirect_back fallback_location: admin_project_path(@project)
+  end
+
   private
 
   def serialize_project_row(project)
@@ -88,6 +98,7 @@ class Admin::ProjectsController < Admin::ApplicationController
       user_avatar: project.user.avatar,
       journal_entries_count: entry_count,
       hours_tracked: (project.time_logged / 3600.0).round(1),
+      manual_hours: (project.manual_seconds / 3600.0).round(2),
       last_entry_at: last_entry&.strftime("%b %d, %Y"),
       created_at: project.created_at.strftime("%b %d, %Y"),
       collaborators: project.collaborator_users.map { |u| { id: u.id, display_name: u.display_name, avatar: u.avatar } }

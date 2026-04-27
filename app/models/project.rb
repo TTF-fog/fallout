@@ -8,6 +8,7 @@
 #  discarded_at          :datetime
 #  inactivity_dm_sent_at :datetime
 #  is_unlisted           :boolean          default(FALSE), not null
+#  manual_seconds        :integer          default(0), not null
 #  name                  :string           not null
 #  repo_link             :string
 #  tags                  :string           default([]), not null, is an Array
@@ -17,10 +18,12 @@
 #
 # Indexes
 #
-#  index_projects_on_discarded_at  (discarded_at)
-#  index_projects_on_is_unlisted   (is_unlisted)
-#  index_projects_on_tags          (tags) USING gin
-#  index_projects_on_user_id       (user_id)
+#  index_projects_on_description_trgm  (description) USING gin
+#  index_projects_on_discarded_at      (discarded_at)
+#  index_projects_on_is_unlisted       (is_unlisted)
+#  index_projects_on_name_trgm         (name) USING gin
+#  index_projects_on_tags              (tags) USING gin
+#  index_projects_on_user_id           (user_id)
 #
 # Foreign Keys
 #
@@ -160,26 +163,27 @@ class Project < ApplicationRecord
       .where(journal_entries: { project_id: id, discarded_at: nil })
       .sum(:duration).to_i
 
-    lapse + youtube + lookout
+    lapse + youtube + lookout + manual_seconds.to_i
   end
 
   # Batch version: returns { project_id => seconds } for a set of project IDs in a single query
   def self.batch_time_logged(project_ids)
     return {} if project_ids.empty?
     sql = <<~SQL.squish
-      SELECT je.project_id,
+      SELECT p.id,
         COALESCE(SUM(CASE r.recordable_type
           WHEN 'LapseTimelapse' THEN lt.duration
           WHEN 'LookoutTimelapse' THEN lot.duration
           WHEN 'YouTubeVideo' THEN yt.duration_seconds * yt.stretch_multiplier
-          ELSE 0 END), 0) AS total
-      FROM journal_entries je
-      JOIN recordings r ON r.journal_entry_id = je.id
+          ELSE 0 END), 0) + p.manual_seconds AS total
+      FROM projects p
+      LEFT JOIN journal_entries je ON je.project_id = p.id AND je.discarded_at IS NULL
+      LEFT JOIN recordings r ON r.journal_entry_id = je.id
       LEFT JOIN lapse_timelapses lt ON lt.id = r.recordable_id AND r.recordable_type = 'LapseTimelapse'
       LEFT JOIN lookout_timelapses lot ON lot.id = r.recordable_id AND r.recordable_type = 'LookoutTimelapse'
       LEFT JOIN you_tube_videos yt ON yt.id = r.recordable_id AND r.recordable_type = 'YouTubeVideo'
-      WHERE je.project_id IN (:ids) AND je.discarded_at IS NULL
-      GROUP BY je.project_id
+      WHERE p.id IN (:ids)
+      GROUP BY p.id, p.manual_seconds
     SQL
     result = ActiveRecord::Base.connection.select_rows(
       ActiveRecord::Base.sanitize_sql([ sql, ids: project_ids ])

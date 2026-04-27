@@ -688,8 +688,7 @@ export default function ProjectsShow({
                             isLast={isLast}
                             header={
                               <>
-                                <InlineUser avatar={project.user_avatar} display_name={project.user_display_name} />{' '}
-                                {shipStatusLabel(ship.status)} <TimeAgo datetime={event.iso} />.
+                                <span className="font-medium">{project.name}</span> was returned{ship.reviewer_display_name ? <> by <span className="font-medium">{ship.reviewer_display_name}</span></> : null} <TimeAgo datetime={event.iso} />.
                               </>
                             }
                           >
@@ -713,10 +712,16 @@ export default function ProjectsShow({
                           key={`ship-${ship.id}`}
                           isLast={isLast}
                           header={
-                            <>
-                              <InlineUser avatar={project.user_avatar} display_name={project.user_display_name} />{' '}
-                              {shipStatusLabel(ship.status)} <TimeAgo datetime={event.iso} />.
-                            </>
+                            isReturned ? (
+                              <>
+                                <span className="font-medium">{project.name}</span> was returned{ship.reviewer_display_name ? <> by <span className="font-medium">{ship.reviewer_display_name}</span></> : null} <TimeAgo datetime={event.iso} />.
+                              </>
+                            ) : (
+                              <>
+                                <InlineUser avatar={project.user_avatar} display_name={project.user_display_name} />{' '}
+                                {shipStatusLabel(ship.status)} <TimeAgo datetime={event.iso} />.
+                              </>
+                            )
                           }
                         />
                       )
