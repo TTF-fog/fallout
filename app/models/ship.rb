@@ -70,6 +70,7 @@ class Ship < ApplicationRecord
   after_create :create_initial_reviews!, if: :pending?
   after_update_commit :create_initial_reviews!, if: :became_pending_from_awaiting?
   after_update_commit :notify_status_change, if: :saved_change_to_status?
+  after_update_commit :award_ship_review_koi!, if: :saved_change_to_status?
 
   # Called when a user becomes fully_identity_gated? — moves their held submissions into the review queue.
   def self.promote_awaiting_identity_for(user)
@@ -282,5 +283,18 @@ class Ship < ApplicationRecord
     MailDeliveryService.ship_status_changed(self)
   rescue => e
     Rails.logger.error("Ship##{id} status notification failed: #{e.message}")
+  end
+
+  # Awards koi when a ship reaches :approved. Delegates to ShipKoiAwarder which holds the
+  # formula and is the single source of truth (also called from rake koi:reconcile_ship_reviews
+  # for backfill / safety-net). Idempotency is enforced at the DB level by a partial unique
+  # index on koi_transactions(ship_id) WHERE reason = 'ship_review'. Failures are logged but
+  # do NOT roll back the approval — operators reconcile via the rake task.
+  def award_ship_review_koi!
+    result = ShipKoiAwarder.call(self)
+    Rails.logger.info("Ship##{id} koi award: #{result.status} (amount=#{result.amount})")
+  rescue => e
+    Rails.logger.error("Ship##{id} koi award failed: #{e.message}")
+    ErrorReporter.capture_exception(e, contexts: { ship_review_koi: { ship_id: id } })
   end
 end

@@ -64,6 +64,6 @@ Fallout is a grant/hackathon program for students. The user journey:
 7. **Soft-delete cascades are explicit** — `Project#discard` manually cascades to collaborators, invites, and journal entries in a transaction
 8. **Recording deletion ≠ timelapse deletion** — destroying a `Recording` unlinks but preserves the underlying timelapse/video for reuse
 9. **HCB is off-limits** — do not edit HCB-related code without explicit written approval
-10. **Koi `ship_review` reason exists but isn't wired** — `KoiTransaction::REASONS` includes `"ship_review"` and DR/BR have a `koi_adjustment` column, but no callback turns that into a `KoiTransaction`. Don't assume approving a ship credits koi automatically. See [arch-ship-and-koi.md](arch-ship-and-koi.md) §9.
+10. **Koi awarding flows downstream into HCB** — approving a ship issues a `ship_review` `KoiTransaction` (7 koi/hour of user-facing time + DR/BR `koi_adjustment`), which is later spendable on `ProjectGrantOrder` → real HCB topup. Treat the awarding code as financial. See [arch-ship-and-koi.md](arch-ship-and-koi.md) §10 for the awarding formula and §7 for the user-facing-vs-internal hours distinction (koi follows user-facing only).
 11. **Ship `pending` and `awaiting_identity` both block resubmission** — `ProjectPolicy#ship?` excludes both, so an unverified user with a held submission cannot ship a different project either.
 12. **Reviewer claim is global across types** — claiming any review releases the user's claims on all other review types (one active claim at a time).

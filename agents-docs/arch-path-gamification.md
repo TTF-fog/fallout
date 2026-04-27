@@ -88,7 +88,7 @@ Implemented as a ledger. See [arch-ship-and-koi.md](arch-ship-and-koi.md) for th
 
 - `KoiTransaction` (readonly, `REASONS = ship_review | admin_adjustment | streak_goal`) and parallel `GoldTransaction` (admin_adjustment only).
 - `User#koi` = `koi_transactions.sum(:amount)` MINUS koi-currency shop_orders (non-rejected) MINUS project_grant_orders (non-rejected). Trials hardcoded to 0.
-- Currently only `streak_goal` (StreakService) and `admin_adjustment` (Admin::KoiTransactionsController) actually create transactions. **`ship_review` is reserved but not yet wired** — `koi_adjustment` columns on DesignReview/BuildReview are captured but no callback creates a KoiTransaction. See arch-ship-and-koi.md §9 for the implementation note.
+- All three reasons are wired: `streak_goal` (StreakService), `admin_adjustment` (Admin::KoiTransactionsController), `ship_review` (Ship's after_update_commit → ShipKoiAwarder service). See arch-ship-and-koi.md §10 for the awarding formula and the layered safeguards (DB partial unique index, model invariant, reconciliation rake task).
 - Spending paths: `ShopOrder` (frozen_price, currency koi/gold/hours), `ProjectGrantOrder` (koi → USD via HcbGrantSetting for HCB project funding cards). Both use frozen amounts and exclude `rejected` from the deduction (so `fulfilled→rejected` refunds).
 
 ## Admin Review Workflow
