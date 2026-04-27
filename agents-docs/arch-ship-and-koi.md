@@ -99,6 +99,24 @@ When ship status flips to `returned`, `aggregate_return_feedback` joins all retu
 
 This is the "I fixed one thing and re-shipped" optimization — reviewers don't redo work on already-judged recordings, and the optimization extends to re-ships after a returned/cancelled cycle.
 
+### Ship cycle (definition)
+
+A **ship cycle** is the window between two successive approvals on a project. It starts immediately after the previous approved ship and ends when one ship in the window reaches `:approved` — that approval terminates the current cycle and starts a fresh one.
+
+**First-cycle case** (no prior approval): the cycle stretches all the way back to the project's earliest history. Every ship the project has ever had — pending, returned, rejected — is part of that first cycle. Subsequent re-ships start fresh cycles only because they have an approved predecessor.
+
+Bounds (in code, see `Ship#previous_approved_ship`):
+- **Start cutoff** = `project.ships.approved.where("created_at < self.created_at").order(created_at: :desc).first&.created_at` (i.e. the immediately-preceding approval), or `Time.at(0)` for the first cycle.
+- **End** = the `created_at` of the ship that reaches `:approved` (the *current* ship in any computation about its own cycle).
+
+What's scoped to a cycle:
+- **Ships** in the cycle = `project.ships.where("created_at > start_cutoff AND created_at <= end")` — includes any rejected/returned/cancelled attempts plus the approved one that closed the cycle. Counter for `{ATTEMPTS_MSG}` derives from this.
+- **Journal entries** = entries with `ship_id` set to a ship in this cycle. `Ship#claim_journal_entries!` sets `ship_id` on `after_create` and explicitly skips entries already locked to an *approved* prior ship (cycle history is immutable).
+- **Recordings** = recordings whose journal entry is in the cycle.
+- **Hours** = the three flavors in §7, all derived from this cycle's recordings/journal entries (never the project's lifetime totals).
+
+Re-ships after a prior approval start a fresh cycle — counters reset, and the previous cycle's journal entries / hours / koi are sealed.
+
 ---
 
 ## 3. Multi-stage Review Pipeline

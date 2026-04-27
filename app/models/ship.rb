@@ -289,7 +289,12 @@ class Ship < ApplicationRecord
       # Linked-record field — Airtable typecast (enabled in upload_or_create!)
       # matches the array of primary-field values against the linked Ships
       # table's primary field, so we send [id.to_s] not the integer.
-      "Ship" => [ id.to_s ]
+      "Ship" => [ id.to_s ],
+      # Hours that downstream YSWS automation should use as the official
+      # number for this submission. INTERNAL_HOURS = approved + Phase 2
+      # hours_adjustment, i.e. the operator's view (see arch-ship-and-koi.md §7).
+      "Optional - Override Hours Spent" => internal_hours_for_unified,
+      "Optional - Override Hours Spent Justification" => JustificationRenderer.render(self)
     }
 
     # Screenshot is set separately by AttachShipUnifiedScreenshotJob via the
@@ -479,5 +484,14 @@ class Ship < ApplicationRecord
     Rails.logger.error("Ship##{id} unified upload — HCA identity fetch failed for user #{user.id}: #{e.message}")
     ErrorReporter.capture_exception(e, contexts: { ship_unified_airtable: { ship_id: id, user_id: user.id, op: :hca_fetch } })
     {}
+  end
+
+  # approved_seconds + DR/BR hours_adjustment, in hours (1 decimal). Mirrors
+  # JustificationRenderer's INTERNAL_HOURS so the override-hours field and
+  # the justification prose agree.
+  def internal_hours_for_unified
+    dr = design_review&.hours_adjustment.to_i
+    br = build_review&.hours_adjustment.to_i
+    ((approved_seconds.to_i + dr + br) / 3600.0).round(1)
   end
 end
