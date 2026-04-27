@@ -349,6 +349,7 @@ export interface ReviewRow {
   created_at: string
   is_claimed: boolean
   claimed_by_display_name: string | null
+  sibling_approved: boolean
 }
 
 export interface TimeAuditReviewDetail {
