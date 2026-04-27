@@ -218,7 +218,7 @@ class Ship < ApplicationRecord
   def carry_forward_ta_annotations!(ta)
     prev_ship = project.ships.where.not(id: id).order(created_at: :desc).first
     prev_ta = prev_ship&.time_audit_review
-    return unless (prev_ta&.approved? || prev_ta&.returned?) && prev_ta.annotations&.dig("recordings")&.any?
+    return unless (prev_ta&.approved? || prev_ta&.returned? || prev_ta&.cancelled?) && prev_ta.annotations&.dig("recordings")&.any?
 
     reviewed_ids = prev_ta.annotations["recordings"].keys.to_set
     current_ids = new_journal_entries
