@@ -27,6 +27,10 @@ class ProjectPolicy < ApplicationPolicy
     owner? # User-facing project edits are owner-only; admins use /admin or Airtable.
   end
 
+  def update_manual_seconds?
+    admin? # Admin-only: manual time overrides for legacy projects
+  end
+
   def destroy?
     return false if record.discarded?
 

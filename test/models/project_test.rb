@@ -8,6 +8,7 @@
 #  discarded_at          :datetime
 #  inactivity_dm_sent_at :datetime
 #  is_unlisted           :boolean          default(FALSE), not null
+#  manual_seconds        :integer          default(0), not null
 #  name                  :string           not null
 #  repo_link             :string
 #  tags                  :string           default([]), not null, is an Array
@@ -17,10 +18,12 @@
 #
 # Indexes
 #
-#  index_projects_on_discarded_at  (discarded_at)
-#  index_projects_on_is_unlisted   (is_unlisted)
-#  index_projects_on_tags          (tags) USING gin
-#  index_projects_on_user_id       (user_id)
+#  index_projects_on_description_trgm  (description) USING gin
+#  index_projects_on_discarded_at      (discarded_at)
+#  index_projects_on_is_unlisted       (is_unlisted)
+#  index_projects_on_name_trgm         (name) USING gin
+#  index_projects_on_tags              (tags) USING gin
+#  index_projects_on_user_id           (user_id)
 #
 # Foreign Keys
 #

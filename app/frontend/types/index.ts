@@ -164,6 +164,7 @@ export interface ShipEvent {
   feedback: string | null
   created_at_iso: string
   updated_at_iso: string
+  reviewer_display_name: string | null
 }
 
 export interface ProjectForm {
@@ -248,6 +249,7 @@ export interface AdminProjectDetail {
   user_avatar: string
   journal_entries_count: number
   hours_tracked: number
+  manual_hours: number
   last_entry_at: string | null
   created_at: string
   collaborators: { id: number; display_name: string; avatar: string }[]
