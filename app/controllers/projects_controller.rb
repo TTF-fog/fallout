@@ -220,8 +220,8 @@ class ProjectsController < ApplicationController
       id: journal_entry.id,
       content_html: helpers.render_user_markdown(journal_entry.content.to_s),
       images: journal_entry.images.map { |img| url_for(img) },
-      recordings_count: journal_entry.recordings.size,
-      recordings: journal_entry.recordings.filter_map { |recording| serialize_journal_recording(recording) },
+      recordings_count: policy(journal_entry).show? ? journal_entry.recordings.size : 0, # Only expose recording count to entry author/owner/collaborator
+      recordings: policy(journal_entry).show? ? journal_entry.recordings.filter_map { |recording| serialize_journal_recording(recording) } : [], # Only expose recordings to entry author/owner/collaborator
       created_at: journal_entry.created_at.strftime("%B %d, %Y"),
       created_at_iso: journal_entry.created_at.iso8601,
       author_display_name: journal_entry.user.display_name,
