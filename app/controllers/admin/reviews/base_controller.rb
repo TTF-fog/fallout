@@ -142,6 +142,7 @@ class Admin::Reviews::BaseController < Admin::ApplicationController
 
   def serialize_review_row(review, flagged_project_ids: Set.new)
     ship = review.ship
+    sibling = review.is_a?(TimeAuditReview) ? ship.requirements_check_review : ship.time_audit_review
     {
       id: review.id,
       ship_id: ship.id,
@@ -152,7 +153,8 @@ class Admin::Reviews::BaseController < Admin::ApplicationController
       reviewer_display_name: review.reviewer&.display_name,
       created_at: review.created_at.strftime("%b %d, %Y"),
       is_claimed: review.claimed?,
-      claimed_by_display_name: review.claimed? ? review.reviewer&.display_name : nil
+      claimed_by_display_name: review.claimed? ? review.reviewer&.display_name : nil,
+      sibling_approved: sibling&.approved? || false
     }
   end
 
