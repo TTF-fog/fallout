@@ -1,25 +1,22 @@
-import { useState, useMemo, useRef } from 'react'
-import { router, usePage } from '@inertiajs/react'
-// @ts-expect-error useModal lacks type declarations in this beta package
+import { useEffect, useState, useMemo, useRef } from 'react'
+import { router } from '@inertiajs/react'
 import { Modal, ModalLink, useModal } from '@inertiaui/modal-react'
 import { BookOpenIcon, ClockIcon } from '@heroicons/react/16/solid'
 import { EllipsisHorizontalIcon } from '@heroicons/react/20/solid'
+import { ArrowLeft, Pencil, Trash2, Feather, Loader2 } from 'lucide-react'
+import { DateTime } from 'luxon'
 import BookLayout from '@/components/shared/BookLayout'
 import Button from '@/components/shared/Button'
 import InlineUser from '@/components/shared/InlineUser'
 import Input from '@/components/shared/Input'
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/shared/Tooltip'
 import { performModalMutation } from '@/lib/modalMutation'
 import { notify } from '@/lib/notifications'
 import TimeAgo from '@/components/shared/TimeAgo'
 import Timeline from '@/components/shared/Timeline'
-import type {
-  ProjectDetail,
-  JournalEntryCard,
-  CollaboratorInfo,
-  ShipEvent,
-  SharedProps,
-  JournalSwitchableProject,
-} from '@/types'
+import { SlidingNumber } from '@/components/shared/SlidingNumber'
+import TextMorph from '@/components/shared/TextMorph'
+import type { ProjectDetail, JournalEntryCard, CollaboratorInfo, ShipEvent, JournalSwitchableProject } from '@/types'
 
 function formatTime(seconds: number): string {
   if (seconds === 0) return '0min'
@@ -54,6 +51,18 @@ type TimelineEvent =
   | { type: 'ship'; ship: ShipEvent; date: number; iso: string }
   | { type: 'created'; date: number; iso: string }
 
+type JournalDateGroup = {
+  dateKey: string
+  date: DateTime | null
+  entries: JournalEntryCard[]
+}
+
+type JournalRelativeParts = {
+  value: number | null
+  label: string
+  suffix: string
+}
+
 function shipStatusLabel(status: string): string {
   switch (status) {
     case 'pending':
@@ -69,6 +78,119 @@ function shipStatusLabel(status: string): string {
   }
 }
 
+function ordinal(day: number): string {
+  const mod100 = day % 100
+  if (mod100 >= 11 && mod100 <= 13) return `${day}th`
+  const mod10 = day % 10
+  if (mod10 === 1) return `${day}st`
+  if (mod10 === 2) return `${day}nd`
+  if (mod10 === 3) return `${day}rd`
+  return `${day}th`
+}
+
+function journalDateTime(iso: string): DateTime | null {
+  const dt = DateTime.fromISO(iso).toLocal()
+  return dt.isValid ? dt : null
+}
+
+function formatJournalDate(date: DateTime | null, fallback: string): string {
+  if (!date) return fallback
+  return `${date.toFormat('LLLL')} ${ordinal(date.day)}, ${date.toFormat('yyyy')}`
+}
+
+function formatJournalExactTime(iso: string): string {
+  const dt = journalDateTime(iso)
+  return dt ? `${formatJournalDate(dt, iso)} at ${dt.toFormat('t')}` : iso
+}
+
+function journalRelativeParts(iso: string, now: DateTime): JournalRelativeParts {
+  const dt = journalDateTime(iso)
+  if (!dt) return { value: null, label: '', suffix: '' }
+
+  const rawMinutes = now.diff(dt, 'minutes').minutes
+  const past = rawMinutes >= 0
+  const minutes = Math.abs(Math.round(rawMinutes))
+  const suffix = past ? 'ago' : 'from now'
+
+  if (minutes <= 1) return { value: null, label: minutes === 0 ? 'less than a minute' : '1 minute', suffix }
+  if (minutes < 45) return { value: minutes, label: minutes === 1 ? 'minute' : 'minutes', suffix }
+  if (minutes < 90) return { value: 1, label: 'hour', suffix }
+  if (minutes < 1440) {
+    const hours = Math.round(minutes / 60)
+    return { value: hours, label: hours === 1 ? 'hour' : 'hours', suffix }
+  }
+  if (minutes < 2520) return { value: 1, label: 'day', suffix }
+  if (minutes < 43200) {
+    const days = Math.round(minutes / 1440)
+    return { value: days, label: days === 1 ? 'day' : 'days', suffix }
+  }
+  if (minutes < 525600) {
+    const months = Math.round(minutes / 43200)
+    return { value: months, label: months === 1 ? 'month' : 'months', suffix }
+  }
+
+  const years = Math.round(minutes / 525600)
+  return { value: years, label: years === 1 ? 'year' : 'years', suffix }
+}
+
+function formatJournalRelativeTime(iso: string, now: DateTime): string {
+  const parts = journalRelativeParts(iso, now)
+  return parts.value == null ? `${parts.label} ${parts.suffix}`.trim() : `${parts.value} ${parts.label} ${parts.suffix}`
+}
+
+function JournalRelativeTime({ iso, title }: { iso: string; title: string }) {
+  const [now, setNow] = useState(() => DateTime.now())
+  const parts = journalRelativeParts(iso, now)
+  const text = formatJournalRelativeTime(iso, now)
+
+  useEffect(() => {
+    const interval = window.setInterval(() => setNow(DateTime.now()), 60_000)
+    return () => window.clearInterval(interval)
+  }, [])
+
+  if (parts.value == null) {
+    return (
+      <span title={title}>
+        <time className="sr-only" dateTime={iso}>
+          {text}
+        </time>
+        <span aria-hidden="true">
+          <TextMorph as="span">{text}</TextMorph>
+        </span>
+      </span>
+    )
+  }
+
+  return (
+    <div className="inline-flex items-baseline" title={title}>
+      <time className="sr-only" dateTime={iso}>
+        {text}
+      </time>
+      <div className="inline-flex" aria-hidden="true">
+        <SlidingNumber value={parts.value} />
+        <TextMorph as="span" className="ml-2">{`${parts.label} ${parts.suffix}`}</TextMorph>
+      </div>
+    </div>
+  )
+}
+
+function JournalMetaDot() {
+  return <span className="h-1 w-1 shrink-0 rounded-full bg-brown" aria-hidden="true" />
+}
+
+function JournalMetaItems({ items }: { items: string[] }) {
+  return (
+    <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-brown">
+      {items.map((item, index) => (
+        <span key={`${item}-${index}`} className="inline-flex items-center gap-2">
+          {index > 0 && <JournalMetaDot />}
+          <span>{item}</span>
+        </span>
+      ))}
+    </p>
+  )
+}
+
 export default function ProjectsShow({
   project,
   journal_entries,
@@ -76,6 +198,8 @@ export default function ProjectsShow({
   collaborators,
   ships,
   can,
+  initial_tab,
+  highlight_journal_entry_id,
   is_modal,
   onModalEvent,
 }: {
@@ -90,17 +214,17 @@ export default function ProjectsShow({
     ship: boolean
     manage_collaborators: boolean
     create_journal_entry: boolean
+    create_journal_entry_locked_for_trial: boolean
   }
+  initial_tab?: 'timeline' | 'journal'
+  highlight_journal_entry_id?: number | null
   is_modal?: boolean
   onModalEvent?: (event: string, ...args: any[]) => void
 }) {
   const modalRef = useRef<{ close: () => void }>(null)
+  const highlightedJournalRef = useRef<HTMLDivElement | null>(null)
   const modal = useModal()
-  const {
-    auth: { user: authUser },
-  } = usePage<SharedProps>().props
-  const isTrial = authUser?.is_trial ?? false
-  const [rightTab, setRightTab] = useState<'timeline' | 'journal'>('timeline')
+  const [rightTab, setRightTab] = useState<'timeline' | 'journal'>(initial_tab ?? 'timeline')
   const [inviteEmail, setInviteEmail] = useState('')
   const [inviting, setInviting] = useState(false)
   const [inviteError, setInviteError] = useState<string | null>(null)
@@ -118,6 +242,20 @@ export default function ProjectsShow({
     () => switchable_projects_for_journal.filter((switchableProject) => switchableProject.id !== project.id),
     [switchable_projects_for_journal, project.id],
   )
+
+  useEffect(() => {
+    setRightTab(highlight_journal_entry_id ? 'journal' : (initial_tab ?? 'timeline'))
+  }, [project.id, highlight_journal_entry_id, initial_tab])
+
+  useEffect(() => {
+    if (rightTab !== 'journal' || !highlight_journal_entry_id) return
+
+    const frame = window.requestAnimationFrame(() => {
+      highlightedJournalRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+    })
+
+    return () => window.cancelAnimationFrame(frame)
+  }, [rightTab, highlight_journal_entry_id, journal_entries])
 
   function handleBack() {
     if (modal?.canGoBack) {
@@ -318,32 +456,23 @@ export default function ProjectsShow({
     return events
   }, [journal_entries, ships, project.created_at_iso])
 
-  const journalByDate = useMemo(() => {
-    const groups: { dateKey: string; entries: JournalEntryCard[] }[] = []
-    const map = new Map<string, JournalEntryCard[]>()
+  const journalByDate = useMemo<JournalDateGroup[]>(() => {
+    const groups: JournalDateGroup[] = []
+    const map = new Map<string, JournalDateGroup>()
 
     for (const entry of journal_entries) {
-      const d = new Date(entry.created_at_iso)
-      const dateKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+      const date = journalDateTime(entry.created_at_iso)
+      const dateKey = date?.toISODate() ?? entry.created_at_iso
       if (!map.has(dateKey)) {
-        const arr: JournalEntryCard[] = []
-        map.set(dateKey, arr)
-        groups.push({ dateKey, entries: arr })
+        const group: JournalDateGroup = { dateKey, date: date?.startOf('day') ?? null, entries: [] }
+        map.set(dateKey, group)
+        groups.push(group)
       }
-      map.get(dateKey)!.push(entry)
+      map.get(dateKey)!.entries.push(entry)
     }
 
     return groups
   }, [journal_entries])
-
-  function journalDateHeader(dateKey: string, entries: JournalEntryCard[], index: number): string {
-    const hasMultiple = entries.length > 1
-    if (!hasMultiple) return dateKey
-    const entry = entries[index]
-    const d = new Date(entry.created_at_iso)
-    const time = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
-    return `${dateKey} ${time}`
-  }
 
   const ribbonTabs: { label: string; tab: 'timeline' | 'journal' }[] = [
     { label: 'Timeline', tab: 'timeline' },
@@ -351,30 +480,66 @@ export default function ProjectsShow({
   ]
 
   function renderNewJournalEntryButton() {
+    const iconButtonClasses =
+      'bg-brown text-light-brown border-2 border-dark-brown rounded w-10 h-10 flex items-center justify-center hover:opacity-80 cursor-pointer'
+
     if (can.create_journal_entry) {
       return (
-        <ModalLink
-          href={`/projects/${project.id}/journal_entries/new`}
-          className="bg-brown text-light-brown border-2 border-dark-brown px-4 py-2 font-bold uppercase text-sm hover:opacity-80"
-        >
-          New Journal Entry
-        </ModalLink>
+        <Tooltip side="top" gap={8}>
+          <TooltipTrigger asChild>
+            <ModalLink
+              href={`/projects/${project.id}/journal_entries/new`}
+              aria-label="New journal entry"
+              className={iconButtonClasses}
+            >
+              <Feather className="w-5 h-5" />
+            </ModalLink>
+          </TooltipTrigger>
+          <TooltipContent>New journal entry</TooltipContent>
+        </Tooltip>
       )
     }
 
-    if (isTrial) {
+    if (can.create_journal_entry_locked_for_trial) {
       return (
-        <button
-          type="button"
-          onClick={() => notify('alert', 'This is locked. Verify your account to continue!')}
-          className="bg-brown text-light-brown border-2 border-dark-brown px-4 py-2 font-bold uppercase text-sm hover:opacity-80 cursor-pointer"
-        >
-          New Journal Entry
-        </button>
+        <Tooltip side="top" gap={8}>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              onClick={() => notify('alert', 'This is locked. Verify your account to continue!')}
+              aria-label="New journal entry"
+              className={iconButtonClasses}
+            >
+              <Feather className="w-5 h-5" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent>New journal entry</TooltipContent>
+        </Tooltip>
       )
     }
 
     return null
+  }
+
+  function renderJournalRecordings(entry: JournalEntryCard) {
+    if (entry.recordings.length === 0) return null
+
+    return (
+      <div className="mt-3 space-y-3">
+        {entry.recordings.map((recording) => (
+          <div key={recording.id} className="overflow-hidden rounded border-2 border-dark-brown bg-light-brown">
+            <iframe
+              src={recording.embed_url}
+              title={recording.title}
+              className="aspect-video w-full"
+              loading="lazy"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+              allowFullScreen
+            />
+          </div>
+        ))}
+      </div>
+    )
   }
 
   const content = (
@@ -440,38 +605,57 @@ export default function ProjectsShow({
             </div>
           )}
 
-          <div className="flex gap-4 mt-auto pt-6 flex-wrap">
-            {is_modal && (
-              <button
-                onClick={handleBack}
-                className="py-2 px-6 text-sm border-2 font-bold uppercase cursor-pointer bg-transparent text-dark-brown border-dark-brown"
-              >
-                Back
-              </button>
-            )}
-            {can.update && (
-              <ModalLink
-                href={`/projects/${project.id}/edit`}
-                onProjectSaved={handleProjectSaved}
-                className="bg-brown text-light-brown border-2 border-dark-brown px-6 py-2 font-bold uppercase hover:opacity-80 flex items-center justify-center text-sm"
-              >
-                Edit
-              </ModalLink>
-            )}
-            {can.destroy && (
-              <Button
-                onClick={deleteProject}
-                disabled={deleting}
-                className="bg-coral px-6 py-2 text-sm flex-1 xl:flex-none"
-              >
-                {deleting ? 'Deleting...' : 'Delete Project'}
-              </Button>
-            )}
+          <div className="flex items-center justify-between gap-4 mt-auto pt-6">
+            <div className="flex items-center gap-2">
+              {is_modal && (
+                <Tooltip side="top" gap={8}>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      onClick={handleBack}
+                      aria-label="Back"
+                      className="bg-transparent text-dark-brown border-2 border-dark-brown rounded w-10 h-10 flex items-center justify-center cursor-pointer hover:bg-light-brown"
+                    >
+                      <ArrowLeft className="w-5 h-5" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent>Back</TooltipContent>
+                </Tooltip>
+              )}
+              {can.update && (
+                <Tooltip side="top" gap={8}>
+                  <TooltipTrigger asChild>
+                    <ModalLink
+                      href={`/projects/${project.id}/edit`}
+                      onProjectSaved={handleProjectSaved}
+                      aria-label="Edit project"
+                      className="bg-brown text-light-brown border-2 border-dark-brown rounded w-10 h-10 flex items-center justify-center hover:opacity-80 cursor-pointer"
+                    >
+                      <Pencil className="w-5 h-5" />
+                    </ModalLink>
+                  </TooltipTrigger>
+                  <TooltipContent>Edit</TooltipContent>
+                </Tooltip>
+              )}
+              {can.destroy && (
+                <Tooltip side="top" gap={8}>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      onClick={deleteProject}
+                      disabled={deleting}
+                      aria-label="Delete project"
+                      className="bg-coral text-light-brown border-2 border-dark-brown rounded w-10 h-10 flex items-center justify-center hover:opacity-80 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {deleting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Trash2 className="w-5 h-5" />}
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent>Delete project</TooltipContent>
+                </Tooltip>
+              )}
+            </div>
             {can.ship && (
-              <Button
-                onClick={() => router.visit(`/projects/${project.id}/ship`)}
-                className="px-6 py-2 text-sm flex-1 xl:flex-none"
-              >
+              <Button onClick={() => router.visit(`/projects/${project.id}/ship`)} className="px-6 py-2 text-sm">
                 Submit
               </Button>
             )}
@@ -524,6 +708,7 @@ export default function ProjectsShow({
                             className="prose prose-sm max-w-none text-dark-brown wrap-break-word [&_img]:max-h-48 [&_img]:w-auto markdown-content timeline-markdown"
                             dangerouslySetInnerHTML={{ __html: entry.content_html }}
                           />
+                          {renderJournalRecordings(entry)}
                         </Timeline.DetailItem>
                       )
                     }
@@ -598,64 +783,110 @@ export default function ProjectsShow({
             </div>
             <div className="flex-1 min-h-0 overflow-y-auto">
               {journalByDate.length > 0 ? (
-                <div className="space-y-6">
-                  {journalByDate.map(({ dateKey, entries }) =>
-                    entries.map((entry, entryIdx) => (
-                      <div key={entry.id}>
-                        <div className="flex items-start justify-between gap-3">
-                          <h3 className="font-bold text-lg text-dark-brown">
-                            {journalDateHeader(dateKey, entries, entryIdx)}
-                          </h3>
-                          {(entry.can_delete || (entry.can_switch_project && switchTargets.length > 0)) && (
-                            <div className="relative">
-                              {journalMenuEntryId === entry.id && (
-                                <div className="fixed inset-0 z-10" onClick={() => setJournalMenuEntryId(null)} />
-                              )}
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setJournalMenuEntryId((currentEntryId) =>
-                                    currentEntryId === entry.id ? null : entry.id,
-                                  )
-                                }
-                                className="inline-flex h-8 w-8 items-center justify-center border-2 border-dark-brown text-dark-brown"
-                                aria-label="Journal actions"
-                              >
-                                <EllipsisHorizontalIcon className="h-5 w-5" />
-                              </button>
-                              {journalMenuEntryId === entry.id && (
-                                <div className="absolute right-0 mt-1 min-w-40 border-2 border-dark-brown bg-light-brown z-20">
-                                  {entry.can_switch_project && switchTargets.length > 0 && (
-                                    <button
-                                      type="button"
-                                      onClick={() => openSwitchProjectDialog(entry)}
-                                      className="w-full text-left px-3 py-2 text-xs font-bold uppercase text-dark-brown"
-                                    >
-                                      Switch Project
-                                    </button>
-                                  )}
-                                  {entry.can_delete && (
-                                    <button
-                                      type="button"
-                                      onClick={() => openDeleteDialog(entry)}
-                                      className="w-full text-left px-3 py-2 text-xs font-bold uppercase text-red-700"
-                                    >
-                                      Delete
-                                    </button>
+                <div className="space-y-8">
+                  {journalByDate.map(({ dateKey, date, entries }) => (
+                    <section key={dateKey} className="space-y-4">
+                      <div className="flex items-center gap-3">
+                        <div className="shrink-0 border-2 border-dark-brown bg-brown px-3 py-1 text-xs font-bold text-light-brown">
+                          {formatJournalDate(date, dateKey)} - {entries.length}{' '}
+                          {entries.length === 1 ? 'entry' : 'entries'}
+                        </div>
+                        <div className="h-px flex-1 bg-dark-brown" />
+                      </div>
+
+                      <div className="space-y-5">
+                        {entries.map((entry) => {
+                          const isHighlighted = entry.id === highlight_journal_entry_id
+                          const exactTime = formatJournalExactTime(entry.created_at_iso)
+                          const metadata = [
+                            exactTime,
+                            `By ${entry.author_display_name}`,
+                            entry.recordings_count > 0
+                              ? `${formatTime(entry.time_logged)} tracked`
+                              : 'No recording attached',
+                          ]
+
+                          if (entry.recordings_count > 0) {
+                            metadata.push(
+                              `${entry.recordings_count} ${entry.recordings_count === 1 ? 'recording' : 'recordings'}`,
+                            )
+                          }
+
+                          return (
+                            <div
+                              key={entry.id}
+                              ref={isHighlighted ? highlightedJournalRef : undefined}
+                              id={`journal-entry-${entry.id}`}
+                              className={`relative py-1 pl-4 ${
+                                isHighlighted ? 'rounded outline outline-2 outline-brown' : ''
+                              }`}
+                            >
+                              <div className="absolute left-0 top-0 bottom-0 w-1 bg-brown" />
+                              <div className="pl-3">
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="min-w-0">
+                                    <div className="font-bold text-lg text-dark-brown">
+                                      <JournalRelativeTime iso={entry.created_at_iso} title={exactTime} />
+                                    </div>
+                                    <JournalMetaItems items={metadata} />
+                                  </div>
+                                  {(entry.can_delete || (entry.can_switch_project && switchTargets.length > 0)) && (
+                                    <div className="relative">
+                                      {journalMenuEntryId === entry.id && (
+                                        <div
+                                          className="fixed inset-0 z-10"
+                                          onClick={() => setJournalMenuEntryId(null)}
+                                        />
+                                      )}
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          setJournalMenuEntryId((currentEntryId) =>
+                                            currentEntryId === entry.id ? null : entry.id,
+                                          )
+                                        }
+                                        className="inline-flex h-8 w-8 items-center justify-center border-2 border-dark-brown text-dark-brown"
+                                        aria-label="Journal actions"
+                                      >
+                                        <EllipsisHorizontalIcon className="h-5 w-5" />
+                                      </button>
+                                      {journalMenuEntryId === entry.id && (
+                                        <div className="absolute right-0 mt-1 min-w-40 border-2 border-dark-brown bg-light-brown z-20">
+                                          {entry.can_switch_project && switchTargets.length > 0 && (
+                                            <button
+                                              type="button"
+                                              onClick={() => openSwitchProjectDialog(entry)}
+                                              className="w-full text-left px-3 py-2 text-xs font-bold uppercase text-dark-brown"
+                                            >
+                                              Switch Project
+                                            </button>
+                                          )}
+                                          {entry.can_delete && (
+                                            <button
+                                              type="button"
+                                              onClick={() => openDeleteDialog(entry)}
+                                              className="w-full text-left px-3 py-2 text-xs font-bold uppercase text-red-700"
+                                            >
+                                              Delete
+                                            </button>
+                                          )}
+                                        </div>
+                                      )}
+                                    </div>
                                   )}
                                 </div>
-                              )}
+                                <div
+                                  className="prose prose-sm max-w-none text-dark-brown wrap-break-word [&_img]:max-h-48 [&_img]:w-auto markdown-content timeline-markdown mt-3"
+                                  dangerouslySetInnerHTML={{ __html: entry.content_html }}
+                                />
+                                {renderJournalRecordings(entry)}
+                              </div>
                             </div>
-                          )}
-                        </div>
-                        <p className="text-sm text-dark-brown mb-2">{formatTime(entry.time_logged)} tracked</p>
-                        <div
-                          className="prose prose-sm max-w-none text-dark-brown wrap-break-word [&_img]:max-h-48 [&_img]:w-auto markdown-content timeline-markdown"
-                          dangerouslySetInnerHTML={{ __html: entry.content_html }}
-                        />
+                          )
+                        })}
                       </div>
-                    )),
-                  )}
+                    </section>
+                  ))}
                 </div>
               ) : (
                 <p className="text-dark-brown text-sm">No journal entries yet.</p>
@@ -744,12 +975,12 @@ export default function ProjectsShow({
     return (
       <Modal
         ref={modalRef}
-        panelClasses="h-full max-xl:w-full max-xl:max-w-none max-xl:max-h-full max-xl:overflow-hidden"
+        panelClasses="h-full xl:pointer-events-none max-xl:w-full max-xl:max-w-none max-xl:max-h-full max-xl:overflow-hidden"
         paddingClasses="p-0 xl:max-w-5xl xl:mx-auto"
         closeButton={false}
         maxWidth="7xl"
       >
-        <BookLayout className="max-h-none xl:max-h-[40em]" showJoint={false} showBorderOnMobile>
+        <BookLayout className="max-h-none xl:max-h-[40em] xl:pointer-events-auto" showJoint={false} showBorderOnMobile>
           {content}
         </BookLayout>
       </Modal>
