@@ -12,7 +12,7 @@ export function useIdentityAnnouncement(): Announcement | null {
       case 'unverified':
         return {
           message: 'Finish verifying & enter your address on auth.hackclub.com to claim grants & prizes',
-          href: verify_url,
+          href: 'https://auth.hackclub.com/',
         }
       case 'pending':
         return {
