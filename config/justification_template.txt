@@ -139,7 +139,7 @@ This is the {SHIP_TYPE_MSG} of "{PROJECT_NAME}" for Fallout. Submitted {SUBMITTE
 
 Time was logged via screen/camera recording using {TIMETRACKING_METHODS} ({RECORDING_COUNT} recordings) in combination with journaling ({JOURNAL_COUNT} entries).
 
-This project was approved at {APPROVED_AT} {ATTEMPTS_MSG} after 3 stages of review:
+This project was approved at {APPROVED_AT} {ATTEMPTS_MSG}:
 
 1. Recording time was verified/deflated by {TIME_AUDITOR} to ensure it matches our policy of what is allowed. Inactive and unrelated time was stripped according to our policy publicly available at here: https://fallout.hackclub.com/docs/project-resources/how-to-timelapse
 
