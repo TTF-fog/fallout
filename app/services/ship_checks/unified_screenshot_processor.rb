@@ -16,6 +16,10 @@ module ShipChecks
   # SVG is skipped — that would need librsvg.
   module UnifiedScreenshotProcessor
     MAX_BYTES = 5 * 1024 * 1024
+    # PDFs can be arbitrarily large; cap the input size we'll bother to render.
+    # 50MB is generous for typical hackathon zines (well under 5MB) but cheaply
+    # rejects pathological multi-hundred-page submissions before vips hits them.
+    MAX_PDF_INPUT_BYTES = 50 * 1024 * 1024
     JPEG_INITIAL_QUALITY = 85
     JPEG_MIN_QUALITY = 30
     MAX_DIMENSION = 2400
@@ -31,19 +35,44 @@ module ShipChecks
 
     SUPPORTED_CONTENT_TYPES = EXT_FOR_CONTENT_TYPE.keys.freeze
 
+    # GitHub raw and many CDNs return application/octet-stream for files (PDFs
+    # in particular). When the response content-type isn't one we know how to
+    # handle, fall back to the URL's path extension to identify the format.
+    CONTENT_TYPE_FROM_EXT = {
+      ".png" => "image/png",
+      ".jpg" => "image/jpeg",
+      ".jpeg" => "image/jpeg",
+      ".webp" => "image/webp",
+      ".gif" => "image/gif",
+      ".pdf" => "application/pdf"
+    }.freeze
+
     def self.process(url)
       bytes, content_type = download(url)
       return nil unless bytes && content_type
 
-      unless SUPPORTED_CONTENT_TYPES.include?(content_type)
+      effective_type = resolve_content_type(content_type, url)
+      unless SUPPORTED_CONTENT_TYPES.include?(effective_type)
         Rails.logger.warn("UnifiedScreenshotProcessor: unsupported content_type=#{content_type} for url=#{url}")
         return nil
       end
 
-      transcode_to_jpeg(bytes, content_type)
+      if effective_type == "application/pdf" && bytes.bytesize > MAX_PDF_INPUT_BYTES
+        Rails.logger.warn("UnifiedScreenshotProcessor: PDF source #{bytes.bytesize} bytes exceeds #{MAX_PDF_INPUT_BYTES} cap for url=#{url}")
+        return nil
+      end
+
+      transcode_to_jpeg(bytes, effective_type)
     rescue StandardError => e
       Rails.logger.error("UnifiedScreenshotProcessor failed for #{url}: #{e.class}: #{e.message}")
       nil
+    end
+
+    def self.resolve_content_type(server_ct, url)
+      return server_ct if SUPPORTED_CONTENT_TYPES.include?(server_ct)
+      uri = normalize_uri(url)
+      return nil unless uri
+      CONTENT_TYPE_FROM_EXT[File.extname(uri.path).downcase]
     end
 
     def self.transcode_to_jpeg(input_bytes, content_type)
