@@ -1,24 +1,53 @@
+require "base64"
+
 class BulletinBoardController < ApplicationController
   include BulletinEventSerializer
 
-  EXPLORE_SOURCES = %w[journals projects].freeze
-  EXPLORE_SORTS = %w[newest top].freeze
+  EXPLORE_CATEGORIES = %w[projects journals].freeze
+  EXPLORE_SORTS = %w[active newest].freeze
+  EXPLORE_LIMIT = 24
+  PROJECT_ACTIVITY_SQL = "COALESCE(latest_activity.last_activity_at, projects.created_at)".freeze
+  PROJECT_ACTIVITY_SELECT_SQL = "projects.*, #{PROJECT_ACTIVITY_SQL} AS explore_activity_at".freeze
+  PROJECT_ACTIVITY_ORDER_SQL = "#{PROJECT_ACTIVITY_SQL} DESC, projects.id DESC".freeze
+  PROJECT_ACTIVITY_CURSOR_SQL = [
+    "#{PROJECT_ACTIVITY_SQL} < :cursor_at",
+    "(#{PROJECT_ACTIVITY_SQL} = :cursor_at AND projects.id < :cursor_id)"
+  ].join(" OR ").freeze
 
+  allow_unauthenticated_access only: %i[index search event] # Public community hub and Explore feed.
   allow_trial_access only: %i[index search event] # Public community hub, trial users welcome
+  skip_onboarding_redirect only: %i[index search event] # Public pages should not force account onboarding.
   skip_after_action :verify_authorized, only: %i[index search event] # No authorizable resource (event detail is public)
-  skip_after_action :verify_policy_scoped, only: %i[index search event] # No scoped collection yet
+  # Explore uses explicit public_for_explore scopes for projects and journals, so public visibility
+  # is enforced without exposing owner/collaborator-only policy scopes through this public page.
+  skip_after_action :verify_policy_scoped, only: %i[index search event]
 
   def index
     render inertia: "bulletin_board/index", props: {
       events: real_events,
       featured: placeholder_featured,
-      explore: placeholder_explore,
+      explore: {
+        default_category: "projects",
+        default_project_sort: "active",
+        projects: explore_payload(category: "projects", sort: "active", query: nil, cursor: nil),
+        journals: explore_payload(category: "journals", sort: "newest", query: nil, cursor: nil)
+      },
+      explore_stats: explore_stats,
       is_modal: request.headers["X-InertiaUI-Modal"].present?
     }
   end
 
   def search
-    render json: { explore: explore_entries }
+    category = normalized_explore_category
+
+    render json: explore_payload(
+      category: category,
+      sort: category == "journals" ? "newest" : normalized_explore_sort,
+      query: params[:query],
+      cursor: params[:cursor]
+    )
+  rescue ArgumentError
+    render json: { error: "Invalid cursor" }, status: :bad_request
   end
 
   def event
@@ -44,182 +73,290 @@ class BulletinBoardController < ApplicationController
     ]
   end
 
-  def placeholder_explore
-    explore_entries(source: "journals", sort: "newest")
+  def explore_stats
+    projects = Project.public_for_explore
+    journals = JournalEntry.public_for_explore
+
+    {
+      projects_count: projects.count,
+      journals_count: journals.count,
+      last_project_created_at: projects.maximum(:created_at)&.iso8601,
+      last_journal_created_at: journals.maximum("journal_entries.created_at")&.iso8601
+    }
   end
 
-  def explore_entries(source: normalized_explore_source, sort: normalized_explore_sort)
-    entries = fake_explore_entries.fetch(source)
-    sorted = case sort
-    when "top"
-      entries.sort_by { |entry| [ entry[:likes], entry[:comments], entry[:occurred_at] ] }.reverse
+  def explore_payload(category:, sort:, query:, cursor:)
+    query = query.to_s.strip.presence
+    entries, next_cursor, has_more = if category == "journals"
+      journal_explore_entries(query: query, cursor: cursor)
     else
-      entries.sort_by { |entry| entry[:occurred_at] }.reverse
+      project_explore_entries(sort: sort, query: query, cursor: cursor)
     end
 
-    sorted.map { |entry| entry.except(:occurred_at) }
+    {
+      category: category,
+      entries: entries,
+      next_cursor: next_cursor,
+      has_more: has_more,
+      sort: sort,
+      query: query.to_s
+    }
   end
 
-  def normalized_explore_source
-    source = params[:source].to_s
-    EXPLORE_SOURCES.include?(source) ? source : "journals"
+  def project_explore_entries(sort:, query:, cursor:)
+    scope = policy_scope(Project).public_for_explore
+    scope = search_projects_for_explore(scope, query) if query.present?
+    scope = order_projects_for_explore(scope, sort)
+    scope = apply_project_cursor(scope, sort: sort, cursor: cursor)
+
+    projects = scope.limit(EXPLORE_LIMIT + 1).preload(:user).to_a
+    has_more = projects.size > EXPLORE_LIMIT
+    projects = projects.first(EXPLORE_LIMIT)
+    preload_project_explore_context(projects)
+
+    [
+      projects.map { |project| serialize_project_for_explore(project) },
+      has_more ? encode_project_cursor(projects.last, sort: sort) : nil,
+      has_more
+    ]
+  end
+
+  def search_projects_for_explore(scope, query)
+    project_matches = Project.public_for_explore.search(query).select(:id)
+    journal_matches = JournalEntry.public_for_explore.search(query).select(:project_id)
+    scope.where(id: project_matches).or(scope.where(id: journal_matches))
+  end
+
+  def journal_explore_entries(query:, cursor:)
+    scope = JournalEntry.public_for_explore
+    scope = scope.search(query) if query.present?
+
+    latest_ids = scope
+      .select("DISTINCT ON (journal_entries.project_id) journal_entries.id")
+      .order("journal_entries.project_id, journal_entries.created_at DESC, journal_entries.id DESC")
+
+    entries_scope = JournalEntry.where(id: latest_ids).order(created_at: :desc, id: :desc)
+    entries_scope = apply_journal_cursor(entries_scope, cursor)
+    entries = entries_scope
+      .limit(EXPLORE_LIMIT + 1)
+      .preload(:user, :project, { recordings: :recordable }, images_attachments: :blob)
+      .to_a
+
+    has_more = entries.size > EXPLORE_LIMIT
+    entries = entries.first(EXPLORE_LIMIT)
+
+    [
+      entries.map { |entry| serialize_journal_for_explore(entry) },
+      has_more ? encode_journal_cursor(entries.last) : nil,
+      has_more
+    ]
+  end
+
+  def order_projects_for_explore(scope, sort)
+    return scope.order(created_at: :desc, id: :desc) if sort == "newest"
+
+    scope.joins("LEFT JOIN (#{latest_activity_sql.to_sql}) latest_activity ON latest_activity.project_id = projects.id")
+         .select(PROJECT_ACTIVITY_SELECT_SQL)
+         .order(Arel.sql(PROJECT_ACTIVITY_ORDER_SQL))
+  end
+
+  def apply_project_cursor(scope, sort:, cursor:)
+    return scope if cursor.blank?
+
+    cursor_at, cursor_id = decode_project_cursor(cursor)
+    if sort == "newest"
+      scope.where("projects.created_at < :cursor_at OR (projects.created_at = :cursor_at AND projects.id < :cursor_id)", cursor_at: cursor_at, cursor_id: cursor_id)
+    else
+      scope.where(PROJECT_ACTIVITY_CURSOR_SQL, cursor_at: cursor_at, cursor_id: cursor_id)
+    end
+  end
+
+  def latest_activity_sql
+    JournalEntry.public_for_explore.group(:project_id).select("project_id, MAX(journal_entries.created_at) AS last_activity_at")
+  end
+
+  def normalized_explore_category
+    category = params[:category].to_s
+    EXPLORE_CATEGORIES.include?(category) ? category : "projects"
   end
 
   def normalized_explore_sort
     sort = params[:sort].to_s
-    EXPLORE_SORTS.include?(sort) ? sort : "newest"
+    EXPLORE_SORTS.include?(sort) ? sort : "active"
   end
 
-  def fake_explore_entries
+  def encode_project_cursor(project, sort:)
+    return nil unless project
+
+    Base64.urlsafe_encode64("#{project_cursor_time(project, sort: sort).iso8601(6)}|#{project.id}", padding: false)
+  end
+
+  def decode_project_cursor(cursor)
+    cursor_at, cursor_id = Base64.urlsafe_decode64(cursor).split("|", 2)
+    raise ArgumentError if cursor_at.blank? || cursor_id.blank?
+
+    [ Time.iso8601(cursor_at), Integer(cursor_id) ]
+  end
+
+  def apply_journal_cursor(scope, cursor)
+    return scope if cursor.blank?
+
+    cursor_at, cursor_id = decode_journal_cursor(cursor)
+    scope.where("journal_entries.created_at < :cursor_at OR (journal_entries.created_at = :cursor_at AND journal_entries.id < :cursor_id)", cursor_at: cursor_at, cursor_id: cursor_id)
+  end
+
+  def encode_journal_cursor(entry)
+    return nil unless entry
+
+    Base64.urlsafe_encode64("#{entry.created_at.iso8601(6)}|#{entry.id}", padding: false)
+  end
+
+  def decode_journal_cursor(cursor)
+    cursor_at, cursor_id = Base64.urlsafe_decode64(cursor).split("|", 2)
+    raise ArgumentError if cursor_at.blank? || cursor_id.blank?
+
+    [ Time.iso8601(cursor_at), Integer(cursor_id) ]
+  end
+
+  def project_cursor_time(project, sort:)
+    timestamp = sort == "newest" ? project.created_at : project.read_attribute("explore_activity_at").presence || project.created_at
+    timestamp.respond_to?(:iso8601) ? timestamp : Time.zone.parse(timestamp.to_s)
+  end
+
+  def preload_project_explore_context(projects)
+    project_ids = projects.map(&:id)
+    @explore_journal_counts = JournalEntry.kept.where(project_id: project_ids).group(:project_id).count
+    @explore_latest_entries = latest_entries_for_projects(project_ids)
+    @explore_cover_entries = cover_entries_for_projects(project_ids)
+  end
+
+  def latest_entries_for_projects(project_ids)
+    return {} if project_ids.empty?
+
+    latest_ids = JournalEntry.public_for_explore
+      .where(project_id: project_ids)
+      .select("DISTINCT ON (journal_entries.project_id) journal_entries.id")
+      .order("journal_entries.project_id, journal_entries.created_at DESC, journal_entries.id DESC")
+
+    JournalEntry.where(id: latest_ids)
+      .preload(:user, :project, images_attachments: :blob)
+      .index_by(&:project_id)
+  end
+
+  def cover_entries_for_projects(project_ids)
+    return {} if project_ids.empty?
+
+    cover_ids = JournalEntry.public_for_explore
+      .where(project_id: project_ids)
+      .joins(:images_attachments)
+      .select("DISTINCT ON (journal_entries.project_id) journal_entries.id")
+      .order("journal_entries.project_id, journal_entries.created_at DESC, journal_entries.id DESC")
+
+    JournalEntry.where(id: cover_ids)
+      .preload(images_attachments: :blob)
+      .index_by(&:project_id)
+  end
+
+  def serialize_project_for_explore(project)
+    latest_entry = @explore_latest_entries[project.id]
+    latest_markdown_doc = latest_entry && rendered_user_markdown_document(latest_entry.content.to_s)
+    cover_entry = @explore_cover_entries[project.id]
+    cover_url = if cover_entry
+      url_for(cover_entry.images.first)
+    elsif latest_entry
+      journal_cover_url(latest_entry, latest_markdown_doc)
+    end
+    last_activity_at = project.read_attribute("explore_activity_at").presence || latest_entry&.created_at || project.created_at
+
     {
-      "journals" => [
-        {
-          username: "Alex Tran",
-          date: "April 3, 2026",
-          occurred_at: "2026-04-03T16:10:00Z",
-          project_name: "Biblical Keyboard",
-          image: "https://picsum.photos/seed/fallout-journal-biblical-keyboard/800/500",
-          content: "Shipped the first prototype - all 72 keys wired and responsive.",
-          description: "A keyboard with biblically accurate layouts and angelic key travel.",
-          tags: [ "hardware", "keyboard", "retro" ],
-          likes: 42,
-          comments: 7
-        },
-        {
-          username: "Tongyu",
-          date: "April 2, 2026",
-          occurred_at: "2026-04-02T21:35:00Z",
-          project_name: "Mini Maimai",
-          image: "https://picsum.photos/seed/fallout-journal-mini-maimai/800/500",
-          content: "Drum pads now register hits within 5ms. Rhythm game feels real.",
-          description: "A portable Maimai-style rhythm game console.",
-          tags: [ "gamedev", "hardware" ],
-          likes: 28,
-          comments: 3
-        },
-        {
-          username: "Cyao",
-          date: "April 1, 2026",
-          occurred_at: "2026-04-01T18:25:00Z",
-          project_name: "Icepi Zero",
-          image: "https://picsum.photos/seed/fallout-journal-icepi-zero/800/500",
-          content: "Got the custom PCB back from fab. All traces check out.",
-          description: "A Raspberry Pi Zero form-factor board with integrated display.",
-          tags: [ "hardware", "pcb" ],
-          likes: 35,
-          comments: 5
-        },
-        {
-          username: "Antush",
-          date: "March 30, 2026",
-          occurred_at: "2026-03-30T13:20:00Z",
-          project_name: "Split Wave",
-          image: "https://picsum.photos/seed/fallout-journal-split-wave/800/500",
-          content: "First sound test - split keyboard now produces chords.",
-          description: "An ergonomic split keyboard that doubles as a MIDI controller.",
-          tags: [ "keyboard", "music" ],
-          likes: 19,
-          comments: 2
-        },
-        {
-          username: "Maya Chen",
-          date: "March 29, 2026",
-          occurred_at: "2026-03-29T23:00:00Z",
-          project_name: "Pocket Weather Lab",
-          image: "https://picsum.photos/seed/fallout-journal-pocket-weather-lab/800/500",
-          content: "Calibrated the barometer against three stations and fixed the enclosure venting.",
-          description: "A tiny field station for logging pressure, humidity, and temperature.",
-          tags: [ "sensors", "enclosure", "weather" ],
-          likes: 51,
-          comments: 9
-        },
-        {
-          username: "Noor Patel",
-          date: "March 27, 2026",
-          occurred_at: "2026-03-27T15:45:00Z",
-          project_name: "SolderScope",
-          image: "https://picsum.photos/seed/fallout-journal-solderscope/800/500",
-          content: "The focus rail finally moves smoothly after swapping to brass inserts.",
-          description: "A low-cost inspection microscope with a printed frame and LED ring.",
-          tags: [ "tools", "3d-printing", "optics" ],
-          likes: 24,
-          comments: 6
-        }
-      ],
-      "projects" => [
-        {
-          username: "Priya Rao",
-          date: "April 4, 2026",
-          occurred_at: "2026-04-04T10:15:00Z",
-          project_name: "Garden Ghost",
-          image: "https://picsum.photos/seed/fallout-project-garden-ghost/800/500",
-          content: "A solar soil monitor that nudges you before your plants get dramatic.",
-          description: "Combines capacitive moisture sensing, e-ink status, and a tiny weatherproof enclosure.",
-          tags: [ "solar", "sensors", "garden" ],
-          likes: 33,
-          comments: 4
-        },
-        {
-          username: "Samir Lee",
-          date: "April 3, 2026",
-          occurred_at: "2026-04-03T08:45:00Z",
-          project_name: "Bench Buddy",
-          image: "https://picsum.photos/seed/fallout-project-bench-buddy/800/500",
-          content: "A desktop power supply assistant with current graphs and preset rails.",
-          description: "Built around a custom PCB, rotary controls, and a small color display.",
-          tags: [ "lab", "pcb", "power" ],
-          likes: 57,
-          comments: 11
-        },
-        {
-          username: "Lina Park",
-          date: "April 1, 2026",
-          occurred_at: "2026-04-01T17:05:00Z",
-          project_name: "Quiet Badge",
-          image: "https://picsum.photos/seed/fallout-project-quiet-badge/800/500",
-          content: "An event badge that shows availability without blasting notifications.",
-          description: "Uses addressable LEDs, a low-power MCU, and simple tap gestures.",
-          tags: [ "wearable", "leds", "events" ],
-          likes: 46,
-          comments: 8
-        },
-        {
-          username: "Diego Flores",
-          date: "March 31, 2026",
-          occurred_at: "2026-03-31T20:25:00Z",
-          project_name: "Transit Ticker",
-          image: "https://picsum.photos/seed/fallout-project-transit-ticker/800/500",
-          content: "A split-flap style desk display for buses, trains, and build timers.",
-          description: "The mechanism uses printed flaps, hall sensors, and a quiet stepper driver.",
-          tags: [ "mechanical", "display", "transit" ],
-          likes: 61,
-          comments: 10
-        },
-        {
-          username: "Ari Kim",
-          date: "March 28, 2026",
-          occurred_at: "2026-03-28T12:00:00Z",
-          project_name: "Macro Loom",
-          image: "https://picsum.photos/seed/fallout-project-macro-loom/800/500",
-          content: "A modular macro pad system with magnetic tiles and per-key OLED labels.",
-          description: "Each tile handles a different workflow and snaps onto a shared USB-C base.",
-          tags: [ "keyboard", "modular", "oled" ],
-          likes: 39,
-          comments: 5
-        },
-        {
-          username: "Eva Miller",
-          date: "March 26, 2026",
-          occurred_at: "2026-03-26T19:40:00Z",
-          project_name: "Wave Lantern",
-          image: "https://picsum.photos/seed/fallout-project-wave-lantern/800/500",
-          content: "A desk lamp that visualizes nearby audio with soft diffused light.",
-          description: "The build pairs a microphone front-end with layered acrylic and warm LEDs.",
-          tags: [ "audio", "lighting", "acrylic" ],
-          likes: 29,
-          comments: 7
-        }
-      ]
+      id: project.id,
+      type: "project",
+      username: project.user.display_name,
+      avatar_url: project.user.avatar,
+      created_at: project.created_at.iso8601,
+      last_activity_at: project_time_iso8601(last_activity_at),
+      project_name: project.name,
+      image: cover_url,
+      project_description: project.description.to_s.truncate(160),
+      latest_journal_excerpt: latest_markdown_doc ? plain_text_excerpt(latest_markdown_doc, 180) : nil,
+      latest_journal_date: latest_entry&.created_at&.iso8601,
+      journal_entries_count: @explore_journal_counts[project.id] || 0,
+      tags: project.tags,
+      href: "/projects/#{project.id}"
     }
+  end
+
+  def serialize_journal_for_explore(entry)
+    markdown_doc = rendered_user_markdown_document(entry.content.to_s)
+
+    {
+      id: entry.id,
+      type: "journal",
+      username: entry.user.display_name,
+      avatar_url: entry.user.avatar,
+      date: entry.created_at.iso8601,
+      project_name: entry.project.name,
+      excerpt: plain_text_excerpt(markdown_doc, 180),
+      media: journal_media(entry, markdown_doc),
+      tags: entry.project.tags,
+      href: "/projects/#{entry.project_id}?journal_entry_id=#{entry.id}"
+    }
+  end
+
+  def journal_media(entry, markdown_doc)
+    if entry.images.attached?
+      return {
+        kind: "image",
+        url: url_for(entry.images.first)
+      }
+    end
+
+    markdown_image_url = markdown_doc.at_css("img[src]")&.[]("src").presence
+    return { kind: "image", url: markdown_image_url } if markdown_image_url
+
+    entry.recordings.sort_by(&:created_at).each do |recording|
+      media = recording_media(recording.recordable)
+      return media if media
+    end
+
+    nil
+  end
+
+  def recording_media(recordable)
+    case recordable
+    when LapseTimelapse, LookoutTimelapse
+      return nil unless recordable.playback_url.present?
+
+      {
+        kind: "video",
+        url: recordable.playback_url,
+        poster_url: recordable.thumbnail_url
+      }
+    when YouTubeVideo
+      {
+        kind: "youtube",
+        thumbnail_url: recordable.thumbnail_url.presence || recordable.thumbnail_url_for(quality: "hqdefault")
+      }
+    end
+  end
+
+  def project_time_iso8601(timestamp)
+    timestamp.respond_to?(:iso8601) ? timestamp.iso8601 : Time.zone.parse(timestamp.to_s).iso8601
+  end
+
+  def rendered_user_markdown_document(content)
+    Nokogiri::HTML::DocumentFragment.parse(helpers.render_user_markdown(content))
+  end
+
+  def journal_cover_url(entry, markdown_doc)
+    return url_for(entry.images.first) if entry.images.attached?
+
+    markdown_doc.at_css("img[src]")&.[]("src").presence
+  end
+
+  def plain_text_excerpt(markdown_doc, length)
+    doc = markdown_doc.dup
+    doc.css("img, .external-image-callout").remove
+    doc.text.squish.truncate(length)
   end
 end

@@ -7,11 +7,13 @@ import Frame from '@/components/shared/Frame'
 import Button from '@/components/shared/Button'
 import ImagePlaceholder from '@/components/shared/ImagePlaceholder'
 import Input from '@/components/shared/Input'
+import MarqueeText from '@/components/shared/MarqueeText'
 import Pagination from '@/components/Pagination'
+import { notify } from '@/lib/notifications'
 import { useLiveReload } from '@/lib/useLiveReload'
 import type { ProjectCard, PagyProps, SharedProps } from '@/types'
 
-const PROJECT_LIST_RELOAD_PROPS = ['projects', 'pagy', 'query', 'has_any_project', 'is_modal']
+const PROJECT_LIST_RELOAD_PROPS = ['projects', 'pagy', 'query', 'has_any_project', 'can_create_project', 'is_modal']
 
 function formatTime(seconds: number): string {
   if (seconds === 0) return '0min'
@@ -26,6 +28,7 @@ export default function ProjectsIndex({
   pagy,
   query,
   has_any_project,
+  can_create_project,
   is_modal,
   onModalEvent,
 }: {
@@ -33,6 +36,7 @@ export default function ProjectsIndex({
   pagy: PagyProps
   query: string
   has_any_project: boolean
+  can_create_project: boolean
   is_modal: boolean
   onModalEvent?: (event: string, ...args: any[]) => void
 }) {
@@ -84,14 +88,27 @@ export default function ProjectsIndex({
           )}
           <h1 className="font-bold text-3xl md:text-4xl text-dark-brown">My Projects</h1>
         </div>
-        <ModalLink href={has_any_project ? '/projects/new' : '/projects/onboarding'} onProjectCreated={reloadProjects}>
+        {can_create_project ? (
+          <ModalLink
+            href={has_any_project ? '/projects/new' : '/projects/onboarding'}
+            onProjectCreated={reloadProjects}
+          >
+            <button
+              className="bg-dark-brown text-light-brown rounded-full w-12 h-12 flex items-center justify-center hover:opacity-90 transition-opacity cursor-pointer shadow-md"
+              aria-label="New Project"
+            >
+              <PlusIcon className="w-10 h-10" />
+            </button>
+          </ModalLink>
+        ) : (
           <button
+            onClick={() => notify('alert', 'Please verify your account to create another project.')}
             className="bg-dark-brown text-light-brown rounded-full w-12 h-12 flex items-center justify-center hover:opacity-90 transition-opacity cursor-pointer shadow-md"
             aria-label="New Project"
           >
             <PlusIcon className="w-10 h-10" />
           </button>
-        </ModalLink>
+        )}
       </div>
 
       <div className="flex-1 min-h-0 overflow-y-auto px-2 md:px-4 pb-2 md:pb-4">
@@ -119,7 +136,7 @@ export default function ProjectsIndex({
                   )}
                   <div className="pt-3 pb-2 px-2">
                     <div className="flex items-center gap-2">
-                      <p className="font-bold text-white truncate text-xl">{project.name}</p>
+                      <MarqueeText text={project.name} morph className="min-w-0 flex-1 font-bold text-white text-xl" />
                       {project.is_collaborator && (
                         <span className="text-[10px] uppercase font-bold bg-dark-brown text-light-brown px-1.5 py-0.5 rounded-full shrink-0">
                           Collaborator

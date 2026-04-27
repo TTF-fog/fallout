@@ -26,9 +26,15 @@
 #
 class JournalEntry < ApplicationRecord
   include Discardable
+  include PgSearch::Model
   include Broadcastable
 
   has_paper_trail
+
+  pg_search_scope :search,
+                  against: :content,
+                  associated_against: { project: %i[name description] },
+                  using: { tsearch: { prefix: true } }
 
   # Live-update the owner's path page on create/update/destroy. Discards are updates
   # (set discarded_at), so the owner's star count recomputes when entries are discarded.
@@ -53,6 +59,14 @@ class JournalEntry < ApplicationRecord
 
   # Re-encode uploads to strip EXIF/GPS and defeat polyglots. Runs async to avoid blocking save.
   after_commit :reprocess_images, on: [ :create, :update ]
+  # Dirty-only public stats refresh; payload intentionally omits journal IDs.
+  after_commit :broadcast_bulletin_explore_update
+
+  # Public Explore feed: kept entries on kept + listed projects. Re-evaluated per request,
+  # so a project flipping to is_unlisted or being discarded immediately removes its entries.
+  scope :public_for_explore, -> {
+    kept.joins(:project).where(projects: { discarded_at: nil, is_unlisted: false })
+  }
 
   private
 
@@ -87,6 +101,37 @@ class JournalEntry < ApplicationRecord
     images.attachments.each do |attachment|
       ReprocessJournalImageJob.perform_later(attachment.id)
     end
+  end
+
+  def broadcast_bulletin_explore_update
+    return unless bulletin_explore_stats_changed?
+    return unless bulletin_explore_public_now? || bulletin_explore_public_before_last_save?
+
+    ActionCable.server.broadcast("live_updates:bulletin_explore", { stream: "bulletin_explore", action: "update" })
+  end
+
+  def bulletin_explore_stats_changed?
+    previously_new_record? || destroyed? || saved_change_to_discarded_at? || saved_change_to_project_id?
+  end
+
+  def bulletin_explore_public_now?
+    discarded_at.nil? && bulletin_explore_public_project?(project)
+  end
+
+  def bulletin_explore_public_before_last_save?
+    kept_before = saved_change_to_discarded_at? ? discarded_at_before_last_save.nil? : discarded_at.nil?
+
+    kept_before && bulletin_explore_public_project?(bulletin_explore_project_before_last_save)
+  end
+
+  def bulletin_explore_project_before_last_save
+    return project unless saved_change_to_project_id?
+
+    Project.find_by(id: project_id_before_last_save)
+  end
+
+  def bulletin_explore_public_project?(project)
+    project.present? && project.discarded_at.nil? && !project.is_unlisted?
   end
 
   def unclaim_recordings

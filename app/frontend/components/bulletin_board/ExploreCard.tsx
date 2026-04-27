@@ -1,59 +1,217 @@
-import { Link } from '@inertiajs/react'
-import { motion } from 'motion/react'
-import { HeartIcon, ChatBubbleOvalLeftIcon } from '@heroicons/react/20/solid'
+import { ModalLink } from '@inertiaui/modal-react'
+import { Play } from 'lucide-react'
+import { motion, type Transition } from 'motion/react'
+import { DateTime } from 'luxon'
+import ImagePlaceholder from '@/components/shared/ImagePlaceholder'
+import { SlidingNumber } from '@/components/shared/SlidingNumber'
+import TextMorph from '@/components/shared/TextMorph'
 import styles from './ExploreCard.module.scss'
 
+const JOURNAL_AGE_TRANSITION: Transition = { type: 'spring', stiffness: 260, damping: 34, mass: 0.35 }
+const CARD_WRAP_TRANSITION: Transition = { type: 'spring', stiffness: 320, damping: 26, mass: 0.5 }
+
 export type ExploreEntry = {
+  id: number
+  type: 'project' | 'journal'
   username: string
-  date: string
+  avatar_url: string | null
   project_name: string
-  image?: string
-  content: string
-  description: string
   tags: string[]
-  likes: number
-  comments: number
+  href: string
+  created_at?: string
+  last_activity_at?: string
+  image?: string | null
+  project_description?: string
+  latest_journal_excerpt?: string | null
+  latest_journal_date?: string | null
+  journal_entries_count?: number
+  date?: string
+  excerpt?: string
+  media?:
+    | { kind: 'image'; url: string }
+    | { kind: 'video'; url: string; poster_url: string | null }
+    | { kind: 'youtube'; thumbnail_url: string | null }
+    | null
 }
 
 type Props = {
   entry: ExploreEntry
-  href?: string
+  now: Date
 }
 
-export default function ExploreCard({ entry, href = '#' }: Props) {
-  const initial = entry.username.trim().charAt(0).toUpperCase() || '?'
-  const hasDescription = entry.description?.trim().length > 0
-  const hasTags = entry.tags && entry.tags.length > 0
+const DATE_FORMAT: Intl.DateTimeFormatOptions = { year: 'numeric', month: 'long', day: 'numeric' }
+const CREATED_DATE_FORMAT: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' }
+
+function formatDate(iso: string): string {
+  const parsed = new Date(iso)
+  return Number.isNaN(parsed.getTime()) ? iso : parsed.toLocaleDateString(undefined, DATE_FORMAT)
+}
+
+function formatCreatedDate(iso: string): string {
+  const parsed = new Date(iso)
+  return Number.isNaN(parsed.getTime()) ? iso : `Created ${parsed.toLocaleDateString(undefined, CREATED_DATE_FORMAT)}`
+}
+
+function journalCountLabel(count: number): string {
+  return `${count} journal${count === 1 ? '' : 's'}`
+}
+
+function hasJournalMedia(entry: ExploreEntry): boolean {
+  const media = entry.media
+
+  return media?.kind === 'image' || media?.kind === 'video' || (media?.kind === 'youtube' && !!media.thumbnail_url)
+}
+
+function journalAgeParts(iso: string | undefined, now: Date): { value: number; unit: string } | null {
+  if (!iso) return null
+
+  const dt = DateTime.fromISO(iso).toLocal()
+  if (!dt.isValid) return null
+
+  const nowDt = DateTime.fromJSDate(now).toLocal()
+  const seconds = Math.max(0, nowDt.diff(dt, 'seconds').seconds)
+
+  if (seconds < 60) return { value: 0, unit: 'minutes' }
+  if (seconds < 3_600) {
+    const value = Math.max(1, Math.floor(seconds / 60))
+    return { value, unit: value === 1 ? 'minute' : 'minutes' }
+  }
+  if (seconds < 86_400) {
+    const value = Math.max(1, Math.floor(seconds / 3_600))
+    return { value, unit: value === 1 ? 'hour' : 'hours' }
+  }
+  if (seconds < 2_592_000) {
+    const value = Math.max(1, Math.floor(seconds / 86_400))
+    return { value, unit: value === 1 ? 'day' : 'days' }
+  }
+
+  const months = Math.max(1, Math.floor(nowDt.diff(dt, 'months').months))
+  if (months < 12) return { value: months, unit: months === 1 ? 'month' : 'months' }
+
+  const years = Math.max(1, Math.floor(nowDt.diff(dt, 'years').years))
+  return { value: years, unit: years === 1 ? 'year' : 'years' }
+}
+
+function JournalAge({
+  iso,
+  now,
+  className = styles.relativeAge,
+}: {
+  iso: string | undefined
+  now: Date
+  className?: string
+}) {
+  const age = journalAgeParts(iso, now)
+
+  if (!age) {
+    return (
+      <TextMorph as="span" className={className}>
+        recently posted
+      </TextMorph>
+    )
+  }
 
   return (
-    <motion.div
-      className={styles.cardWrap}
-      whileHover={{ y: -4 }}
-      transition={{ type: 'spring', stiffness: 320, damping: 26, mass: 0.5 }}
-    >
-      <Link href={href} className={styles.card} aria-label={`Open ${entry.project_name}`}>
-        <div className={styles.media} aria-hidden>
-          {entry.image ? (
-            <img src={entry.image} alt="" className={styles.mediaImage} loading="lazy" />
-          ) : (
-            <div className={styles.mediaGradient} />
-          )}
-        </div>
+    <span className={className}>
+      <SlidingNumber value={age.value} />
+      <TextMorph as="span" transition={JOURNAL_AGE_TRANSITION}>
+        {` ${age.unit} ago`}
+      </TextMorph>
+    </span>
+  )
+}
+
+function renderJournalMedia(entry: ExploreEntry) {
+  const media = entry.media
+
+  if (!media) return null
+  if (media.kind === 'image') return <img src={media.url} alt="" className={styles.mediaImage} loading="lazy" />
+  if (media.kind === 'video') {
+    return (
+      <video
+        src={media.url}
+        poster={media.poster_url ?? undefined}
+        className={styles.mediaImage}
+        muted
+        playsInline
+        preload="metadata"
+      />
+    )
+  }
+
+  return media.thumbnail_url ? (
+    <div className={styles.youtubePreview}>
+      <img src={media.thumbnail_url} alt="" className={styles.mediaImage} loading="lazy" />
+      <Play className={styles.playIcon} fill="white" strokeWidth={0} aria-hidden />
+    </div>
+  ) : null
+}
+
+export default function ExploreCard({ entry, now }: Props) {
+  const initial = entry.username.trim().charAt(0).toUpperCase() || '?'
+  const projectDescription = entry.project_description ?? ''
+  const hasDescription = projectDescription.trim().length > 0
+  const hasLatestJournal = (entry.latest_journal_excerpt ?? '').trim().length > 0
+  const hasJournalExcerpt = (entry.excerpt ?? '').trim().length > 0
+  const hasTags = entry.tags.length > 0
+  const showMedia = entry.type === 'project' || hasJournalMedia(entry)
+  const ariaLabel =
+    entry.type === 'journal' ? `Open latest journal for ${entry.project_name}` : `Open ${entry.project_name}`
+  const dateLabel =
+    entry.type === 'project' && entry.created_at
+      ? formatCreatedDate(entry.created_at)
+      : entry.date
+        ? formatDate(entry.date)
+        : null
+
+  return (
+    <motion.div className={styles.cardWrap} transition={CARD_WRAP_TRANSITION}>
+      <ModalLink href={entry.href} className={styles.card} aria-label={ariaLabel}>
+        {showMedia && (
+          <div className={styles.media} aria-hidden>
+            {entry.type === 'journal' ? (
+              renderJournalMedia(entry)
+            ) : entry.image ? (
+              <img src={entry.image} alt="" className={styles.mediaImage} loading="lazy" />
+            ) : (
+              <ImagePlaceholder text="No project cover" className={styles.mediaPlaceholder} />
+            )}
+          </div>
+        )}
 
         <div className={styles.body}>
           <header className={styles.header}>
             <div className={styles.user}>
               <div className={styles.avatar} aria-hidden>
-                {initial}
+                {entry.avatar_url ? (
+                  <img src={entry.avatar_url} alt="" className={styles.avatarImage} loading="lazy" />
+                ) : (
+                  initial
+                )}
               </div>
               <span className={styles.username}>{entry.username}</span>
             </div>
-            <span className={styles.date}>{entry.date}</span>
+            {dateLabel && <span className={styles.date}>{dateLabel}</span>}
           </header>
 
           <h3 className={styles.title}>{entry.project_name}</h3>
-          <p className={styles.content}>{entry.content}</p>
-          {hasDescription && <p className={styles.description}>{entry.description}</p>}
+          {entry.type === 'project' && hasDescription && <p className={styles.description}>{projectDescription}</p>}
+          {entry.type === 'journal' && hasJournalExcerpt && <p className={styles.content}>{entry.excerpt}</p>}
+
+          {entry.type === 'project' && hasLatestJournal && (
+            <div className={styles.latestJournal}>
+              <div className={styles.latestJournalMeta}>
+                <span className={styles.latestJournalLabel}>latest journal</span>
+                {entry.latest_journal_date && (
+                  <span className={styles.latestJournalWhen}>
+                    <span className={styles.latestJournalSeparator}>•</span>
+                    <JournalAge iso={entry.latest_journal_date} now={now} className={styles.latestJournalAge} />
+                  </span>
+                )}
+              </div>
+              <p className={styles.content}>{entry.latest_journal_excerpt}</p>
+            </div>
+          )}
 
           {hasTags && (
             <ul className={styles.tags}>
@@ -66,20 +224,15 @@ export default function ExploreCard({ entry, href = '#' }: Props) {
           )}
 
           <footer className={styles.footer}>
-            <div className={styles.counts}>
-              <span className={styles.count}>
-                <HeartIcon className={styles.iconHeart} aria-hidden />
-                <span>{entry.likes}</span>
-              </span>
-              <span className={styles.count}>
-                <ChatBubbleOvalLeftIcon className={styles.iconChat} aria-hidden />
-                <span>{entry.comments}</span>
-              </span>
-            </div>
-            <span className={styles.readMore}>Read more</span>
+            {entry.type === 'project' ? (
+              <span className={styles.entryCount}>{journalCountLabel(entry.journal_entries_count ?? 0)}</span>
+            ) : (
+              <JournalAge iso={entry.date} now={now} />
+            )}
+            <span className={styles.readMore}>{entry.type === 'project' ? 'View project' : 'Read journal'}</span>
           </footer>
         </div>
-      </Link>
+      </ModalLink>
     </motion.div>
   )
 }

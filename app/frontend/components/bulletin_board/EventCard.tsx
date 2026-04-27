@@ -236,7 +236,7 @@ export default function EventCard({ event, now }: Props) {
           {event.image_url ? (
             <img src={event.image_url} alt="" className={styles.image} loading="lazy" />
           ) : (
-            <ImagePlaceholder text="No image available" className={styles.placeholder} />
+            <ImagePlaceholder text="Event poster coming soon" className={styles.placeholder} />
           )}
         </div>
 

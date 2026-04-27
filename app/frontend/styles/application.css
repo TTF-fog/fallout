@@ -920,3 +920,6 @@ textarea:focus {
 .perf-badges-hidden .profiler-results {
   display: none !important;
 }
+.announcements-hidden .announcements-bar {
+  display: none !important;
+}

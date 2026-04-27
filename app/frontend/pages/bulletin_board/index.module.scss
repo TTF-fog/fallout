@@ -377,24 +377,95 @@ $beige: var(--color-light-brown);
   height: 1rem;
 }
 
-// ----- Explore controls + frame -----
-// Vellum surface shared with ExploreCard so search + filters feel like the same
-// paper-craft layer. Crimson #d94b3d for focus/active accents matches the
-// heart icon for cohesion across "live" affordances.
+.exploreSection {
+  gap: 0.875rem;
+  scroll-margin-top: 1rem;
+}
+
+.exploreHeader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.explorePulse {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  max-width: 100%;
+  color: var(--color-dark-brown);
+}
+
+.explorePulseLine,
+.explorePulseMetaLine {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  column-gap: 0.5rem;
+  row-gap: 0.25rem;
+  max-width: 100%;
+  text-align: center;
+}
+
+.explorePulseLine {
+  min-height: 1.25em;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.explorePulseMetaLine {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.explorePulseSegment,
+.explorePulseTime,
+.explorePulseSeparator {
+  display: inline-flex;
+  align-items: center;
+}
+
+.explorePulseSegment {
+  gap: 0.25rem;
+}
+
+.explorePulseTime {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.exploreControls {
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+  scroll-margin-top: 1rem;
+}
+
 .sortTabs {
   position: relative;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.25rem;
   padding: 0.3rem;
-  border: 1.5px solid rgba(94, 66, 55, 0.18);
+  width: 100%;
+  border: 2px solid var(--color-dark-brown);
   border-radius: 9999px;
-  background-color: #f4dfc0;
+  background-color: var(--color-light-brown);
   flex-shrink: 0;
   isolation: isolate;
-  box-shadow:
-    0 1px 2px rgba(58, 36, 25, 0.08),
-    0 4px 10px rgba(58, 36, 25, 0.1);
+  transition:
+    box-shadow 180ms ease-out,
+    border-color 180ms ease-out,
+    background-color 180ms ease-out;
+
+  @media (min-width: $sm) {
+    width: auto;
+  }
 
   &[data-active-index='1'] .sortTabActiveBg {
     transform: translateX(calc(100% + 0.25rem));
@@ -404,23 +475,28 @@ $beige: var(--color-light-brown);
 .sortTab {
   position: relative;
   z-index: 1;
-  min-width: 5.25rem;
+  min-width: 0;
   padding: 0.4rem 1rem;
   border: none;
   border-radius: 9999px;
   background-color: transparent;
-  color: #7a5945;
+  color: var(--color-dark-brown);
   font-size: 0.875rem;
   font-weight: 600;
   cursor: pointer;
   transition: color 160ms ease-out;
 
   &[aria-pressed='true'] {
-    color: #fff4d9;
+    color: var(--color-light-brown);
   }
 
   &:hover:not([aria-pressed='true']) {
-    color: #4a3120;
+    color: var(--color-black);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--color-dark-brown);
+    outline-offset: 2px;
   }
 }
 
@@ -445,30 +521,50 @@ $beige: var(--color-light-brown);
 }
 
 .exploreScroll {
-  min-height: 0;
-  height: min(62dvh, 36rem);
-  overflow-y: auto;
-  overflow-x: hidden;
-  overscroll-behavior: contain;
-  scrollbar-gutter: stable;
-  padding: 1rem;
-  scrollbar-width: thin;
-  scrollbar-color: var(--color-dark-brown) transparent;
+  padding: 0 1rem 1rem;
+}
 
-  @media (min-width: $md) {
-    height: min(70dvh, 48rem);
+.exploreViewport {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+}
+
+.exploreMeasured {
+  position: relative;
+  width: 100%;
+}
+
+.exploreMeasuredPending {
+  .exploreResults,
+  .exploreEmpty {
+    pointer-events: none;
+    user-select: none;
   }
 }
 
-.exploreLoading {
-  width: 100%;
+.exploreLoadingOverlay {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
   display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 4rem 1rem 1rem;
+  pointer-events: auto;
+}
+
+.exploreLoadingChip {
+  position: sticky;
+  top: 45vh;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 100%;
-  padding: 2rem;
-  background-color: $events-empty-bg;
-  border-radius: 0.5rem;
+  width: 4rem;
+  height: 4rem;
+  border: 2px solid var(--color-dark-brown);
+  border-radius: 9999px;
+  background-color: var(--color-light-brown);
 }
 
 .spinner {
@@ -532,26 +628,87 @@ $beige: var(--color-light-brown);
 .searchRow {
   display: flex;
   align-items: center;
+  width: 100%;
 }
 
 .filterRow {
   display: flex;
-  align-items: center;
+  align-items: stretch;
   justify-content: center;
   gap: 0.75rem;
   flex-wrap: wrap;
+
+  @media (min-width: $sm) {
+    align-items: center;
+  }
+}
+
+.exploreJumpLayer {
+  position: fixed;
+  left: var(--explore-jump-left, 0);
+  width: var(--explore-jump-width, 100%);
+  bottom: 1.5rem;
+  z-index: 20;
+  display: flex;
+  justify-content: flex-end;
+  box-sizing: border-box;
+  padding: 0 1.5rem;
+  pointer-events: none;
+
+  @media (min-width: $sm) {
+    bottom: 2.5rem;
+    padding-left: 2.5rem;
+    padding-right: 2.5rem;
+  }
+}
+
+.exploreJumpInner {
+  width: 100%;
+  display: flex;
+  justify-content: flex-end;
+  pointer-events: none;
+}
+
+.exploreJumpButton {
+  width: auto;
+  max-width: 100%;
+  padding: 0.55rem 0.875rem;
+  border: 2px solid var(--color-dark-brown);
+  border-radius: 9999px;
+  background-color: var(--color-dark-brown);
+  color: var(--color-light-brown);
+  font-size: 0.875rem;
+  font-weight: 700;
+  cursor: pointer;
+  pointer-events: auto;
+  transition:
+    transform 100ms ease-out,
+    background-color 120ms ease-out;
+
+  &:hover {
+    background-color: var(--color-brown);
+  }
+
+  &:active {
+    transform: translateY(1px);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--color-dark-brown);
+    outline-offset: 2px;
+  }
 }
 
 .searchSection {
   position: relative;
   flex: 1;
-  max-width: 32rem;
+  max-width: none;
   margin: 0 auto;
 }
 
 .exploreMasonry {
   display: flex;
-  width: 100%;
+  width: auto;
   margin-left: -1.25rem;
 }
 
@@ -567,21 +724,69 @@ $beige: var(--color-light-brown);
 
 .exploreResults {
   min-height: 100%;
+  contain: layout paint;
+}
+
+.loadMoreRow {
+  display: flex;
+  justify-content: center;
+  padding-top: 0.75rem;
+}
+
+.loadMoreButton {
+  min-width: 9rem;
+  padding: 0.75rem 1.125rem;
+  border: 2px solid var(--color-dark-brown);
+  border-bottom-width: 4px;
+  border-right-width: 4px;
+  border-radius: 0.625rem;
+  background-color: var(--color-light-brown);
+  color: var(--color-dark-brown);
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    transform 100ms ease-out,
+    border-width 100ms ease-out,
+    background-color 120ms ease-out;
+
+  &:hover:not(:disabled) {
+    background-color: $beige;
+  }
+
+  &:active:not(:disabled) {
+    transform: translate(2px, 2px);
+    border-bottom-width: 2px;
+    border-right-width: 2px;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--color-dark-brown);
+    outline-offset: 2px;
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+    background-color: $events-empty-bg;
+  }
 }
 
 .exploreEmpty {
   width: 100%;
-  min-height: 100%;
+  min-height: 18rem;
   padding: 2rem;
 
   display: flex;
   align-items: center;
   justify-content: center;
 
-  color: #7a5945;
-  background-color: #ead7af;
-  border: 1px dashed rgba(94, 66, 55, 0.25);
-  border-radius: 0.75rem;
+  color: var(--color-dark-brown);
+  background-color: $events-empty-bg;
+  border-radius: 0.5rem;
+}
+
+.explorePending {
+  width: 100%;
+  min-height: 18rem;
 }
 
 // ----- Search -----
@@ -592,40 +797,36 @@ $beige: var(--color-light-brown);
   width: 1.125rem;
   height: 1.125rem;
   transform: translateY(-50%);
-  color: #a08266;
+  color: var(--color-brown);
   pointer-events: none;
   transition: color 180ms ease-out;
 }
 
 .searchSection:focus-within .searchIcon {
-  color: #8b5e44;
+  color: var(--color-dark-brown);
 }
 
 .searchInput {
   width: 100%;
   padding: 0.875rem 1.125rem 0.875rem 2.625rem;
-  border: 1.5px solid rgba(94, 66, 55, 0.18);
+  border: 2px solid var(--color-dark-brown);
   border-radius: 0.875rem;
-  background-color: #f4dfc0;
-  color: #4a3120;
+  background-color: var(--color-light-brown);
+  color: var(--color-dark-brown);
   font-size: 0.9375rem;
-  box-shadow:
-    0 1px 2px rgba(58, 36, 25, 0.08),
-    0 4px 14px rgba(58, 36, 25, 0.1);
   transition:
     border-color 180ms ease-out,
+    background-color 180ms ease-out,
     box-shadow 180ms ease-out;
 
   &::placeholder {
-    color: #a08266;
+    color: var(--color-brown);
   }
 
   &:focus {
     outline: none;
-    border-color: #8b5e44;
-    box-shadow:
-      0 0 0 3px rgba(184, 116, 58, 0.16),
-      0 4px 14px rgba(58, 36, 25, 0.12);
+    border-color: var(--color-black);
+    background-color: var(--color-beige);
   }
 }
 

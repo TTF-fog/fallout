@@ -4,6 +4,7 @@ class LiveUpdatesChannel < ApplicationCable::Channel
   # String keys match exactly; Regexp keys match the full stream and pass their MatchData to the guard.
   STREAMS = {
     "bulletin_events" => ->(user, _match) { user.present? }, # Any authenticated user (incl. trial)
+    "bulletin_explore" => ->(user, _match) { user.present? }, # Public Explore stats live refresh.
     /\Apath_user_(\d+)\z/ => ->(user, match) { user.present? && user.id == match[1].to_i } # Per-user path progression
   }.freeze
 

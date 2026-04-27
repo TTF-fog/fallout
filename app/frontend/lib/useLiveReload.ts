@@ -7,7 +7,7 @@ export type LiveReloadAction = 'create' | 'update' | 'destroy'
 
 export type LiveReloadMessage = {
   stream: string
-  id: number | string
+  id?: number | string
   action: LiveReloadAction
 }
 
@@ -36,7 +36,7 @@ type ModalContext = {
 // Outside a modal, we fall back to router.reload({ only }) which drives Inertia's own partial
 // reload machinery, and returns null so consumers use their Inertia page props directly.
 //
-// onMessage fires synchronously on each broadcast with the payload ({ stream, id, action }) so
+// onMessage fires synchronously on each broadcast with the payload ({ stream, id?, action }) so
 // callers can react to specific changes — e.g. closing a detail modal when its resource is
 // destroyed — before or independently of the refetch.
 export function useLiveReload<P = Record<string, unknown>>({

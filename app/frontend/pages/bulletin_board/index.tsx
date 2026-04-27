@@ -8,7 +8,6 @@ import clsx from 'clsx'
 import { AnimatePresence, motion, type Transition } from 'motion/react'
 import { DateTime } from 'luxon'
 import MarqueeText from '@/components/shared/MarqueeText'
-import { SlidingNumber } from '@/components/shared/SlidingNumber'
 import TextMorph from '@/components/shared/TextMorph'
 import EventCard from '@/components/bulletin_board/EventCard'
 import ExploreCard from '@/components/bulletin_board/ExploreCard'
@@ -18,8 +17,8 @@ import { useLiveReload } from '@/lib/useLiveReload'
 import { useNowTick } from '@/lib/useNowTick'
 import styles from './index.module.scss'
 
-type SortOption = 'newest' | 'top'
-type SourceOption = 'journals' | 'projects'
+type SortOption = 'active' | 'newest'
+type CategoryOption = 'projects' | 'journals'
 const EXPLORE_FILTER_DEBOUNCE_MS = 300
 const EVENT_COUNT_TRANSITION: Transition = {
   type: 'spring',
@@ -39,40 +38,134 @@ const EXPLORE_FADE_TRANSITION: Transition = {
 }
 
 type Featured = { image: string; title: string; username: string }
-type Explore = {
+type ExploreProject = {
+  id: number
+  type: 'project'
   username: string
+  avatar_url: string | null
+  created_at: string
+  last_activity_at: string
+  project_name: string
+  image: string | null
+  project_description: string
+  latest_journal_excerpt: string | null
+  latest_journal_date: string | null
+  journal_entries_count: number
+  tags: string[]
+  href: string
+}
+
+type ExploreMedia =
+  | { kind: 'image'; url: string }
+  | { kind: 'video'; url: string; poster_url: string | null }
+  | { kind: 'youtube'; thumbnail_url: string | null }
+
+type ExploreJournal = {
+  id: number
+  type: 'journal'
+  username: string
+  avatar_url: string | null
   date: string
   project_name: string
-  image?: string
-  content: string
-  description: string
+  excerpt: string
+  media: ExploreMedia | null
   tags: string[]
-  likes: number
-  comments: number
+  href: string
+}
+
+type ExploreEntry = ExploreProject | ExploreJournal
+
+type ExplorePayload = {
+  category: CategoryOption
+  entries: ExploreEntry[]
+  next_cursor: string | null
+  has_more: boolean
+  sort: SortOption
+  query: string
+}
+
+type ExploreInitialPayload = {
+  default_category: CategoryOption
+  default_project_sort: SortOption
+  projects: ExplorePayload
+  journals: ExplorePayload
+}
+
+type ExploreStats = {
+  projects_count: number
+  journals_count: number
+  last_project_created_at: string | null
+  last_journal_created_at: string | null
 }
 
 type PageProps = {
   events: SerializedBulletinEvent[]
   featured: Featured[]
-  explore: Explore[]
+  explore: ExploreInitialPayload
+  explore_stats: ExploreStats
   is_modal: boolean
 }
 
-export default function BulletinBoardIndex({ events, featured, explore, is_modal }: PageProps) {
+function exploreBucketKey(category: CategoryOption, sort: SortOption, query: string): string {
+  return `${category}:${sort}:${query.trim()}`
+}
+
+function formatRelativeCreatedAt(iso: string | null, base: DateTime): string | null {
+  if (!iso) return null
+
+  const dt = DateTime.fromISO(iso).toLocal()
+  if (!dt.isValid) return null
+
+  return dt.toRelative({ base, style: 'long' })
+}
+
+function nearestScrollParent(element: HTMLElement | null): HTMLElement | Window {
+  let parent = element?.parentElement ?? null
+
+  while (parent) {
+    if (parent === document.body || parent === document.documentElement || parent === document.scrollingElement) {
+      return window
+    }
+
+    const style = window.getComputedStyle(parent)
+    if (/(auto|scroll|overlay)/.test(style.overflowY) && parent.scrollHeight > parent.clientHeight) return parent
+    parent = parent.parentElement
+  }
+
+  return window
+}
+
+export default function BulletinBoardIndex({ events, featured, explore, explore_stats, is_modal }: PageProps) {
   const modalRef = useRef<{ close: () => void }>(null)
+  const innerRef = useRef<HTMLDivElement | null>(null)
+  const exploreSectionRef = useRef<HTMLElement | null>(null)
+  const exploreControlsRef = useRef<HTMLDivElement | null>(null)
+  const exploreJumpLayerRef = useRef<HTMLDivElement | null>(null)
   const [lightbox, setLightbox] = useState<string | null>(null)
-  const [query, setQuery] = useState('')
-  const [sort, setSort] = useState<SortOption>('newest')
-  const [source, setSource] = useState<SourceOption>('journals')
-  const [exploreList, setExploreList] = useState<Explore[]>(explore)
+  const [query, setQuery] = useState(explore.projects.query)
+  const [category, setCategory] = useState<CategoryOption>(explore.default_category)
+  const [projectSort, setProjectSort] = useState<SortOption>(explore.default_project_sort)
+  const [exploreBuckets, setExploreBuckets] = useState<Record<string, ExplorePayload>>(() => ({
+    [exploreBucketKey('projects', explore.projects.sort, explore.projects.query)]: explore.projects,
+    [exploreBucketKey('journals', explore.journals.sort, explore.journals.query)]: explore.journals,
+  }))
   const [isSearching, setIsSearching] = useState(false)
+  const [isLoadingMore, setIsLoadingMore] = useState(false)
+  const [showExploreJump, setShowExploreJump] = useState(false)
   const isFirstExploreFetchRender = useRef(true)
+  const exploreRequestSeq = useRef(0)
   const PAGE_SIZE = 3
   const [page, setPage] = useState(0)
 
-  const liveProps = useLiveReload<PageProps>({ stream: 'bulletin_events', only: ['events'] })
+  const liveEventProps = useLiveReload<Pick<PageProps, 'events'>>({ stream: 'bulletin_events', only: ['events'] })
+  const liveExploreProps = useLiveReload<Pick<PageProps, 'explore_stats'>>({
+    stream: 'bulletin_explore',
+    only: ['explore_stats'],
+  })
   const now = useNowTick(1000)
-  const liveEvents = liveProps?.events ?? events
+  const exploreNow = useNowTick(60_000)
+  const liveEvents = liveEventProps?.events ?? events
+  const liveExploreStats = liveExploreProps?.explore_stats ?? explore_stats
 
   const eventCounts = useMemo(
     () =>
@@ -97,6 +190,21 @@ export default function BulletinBoardIndex({ events, featured, explore, is_modal
       counts.happening === eventCounts.happening && counts.upcoming === eventCounts.upcoming ? counts : eventCounts,
     )
   }, [eventCounts, hasEventCounts])
+
+  const exploreCounts = useMemo(
+    () => ({
+      projects: liveExploreStats.projects_count,
+      journals: liveExploreStats.journals_count,
+    }),
+    [liveExploreStats.journals_count, liveExploreStats.projects_count],
+  )
+  const [displayedExploreCounts, setDisplayedExploreCounts] = useState(exploreCounts)
+
+  useEffect(() => {
+    setDisplayedExploreCounts((counts) =>
+      counts.projects === exploreCounts.projects && counts.journals === exploreCounts.journals ? counts : exploreCounts,
+    )
+  }, [exploreCounts])
 
   // Happening events first (scheduled-end sorted by end time asc, manual live sorted
   // by start time asc so longer-running comes first); then upcoming sorted by start time asc.
@@ -139,25 +247,60 @@ export default function BulletinBoardIndex({ events, featured, explore, is_modal
     return () => window.removeEventListener('keydown', onKey)
   }, [lightbox])
 
+  const activeSort = category === 'projects' ? projectSort : 'newest'
+  const activeQuery = query.trim()
+  const activeExploreKey = exploreBucketKey(category, activeSort, activeQuery)
+  const activeExploreBucket = exploreBuckets[activeExploreKey]
+  const isExploreBucketPending = !activeExploreBucket
+  const exploreList = activeExploreBucket?.entries ?? []
+  const nextCursor = activeExploreBucket?.next_cursor ?? null
+  const hasMoreExplore = activeExploreBucket?.has_more ?? false
+  const exploreEmptyLabel = activeQuery
+    ? category === 'projects'
+      ? 'no projects found'
+      : 'no journals found'
+    : category === 'projects'
+      ? 'no projects yet'
+      : 'no journals yet'
+
   useEffect(() => {
     if (isFirstExploreFetchRender.current) {
       isFirstExploreFetchRender.current = false
       return
     }
+
+    if (exploreBuckets[activeExploreKey]) {
+      setIsSearching(false)
+      setIsLoadingMore(false)
+      return
+    }
+
+    const requestSeq = ++exploreRequestSeq.current
+    const requestedCategory = category
+    const requestedSort = activeSort
+    const requestedQuery = activeQuery
+    const requestedKey = activeExploreKey
     setIsSearching(true)
+    setIsLoadingMore(false)
     const abort = new AbortController()
     const timer = setTimeout(() => {
-      const params = new URLSearchParams({ sort, source })
+      const params = new URLSearchParams({ category: requestedCategory, sort: requestedSort })
+      if (requestedQuery) params.set('query', requestedQuery)
       fetch(`/bulletin_board/search?${params}`, {
         headers: { Accept: 'application/json' },
         signal: abort.signal,
       })
-        .then((res) => res.json())
-        .then((data: { explore: Explore[] }) => {
-          setExploreList(data.explore)
+        .then((res) => {
+          if (!res.ok) throw new Error(`Explore search failed with ${res.status}`)
+          return res.json()
+        })
+        .then((data: ExplorePayload) => {
+          if (requestSeq !== exploreRequestSeq.current) return
+          setExploreBuckets((buckets) => ({ ...buckets, [requestedKey]: data }))
           setIsSearching(false)
         })
         .catch((err) => {
+          if (requestSeq !== exploreRequestSeq.current) return
           if (err.name !== 'AbortError') {
             console.error(err)
             setIsSearching(false)
@@ -168,7 +311,123 @@ export default function BulletinBoardIndex({ events, featured, explore, is_modal
       clearTimeout(timer)
       abort.abort()
     }
-  }, [sort, source])
+  }, [activeExploreKey, activeQuery, activeSort, category, exploreBuckets])
+
+  function loadMoreExplore() {
+    if (!nextCursor || isSearching || isLoadingMore) return
+
+    const requestSeq = ++exploreRequestSeq.current
+    const requestedKey = activeExploreKey
+    const params = new URLSearchParams({ category, sort: activeSort, cursor: nextCursor })
+    const requestedQuery = activeQuery
+    if (requestedQuery) params.set('query', requestedQuery)
+
+    setIsLoadingMore(true)
+    fetch(`/bulletin_board/search?${params}`, { headers: { Accept: 'application/json' } })
+      .then((res) => {
+        if (!res.ok) throw new Error(`Explore load more failed with ${res.status}`)
+        return res.json()
+      })
+      .then((data: ExplorePayload) => {
+        if (requestSeq !== exploreRequestSeq.current) return
+        setExploreBuckets((buckets) => {
+          const current = buckets[requestedKey]
+          return {
+            ...buckets,
+            [requestedKey]: {
+              ...data,
+              entries: [...(current?.entries ?? []), ...data.entries],
+            },
+          }
+        })
+        setIsLoadingMore(false)
+      })
+      .catch((err) => {
+        if (requestSeq !== exploreRequestSeq.current) return
+        console.error(err)
+        setIsLoadingMore(false)
+      })
+  }
+
+  useEffect(() => {
+    let setupFrame = 0
+    let cleanup = () => {}
+
+    const setupExploreJump = () => {
+      const controls = exploreControlsRef.current
+      const section = exploreSectionRef.current
+      if (!controls || !section) {
+        setupFrame = window.requestAnimationFrame(setupExploreJump)
+        return
+      }
+
+      let frame = 0
+
+      const updateExploreJump = () => {
+        const scrollParent = nearestScrollParent(controls)
+        const innerBounds = innerRef.current?.getBoundingClientRect()
+        if (innerBounds) {
+          exploreJumpLayerRef.current?.style.setProperty('--explore-jump-left', `${innerBounds.left}px`)
+          exploreJumpLayerRef.current?.style.setProperty('--explore-jump-width', `${innerBounds.width}px`)
+        }
+
+        const controlBounds = controls.getBoundingClientRect()
+        const sectionBounds = section.getBoundingClientRect()
+        const viewportBounds =
+          scrollParent === window ? { top: 0, height: window.innerHeight } : scrollParent.getBoundingClientRect()
+
+        setShowExploreJump(
+          controlBounds.bottom < viewportBounds.top &&
+            sectionBounds.bottom > viewportBounds.top + viewportBounds.height * 0.35,
+        )
+      }
+
+      const scheduleUpdate = () => {
+        window.cancelAnimationFrame(frame)
+        frame = window.requestAnimationFrame(updateExploreJump)
+      }
+
+      const scrollTargets = new Set<HTMLElement | Window>([window])
+      if (document.scrollingElement instanceof HTMLElement) scrollTargets.add(document.scrollingElement)
+
+      let parent = controls.parentElement
+      while (parent) {
+        scrollTargets.add(parent)
+        parent = parent.parentElement
+      }
+
+      const documentScrollOptions: AddEventListenerOptions = { passive: true, capture: true }
+
+      scheduleUpdate()
+      scrollTargets.forEach((target) => target.addEventListener('scroll', scheduleUpdate, { passive: true }))
+      document.addEventListener('scroll', scheduleUpdate, documentScrollOptions)
+      window.addEventListener('resize', scheduleUpdate)
+      const observer = new ResizeObserver(scheduleUpdate)
+      observer.observe(controls)
+      observer.observe(section)
+      if (innerRef.current) observer.observe(innerRef.current)
+
+      cleanup = () => {
+        window.cancelAnimationFrame(frame)
+        scrollTargets.forEach((target) => target.removeEventListener('scroll', scheduleUpdate))
+        document.removeEventListener('scroll', scheduleUpdate, documentScrollOptions)
+        window.removeEventListener('resize', scheduleUpdate)
+        observer.disconnect()
+      }
+    }
+
+    setupExploreJump()
+
+    return () => {
+      window.cancelAnimationFrame(setupFrame)
+      cleanup()
+    }
+  }, [])
+
+  function scrollToExploreControls() {
+    const target = exploreControlsRef.current ?? exploreSectionRef.current
+    target?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }
 
   const backButton = is_modal ? (
     <button type="button" onClick={() => modalRef.current?.close()} aria-label="Back" className={styles.backButton}>
@@ -190,19 +449,33 @@ export default function BulletinBoardIndex({ events, featured, explore, is_modal
   ]
     .filter(Boolean)
     .join(' • ')
-  const exploreStateKey = isSearching
-    ? 'loading'
+  const nowDt = DateTime.fromJSDate(now).toLocal()
+  const lastProjectCreated = formatRelativeCreatedAt(liveExploreStats.last_project_created_at, nowDt)
+  const lastJournalCreated = formatRelativeCreatedAt(liveExploreStats.last_journal_created_at, nowDt)
+  const lastProjectCreatedText = lastProjectCreated
+    ? `Last project created: ${lastProjectCreated}`
+    : 'No projects pinned yet'
+  const lastJournalCreatedText = lastJournalCreated
+    ? `Last journal created: ${lastJournalCreated}`
+    : 'No journals posted yet'
+  const explorePulseLabel = [
+    `${exploreCounts.projects} ${exploreCounts.projects === 1 ? 'project' : 'projects'} pinned`,
+    `${exploreCounts.journals} ${exploreCounts.journals === 1 ? 'journal' : 'journals'} posted`,
+    lastProjectCreatedText,
+    lastJournalCreatedText,
+  ].join(' • ')
+  const exploreStateKey = isExploreBucketPending
+    ? `pending-${activeExploreKey}`
     : exploreList.length === 0
-      ? `empty-${source}-${sort}`
-      : `results-${source}-${sort}`
-  const exploreEmptyLabel = source === 'journals' ? 'no journals yet' : 'no projects yet'
+      ? `empty-${activeExploreKey}`
+      : `results-${activeExploreKey}`
 
   const content = (
     <div className={clsx(styles.content, is_modal ? styles.contentModal : styles.contentStandalone)}>
       <div className={styles.panel}>
         <div className={styles.stickyHeader}>{backButton}</div>
 
-        <div className={styles.inner}>
+        <div ref={innerRef} className={styles.inner}>
           <motion.section layout className={styles.section}>
             <motion.div layout className={styles.eventsHeader}>
               <h2 className={styles.sectionHeading}>Events</h2>
@@ -227,9 +500,8 @@ export default function BulletinBoardIndex({ events, featured, explore, is_modal
                       exit={{ opacity: 0, y: -2 }}
                       transition={EVENT_COUNT_TRANSITION}
                     >
-                      <SlidingNumber value={displayedEventCounts.happening} />
                       <TextMorph as="span" transition={EVENT_COUNT_TRANSITION}>
-                        {displayedEventCounts.happening === 1 ? 'event happening now' : 'events happening now'}
+                        {`${displayedEventCounts.happening} ${displayedEventCounts.happening === 1 ? 'event happening now' : 'events happening now'}`}
                       </TextMorph>
                     </motion.span>
                   )}
@@ -256,9 +528,8 @@ export default function BulletinBoardIndex({ events, featured, explore, is_modal
                       exit={{ opacity: 0, y: -2 }}
                       transition={EVENT_COUNT_TRANSITION}
                     >
-                      <SlidingNumber value={displayedEventCounts.upcoming} />
                       <TextMorph as="span" transition={EVENT_COUNT_TRANSITION}>
-                        {displayedEventCounts.upcoming === 1 ? 'upcoming event' : 'upcoming events'}
+                        {`${displayedEventCounts.upcoming} ${displayedEventCounts.upcoming === 1 ? 'upcoming event' : 'upcoming events'}`}
                       </TextMorph>
                     </motion.span>
                   )}
@@ -320,9 +591,9 @@ export default function BulletinBoardIndex({ events, featured, explore, is_modal
                           <ChevronLeft className={styles.pageArrow} />
                         </button>
                         <span className={styles.pageInfo} aria-live="polite">
-                          <SlidingNumber value={effectivePage + 1} />
+                          <TextMorph as="span">{(effectivePage + 1).toString()}</TextMorph>
                           <span className={styles.pageInfoSep}>/</span>
-                          <SlidingNumber value={totalPages} />
+                          <TextMorph as="span">{totalPages.toString()}</TextMorph>
                         </span>
                         <button
                           type="button"
@@ -406,138 +677,291 @@ export default function BulletinBoardIndex({ events, featured, explore, is_modal
             </div>
           </motion.section>
 
-          <motion.section layout="position" transition={EXPLORE_POSITION_TRANSITION} className={styles.section}>
-            <motion.h2 layout="position" transition={EXPLORE_POSITION_TRANSITION} className={styles.sectionHeading}>
-              Explore
-            </motion.h2>
+          <motion.section
+            ref={exploreSectionRef}
+            layout="position"
+            transition={EXPLORE_POSITION_TRANSITION}
+            className={clsx(styles.section, styles.exploreSection)}
+          >
+            <motion.div layout="position" transition={EXPLORE_POSITION_TRANSITION} className={styles.exploreHeader}>
+              <motion.h2 layout="position" transition={EXPLORE_POSITION_TRANSITION} className={styles.sectionHeading}>
+                Explore
+              </motion.h2>
 
-            <motion.div layout="position" transition={EXPLORE_POSITION_TRANSITION} className={styles.searchRow}>
-              <div className={styles.searchSection}>
-                <MagnifyingGlassIcon className={styles.searchIcon} />
+              <motion.div
+                layout
+                aria-label={explorePulseLabel}
+                className={styles.explorePulse}
+                initial={false}
+                transition={EVENT_COUNT_TRANSITION}
+              >
+                <motion.div layout className={styles.explorePulseLine} transition={EVENT_COUNT_TRANSITION}>
+                  <AnimatePresence initial={false} mode="popLayout">
+                    <motion.span
+                      key="projects"
+                      layout
+                      className={styles.explorePulseSegment}
+                      initial={{ opacity: 0, y: -2 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={EVENT_COUNT_TRANSITION}
+                    >
+                      <TextMorph as="span" transition={EVENT_COUNT_TRANSITION}>
+                        {`${displayedExploreCounts.projects} ${displayedExploreCounts.projects === 1 ? 'project pinned' : 'projects pinned'}`}
+                      </TextMorph>
+                    </motion.span>
 
-                <input
-                  type="text"
-                  placeholder="Search..."
-                  className={styles.searchInput}
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                />
-              </div>
+                    <motion.span
+                      key="separator"
+                      layout
+                      className={styles.explorePulseSeparator}
+                      transition={EVENT_COUNT_TRANSITION}
+                    >
+                      •
+                    </motion.span>
+
+                    <motion.span
+                      key="journals"
+                      layout
+                      className={styles.explorePulseSegment}
+                      initial={{ opacity: 0, y: -2 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={EVENT_COUNT_TRANSITION}
+                    >
+                      <TextMorph as="span" transition={EVENT_COUNT_TRANSITION}>
+                        {`${displayedExploreCounts.journals} ${displayedExploreCounts.journals === 1 ? 'journal posted' : 'journals posted'}`}
+                      </TextMorph>
+                    </motion.span>
+                  </AnimatePresence>
+                </motion.div>
+
+                <motion.div layout className={styles.explorePulseMetaLine} transition={EVENT_COUNT_TRANSITION}>
+                  <AnimatePresence initial={false} mode="popLayout">
+                    <motion.span
+                      key="last-project"
+                      layout
+                      className={styles.explorePulseTime}
+                      transition={EVENT_COUNT_TRANSITION}
+                    >
+                      {lastProjectCreatedText}
+                    </motion.span>
+                    <motion.span
+                      key="last-separator"
+                      layout
+                      className={styles.explorePulseSeparator}
+                      transition={EVENT_COUNT_TRANSITION}
+                    >
+                      •
+                    </motion.span>
+                    <motion.span
+                      key="last-journal"
+                      layout
+                      className={styles.explorePulseTime}
+                      transition={EVENT_COUNT_TRANSITION}
+                    >
+                      {lastJournalCreatedText}
+                    </motion.span>
+                  </AnimatePresence>
+                </motion.div>
+              </motion.div>
             </motion.div>
 
-            <motion.div layout="position" transition={EXPLORE_POSITION_TRANSITION} className={styles.filterRow}>
-              <div
-                className={styles.sortTabs}
-                data-active-index={source === 'journals' ? 0 : 1}
-                role="group"
-                aria-label="Source"
-              >
-                <span className={styles.sortTabActiveBg} aria-hidden />
-                {(['journals', 'projects'] as const).map((key) => {
-                  const active = source === key
+            <div ref={exploreControlsRef} className={styles.exploreControls}>
+              <motion.div layout="position" transition={EXPLORE_POSITION_TRANSITION} className={styles.searchRow}>
+                <div className={styles.searchSection}>
+                  <MagnifyingGlassIcon className={styles.searchIcon} />
 
-                  return (
-                    <button
-                      key={key}
-                      type="button"
-                      aria-pressed={active}
-                      onClick={() => setSource(key)}
-                      className={styles.sortTab}
+                  <input
+                    type="text"
+                    placeholder="Search..."
+                    className={styles.searchInput}
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                  />
+                </div>
+              </motion.div>
+
+              <motion.div layout="position" transition={EXPLORE_POSITION_TRANSITION} className={styles.filterRow}>
+                <motion.div
+                  layout="position"
+                  transition={EXPLORE_POSITION_TRANSITION}
+                  className={styles.sortTabs}
+                  data-active-index={category === 'projects' ? 0 : 1}
+                  role="group"
+                  aria-label="Explore category"
+                >
+                  <span className={styles.sortTabActiveBg} aria-hidden />
+                  {(['projects', 'journals'] as const).map((key) => {
+                    const active = category === key
+                    const label = key === 'projects' ? 'Projects' : 'Journals'
+
+                    return (
+                      <button
+                        key={key}
+                        type="button"
+                        aria-pressed={active}
+                        onClick={() => setCategory(key)}
+                        className={styles.sortTab}
+                      >
+                        <span className={styles.sortTabLabel}>{label}</span>
+                      </button>
+                    )
+                  })}
+                </motion.div>
+
+                <AnimatePresence initial={false} mode="popLayout">
+                  {category === 'projects' && (
+                    <motion.div
+                      key="project-sort"
+                      transition={EXPLORE_POSITION_TRANSITION}
+                      initial={{ opacity: 0, y: -6, scale: 0.98 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0 }}
+                      className={styles.sortTabs}
+                      data-active-index={projectSort === 'active' ? 0 : 1}
+                      role="group"
+                      aria-label="Sort explore projects"
                     >
-                      <span className={styles.sortTabLabel}>
-                        {key.substring(0, 1).toUpperCase() + key.substring(1)}
-                      </span>
-                    </button>
-                  )
-                })}
-              </div>
+                      <span className={styles.sortTabActiveBg} aria-hidden />
+                      {(['active', 'newest'] as const).map((key) => {
+                        const active = projectSort === key
+                        const label = key === 'active' ? 'Active' : 'New'
 
-              <div
-                className={styles.sortTabs}
-                data-active-index={sort === 'newest' ? 0 : 1}
-                role="group"
-                aria-label="Sort explore results"
-              >
-                <span className={styles.sortTabActiveBg} aria-hidden />
-                {(['newest', 'top'] as const).map((key) => {
-                  const active = sort === key
+                        return (
+                          <button
+                            key={key}
+                            type="button"
+                            aria-pressed={active}
+                            onClick={() => setProjectSort(key)}
+                            className={styles.sortTab}
+                          >
+                            <span className={styles.sortTabLabel}>{label}</span>
+                          </button>
+                        )
+                      })}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </motion.div>
+            </div>
 
-                  return (
-                    <button
-                      key={key}
+            <div ref={exploreJumpLayerRef} className={styles.exploreJumpLayer}>
+              <div className={styles.exploreJumpInner}>
+                <AnimatePresence initial={false}>
+                  {showExploreJump && (
+                    <motion.button
+                      key="explore-jump"
+                      transition={EXPLORE_POSITION_TRANSITION}
+                      initial={{ opacity: 0, y: 8, scale: 0.98 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 8, scale: 0.98 }}
                       type="button"
-                      aria-pressed={active}
-                      onClick={() => setSort(key)}
-                      className={styles.sortTab}
+                      className={styles.exploreJumpButton}
+                      onClick={scrollToExploreControls}
                     >
-                      <span className={styles.sortTabLabel}>
-                        {key.substring(0, 1).toUpperCase() + key.substring(1).replace(/_/g, ' ')}
-                      </span>
-                    </button>
-                  )
-                })}
+                      Scroll to top
+                    </motion.button>
+                  )}
+                </AnimatePresence>
               </div>
-            </motion.div>
+            </div>
 
             <motion.div layout="position" transition={EXPLORE_POSITION_TRANSITION} className={styles.exploreScroll}>
-              <AnimatePresence initial={false} mode="popLayout">
-                {isSearching ? (
-                  <motion.div
-                    key={exploreStateKey}
-                    layout="position"
-                    className={styles.exploreLoading}
-                    role="status"
-                    aria-label="Loading explore results"
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -6 }}
-                    transition={EXPLORE_FADE_TRANSITION}
-                  >
-                    <div className={styles.spinner} aria-hidden />
-                  </motion.div>
-                ) : exploreList.length === 0 ? (
-                  <motion.div
-                    key={exploreStateKey}
-                    layout="position"
-                    className={styles.exploreEmpty}
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -6 }}
-                    transition={EXPLORE_FADE_TRANSITION}
-                  >
-                    {exploreEmptyLabel}
-                  </motion.div>
-                ) : (
-                  <motion.div
-                    key={exploreStateKey}
-                    layout="position"
-                    className={styles.exploreResults}
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -6 }}
-                    transition={EXPLORE_FADE_TRANSITION}
-                  >
-                    <Masonry
-                      breakpointCols={{ default: 3, 1023: 2, 767: 1 }}
-                      className={styles.exploreMasonry}
-                      columnClassName={styles.exploreMasonryColumn}
-                    >
-                      {exploreList.map((entry, i) => (
-                        <motion.div
-                          key={`${entry.username}-${entry.project_name}-${entry.date}-${i}`}
-                          className={styles.exploreCardMotion}
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, y: -6 }}
-                          transition={{ ...EXPLORE_FADE_TRANSITION, delay: Math.min(i * 0.025, 0.15) }}
+              <div className={styles.exploreViewport}>
+                <div
+                  className={clsx(
+                    styles.exploreMeasured,
+                    (isSearching || isExploreBucketPending) && styles.exploreMeasuredPending,
+                  )}
+                  aria-busy={isSearching || isExploreBucketPending}
+                >
+                  <AnimatePresence initial={false} mode="wait">
+                    {isExploreBucketPending ? (
+                      <motion.div
+                        key={exploreStateKey}
+                        layout="position"
+                        className={styles.explorePending}
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -6 }}
+                        transition={EXPLORE_FADE_TRANSITION}
+                      />
+                    ) : exploreList.length === 0 ? (
+                      <motion.div
+                        key={exploreStateKey}
+                        layout="position"
+                        className={styles.exploreEmpty}
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -6 }}
+                        transition={EXPLORE_FADE_TRANSITION}
+                      >
+                        {exploreEmptyLabel}
+                      </motion.div>
+                    ) : (
+                      <motion.div
+                        key={exploreStateKey}
+                        layout="position"
+                        className={styles.exploreResults}
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -6 }}
+                        transition={EXPLORE_FADE_TRANSITION}
+                      >
+                        <Masonry
+                          breakpointCols={{ default: 3, 1023: 2, 767: 1 }}
+                          className={styles.exploreMasonry}
+                          columnClassName={styles.exploreMasonryColumn}
                         >
-                          <ExploreCard entry={entry} />
-                        </motion.div>
-                      ))}
-                    </Masonry>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+                          {exploreList.map((entry) => (
+                            <motion.div
+                              key={`${entry.type}-${entry.id}`}
+                              className={styles.exploreCardMotion}
+                              initial={{ opacity: 0, y: 10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              exit={{ opacity: 0, y: -6 }}
+                              transition={EXPLORE_FADE_TRANSITION}
+                            >
+                              <ExploreCard entry={entry} now={exploreNow} />
+                            </motion.div>
+                          ))}
+                        </Masonry>
+
+                        {hasMoreExplore && (
+                          <div className={styles.loadMoreRow}>
+                            <button
+                              type="button"
+                              className={styles.loadMoreButton}
+                              onClick={loadMoreExplore}
+                              disabled={isLoadingMore}
+                            >
+                              {isLoadingMore ? 'Loading...' : 'Load more'}
+                            </button>
+                          </div>
+                        )}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
+                  <AnimatePresence initial={false}>
+                    {(isSearching || isExploreBucketPending) && (
+                      <motion.div
+                        key="loading-overlay"
+                        className={styles.exploreLoadingOverlay}
+                        role="status"
+                        aria-label="Loading explore results"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={EXPLORE_FADE_TRANSITION}
+                      >
+                        <div className={styles.exploreLoadingChip}>
+                          <div className={styles.spinner} aria-hidden />
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              </div>
             </motion.div>
           </motion.section>
         </div>

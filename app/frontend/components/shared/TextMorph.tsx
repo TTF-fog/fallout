@@ -1,4 +1,4 @@
-import { type CSSProperties, type ElementType, useId, useMemo } from 'react'
+import { type CSSProperties, type ElementType, memo, useId, useMemo } from 'react'
 import { AnimatePresence, motion, type Transition, type Variants } from 'motion/react'
 import { cn } from '@/lib/utils'
 
@@ -24,14 +24,7 @@ const defaultTransition: Transition = {
   mass: 0.3,
 }
 
-export default function TextMorph({
-  children,
-  as: Component = 'p',
-  className,
-  style,
-  variants,
-  transition,
-}: TextMorphProps) {
+function TextMorph({ children, as: Component = 'p', className, style, variants, transition }: TextMorphProps) {
   const uniqueId = useId()
 
   const characters = useMemo(() => {
@@ -85,3 +78,5 @@ export default function TextMorph({
     </Component>
   )
 }
+
+export default memo(TextMorph)

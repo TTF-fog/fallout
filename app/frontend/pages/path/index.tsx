@@ -9,6 +9,7 @@ import PathNode from '@/components/path/PathNode'
 import SignUpCta from '@/components/path/SignUpCta'
 import BgmPlayer from '@/components/path/BgmPlayer'
 import Header from '@/components/path/Header'
+import AnnouncementsBar from '@/components/announcements/AnnouncementsBar'
 import FlashMessages from '@/components/FlashMessages'
 import { notify } from '@/lib/notifications'
 import { useLiveReload } from '@/lib/useLiveReload'
@@ -410,14 +411,11 @@ export default function PathIndex() {
         initial={false}
         animate={{ opacity: pathIntro.hudVisible ? 1 : 0 }}
         transition={PATH_ENTRY_FADE_TRANSITION}
-        className="fixed z-20 left-2 right-2 xs:p-6 flex flex-col gap-2"
-        style={{
-          // Shift below the global AnnouncementsBar so the avatar/streak/koi/mail HUD never overlaps it.
-          top: 'calc(0.5rem + var(--announcements-h, 0px))',
-          pointerEvents: pathIntro.hudVisible ? 'auto' : 'none',
-        }}
+        className="fixed z-20 top-2 left-2 right-2 xs:p-6 flex flex-col gap-2"
+        style={{ pointerEvents: pathIntro.hudVisible ? 'auto' : 'none' }}
       >
         <Header koiBalance={user.koi} avatar={user.avatar} displayName={user.display_name} />
+        <AnnouncementsBar />
       </motion.div>
 
       <motion.div
