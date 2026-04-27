@@ -62,7 +62,11 @@ class ProjectsController < ApplicationController
         destroy: project_policy.destroy?,
         ship: project_policy.ship?,
         manage_collaborators: collab_enabled && project_policy.manage_collaborators?,
-        create_journal_entry: JournalEntryPolicy.new(current_user, @project.journal_entries.build(user: current_user)).create?
+        create_journal_entry: JournalEntryPolicy.new(current_user, @project.journal_entries.build(user: current_user)).create?,
+        # Trial collaborator who would gain create access on verifying — drives the "locked" feather button.
+        # Owners are already allowed to create regardless of trial state, so they fall under create_journal_entry.
+        # Strangers (incl. unauthenticated visitors on the public project page) get false and see no button.
+        create_journal_entry_locked_for_trial: current_user&.trial? && collab_enabled && @project.collaborator?(current_user)
       },
       initial_tab: highlighted_journal_entry_id ? "journal" : "timeline",
       highlight_journal_entry_id: highlighted_journal_entry_id,

@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo, useRef } from 'react'
-import { router, usePage } from '@inertiajs/react'
+import { router } from '@inertiajs/react'
 import { Modal, ModalLink, useModal } from '@inertiaui/modal-react'
 import { BookOpenIcon, ClockIcon } from '@heroicons/react/16/solid'
 import { EllipsisHorizontalIcon } from '@heroicons/react/20/solid'
@@ -16,14 +16,7 @@ import TimeAgo from '@/components/shared/TimeAgo'
 import Timeline from '@/components/shared/Timeline'
 import { SlidingNumber } from '@/components/shared/SlidingNumber'
 import TextMorph from '@/components/shared/TextMorph'
-import type {
-  ProjectDetail,
-  JournalEntryCard,
-  CollaboratorInfo,
-  ShipEvent,
-  SharedProps,
-  JournalSwitchableProject,
-} from '@/types'
+import type { ProjectDetail, JournalEntryCard, CollaboratorInfo, ShipEvent, JournalSwitchableProject } from '@/types'
 
 function formatTime(seconds: number): string {
   if (seconds === 0) return '0min'
@@ -221,6 +214,7 @@ export default function ProjectsShow({
     ship: boolean
     manage_collaborators: boolean
     create_journal_entry: boolean
+    create_journal_entry_locked_for_trial: boolean
   }
   initial_tab?: 'timeline' | 'journal'
   highlight_journal_entry_id?: number | null
@@ -230,10 +224,6 @@ export default function ProjectsShow({
   const modalRef = useRef<{ close: () => void }>(null)
   const highlightedJournalRef = useRef<HTMLDivElement | null>(null)
   const modal = useModal()
-  const {
-    auth: { user: authUser },
-  } = usePage<SharedProps>().props
-  const isTrial = authUser?.is_trial ?? false
   const [rightTab, setRightTab] = useState<'timeline' | 'journal'>(initial_tab ?? 'timeline')
   const [inviteEmail, setInviteEmail] = useState('')
   const [inviting, setInviting] = useState(false)
@@ -507,7 +497,7 @@ export default function ProjectsShow({
       )
     }
 
-    if (isTrial) {
+    if (can.create_journal_entry_locked_for_trial) {
       return (
         <Tooltip side="top" gap={8}>
           <TooltipTrigger asChild>
