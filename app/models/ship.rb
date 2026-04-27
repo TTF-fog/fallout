@@ -289,6 +289,10 @@ class Ship < ApplicationRecord
       "Ship" => id
     }
 
+    # Screenshot is set separately by AttachShipZineScreenshotJob via the
+    # content.airtable.com uploadAttachment endpoint — sending it here too
+    # would conflict with that PATCH/append flow.
+
     AirtableSync.upload_or_create!(
       UNIFIED_AIRTABLE_TABLE_ID,
       self,
@@ -455,7 +459,15 @@ class Ship < ApplicationRecord
     return unless approved?
     return if user.trial?
     return unless ENV["AIRTABLE_API_KEY"].present?
+    # Two parallel jobs:
+    #   1. ShipUnifiedAirtableUploadJob — fast, creates the Airtable record now
+    #      so the YSWS row exists immediately on approval.
+    #   2. AttachShipUnifiedScreenshotJob — slow (LLM + image processing),
+    #      runs independently and POSTs the JPEG to the existing record's
+    #      Screenshot field via uploadAttachment. Retries with backoff if the
+    #      upload job hasn't finished creating the record yet.
     ShipUnifiedAirtableUploadJob.perform_later(id)
+    AttachShipUnifiedScreenshotJob.perform_later(id)
   end
 
   def fetch_unified_identity

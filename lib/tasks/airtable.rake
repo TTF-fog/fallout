@@ -68,28 +68,25 @@ namespace :airtable do
     puts "  ... and #{candidates.size - 10} more" if candidates.size > 10
 
     unless apply
-      puts "\nDry-run only. Pass APPLY=1 to upload."
+      puts "\nDry-run only. Pass APPLY=1 to enqueue."
       next
     end
 
-    puts "\n--- Uploading ---"
-    success = 0
-    failed = 0
+    puts "\n--- Enqueueing ---"
     candidates.each_with_index do |ship, i|
-      begin
-        ship.upload_to_unified_airtable!
-        success += 1
-      rescue => e
-        failed += 1
-        puts "  Ship##{ship.id} FAILED: #{e.class}: #{e.message}"
-        ErrorReporter.capture_exception(e, contexts: { ship_unified_airtable_backfill: { ship_id: ship.id } })
-      end
+      # Same parallel pair the live approval callback fires:
+      #   - ShipUnifiedAirtableUploadJob creates the Airtable record (fast).
+      #   - AttachShipUnifiedScreenshotJob runs the screenshot finder + JPEG
+      #     processor and POSTs to uploadAttachment; retries with backoff if
+      #     the upload job hasn't finished yet.
+      ShipUnifiedAirtableUploadJob.perform_later(ship.id)
+      AttachShipUnifiedScreenshotJob.perform_later(ship.id)
 
       if (i + 1) % 25 == 0 || (i + 1) == candidates.size
-        puts "  progress: #{i + 1}/#{candidates.size}  ok=#{success}  fail=#{failed}"
+        puts "  enqueued: #{i + 1}/#{candidates.size}"
       end
     end
 
-    puts "\nDone. #{success} succeeded, #{failed} failed."
+    puts "\nDone. #{candidates.size * 2} jobs enqueued (#{candidates.size} ships × 2 jobs). Watch Solid Queue for progress."
   end
 end

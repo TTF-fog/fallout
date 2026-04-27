@@ -137,6 +137,38 @@ class AirtableSync < ApplicationRecord
     airtable_id
   end
 
+  # POST raw bytes to a record's attachment field via the content.airtable.com
+  # uploadAttachment endpoint — used when we have processed bytes (e.g. a JPEG
+  # rendered from a repo file) and don't want to host them on a public URL just
+  # so Airtable can re-download them.
+  #
+  # Note: uploadAttachment APPENDS to the field's attachment array. The caller
+  # is responsible for skipping repeat calls (use a separate AirtableSync row
+  # as an idempotency marker — see AttachShipZineScreenshotJob).
+  #
+  # Limit: 5MB per attachment after base64 decode (Airtable docs).
+  def self.upload_attachment!(record_id:, field_name:, filename:, content_type:, bytes:, base_id: nil)
+    base_id ||= ENV["AIRTABLE_BASE_ID"]
+    url = "https://content.airtable.com/v0/#{base_id}/#{record_id}/#{field_name}/uploadAttachment"
+
+    response = Faraday.post(url) do |req|
+      req.headers = {
+        "Authorization" => "Bearer #{ENV['AIRTABLE_API_KEY']}",
+        "Content-Type" => "application/json"
+      }
+      req.body = {
+        contentType: content_type,
+        filename: filename,
+        file: Base64.strict_encode64(bytes)
+      }.to_json
+    end
+
+    Rails.logger.info("Airtable upload_attachment response: #{response.status}")
+    raise "Airtable upload_attachment failed: #{response.status} - #{response.body.to_s[0..200]}" if response.status < 200 || response.status >= 300
+
+    JSON.parse(response.body)
+  end
+
   class << self
     private
 
