@@ -56,7 +56,8 @@ class BulletinBoardController < ApplicationController
   end
 
   def event
-    @event = BulletinEvent.find(params[:id])
+    # Drafts (starts_at IS NULL) are admin-only; expose only events that have been scheduled or started.
+    @event = BulletinEvent.where.not(starts_at: nil).find(params[:id])
     render inertia: "bulletin_board/events/show", props: {
       event: serialize_bulletin_event(@event),
       is_modal: request.headers["X-InertiaUI-Modal"].present?
@@ -66,7 +67,10 @@ class BulletinBoardController < ApplicationController
   private
 
   def real_events
-    BulletinEvent.order(Arel.sql("COALESCE(starts_at, '9999-01-01') ASC")).map { |e| serialize_bulletin_event(e) }
+    # Drafts (starts_at IS NULL) are admin-only — exclude them from the public Inertia payload.
+    BulletinEvent.where.not(starts_at: nil)
+                 .order(Arel.sql("COALESCE(starts_at, '9999-01-01') ASC"))
+                 .map { |e| serialize_bulletin_event(e) }
   end
 
   def placeholder_featured
@@ -414,7 +418,16 @@ class BulletinBoardController < ApplicationController
   end
 
   def journal_markdown_image_url(markdown_doc)
-    markdown_doc.at_css("img[src]")&.[]("src").presence
+    src = markdown_doc.at_css("img[src]")&.[]("src").presence
+    return nil unless src
+    # Reject protocol-relative URLs (//evil.example) — they bypass the host allowlist
+    # and would cause the public explore feed to leak viewer IPs to attacker hosts.
+    return nil if src.start_with?("//")
+    # Allow only http(s) and same-origin paths; drop data:, javascript:, and other schemes
+    # before the URL reaches <img src> on the public feed.
+    return src if src.match?(%r{\Ahttps?://}i) || src.start_with?("/", "./", "../")
+
+    nil
   end
 
   def plain_text_excerpt(markdown_doc, length)
