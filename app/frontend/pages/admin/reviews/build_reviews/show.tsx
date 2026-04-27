@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, memo } from 'react'
+import { useState, useMemo, useCallback, useEffect, memo } from 'react'
 import type { ReactNode } from 'react'
 import { Link, router } from '@inertiajs/react'
 import { useReviewHeartbeat } from '@/hooks/useReviewHeartbeat'
@@ -500,6 +500,11 @@ export default function BuildReviewsShow({
   const [notesOpen, setNotesOpen] = useState(false)
   const [flagging, setFlagging] = useState(false)
   const [isFlagged, setIsFlagged] = useState(project_flagged)
+  const [notes, setNotes] = useState<ReviewerNote[]>(reviewer_notes ?? [])
+
+  useEffect(() => {
+    if (reviewer_notes) setNotes(reviewer_notes)
+  }, [reviewer_notes])
 
   const userFacingHours = project.approved_public_hours ?? project.logged_hours
   const hoursAdj = hoursAdjInput !== '' ? parseFloat(hoursAdjInput) || 0 : 0
@@ -590,7 +595,7 @@ export default function BuildReviewsShow({
     <div className="h-screen flex flex-col overflow-hidden border-t-3 border-orange-500">
       <TopBar
         project={project}
-        notesCount={reviewer_notes?.length ?? 0}
+        notesCount={notes.length}
         projectFlagged={isFlagged}
         flagging={flagging}
         onSkip={handleSkip}
@@ -600,7 +605,8 @@ export default function BuildReviewsShow({
 
       {notesOpen && reviewer_notes && (
         <ProjectNotesWindow
-          notes={reviewer_notes}
+          notes={notes}
+          setNotes={setNotes}
           notesPath={reviewer_notes_path}
           shipId={review.ship_id}
           reviewStage="build_review"
@@ -903,7 +909,10 @@ export default function BuildReviewsShow({
                   className="w-full"
                   variant="default"
                   disabled={submitting || !internalReason.trim()}
-                  onClick={() => handleSubmit('approved')}
+                  onClick={() => {
+                    handleSubmit('approved')
+                    setFeedback(""); setInternalReason("")
+                  }}
                   title={!internalReason.trim() ? 'Internal reason is required when approving' : undefined}
                 >
                   {submitting ? (
@@ -918,7 +927,10 @@ export default function BuildReviewsShow({
                   className="w-full"
                   variant="outline"
                   disabled={submitting || !feedback.trim()}
-                  onClick={() => handleSubmit('returned')}
+                  onClick={() => {
+                    handleSubmit("returned")
+                    setFeedback(""); setInternalReason("")
+                  }}
                   title={!feedback.trim() ? 'Feedback is required when returning' : undefined}
                 >
                   Return (Needs Changes)

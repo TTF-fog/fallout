@@ -1713,6 +1713,11 @@ export default function TimeAuditsShow({
   const [notesOpen, setNotesOpen] = useState(false)
   const [flagging, setFlagging] = useState(false)
   const [isFlagged, setIsFlagged] = useState(project_flagged)
+  const [notes, setNotesState] = useState<ReviewerNote[]>(reviewer_notes ?? [])
+
+  useEffect(() => {
+    if (reviewer_notes) setNotesState(reviewer_notes)
+  }, [reviewer_notes])
 
   // totalDuration = sum of API times (real tracked seconds, source of truth)
   const totalDuration = useMemo(() => new_entries.reduce((sum, e) => sum + e.total_duration, 0), [new_entries])
@@ -1918,7 +1923,7 @@ export default function TimeAuditsShow({
         totalDuration={totalDuration}
         submitting={submitting}
         allReviewed={allReviewed}
-        notesCount={reviewer_notes?.length ?? 0}
+        notesCount={notes.length}
         projectFlagged={isFlagged}
         flagging={flagging}
         reviewStatus={review.status}
@@ -1930,7 +1935,8 @@ export default function TimeAuditsShow({
 
       {notesOpen && reviewer_notes && (
         <ProjectNotesWindow
-          notes={reviewer_notes}
+          setNotes={setNotesState}
+          notes={notes}
           notesPath={reviewer_notes_path}
           shipId={review.ship_id}
           reviewStage="time_audit"
