@@ -8,7 +8,10 @@ class JournalEntryPolicy < ApplicationPolicy
   end
 
   def show?
-    admin? || owner? || (collaborators_enabled? && record.project&.owner_or_collaborator?(user)) # Collaborator visibility is flag-gated
+    return false unless user.present?
+    return true if admin? || owner? # Admin or journal author
+    return true if record.project&.user_id == user.id # Project owner — never flag-gated, owns the project the entry lives on
+    collaborators_enabled? && record.project&.collaborator?(user) # Project collaborator — visibility is flag-gated
   end
 
   def update?

@@ -89,14 +89,37 @@ Creates in-app MailMessage notifications. Not an external integration — purely
 
 ### Airtable — `app/models/airtable_sync.rb`
 
-Bi-directional CRM sync for Users and Projects.
+Outbound sync for Users, Projects, ShopOrders, Ships, and the four review types (TimeAudit/RequirementsCheck/Design/Build).
 
 - **Sync modes**: individual record POST/PATCH, batch CSV upload (up to 10,000+ records)
-- **Change tracking**: `AirtableSync` records store last sync timestamp + Airtable record ID
+- **Change tracking**: `AirtableSync` records store last sync timestamp + Airtable record ID, keyed by `"#{ClassName}##{id}"`
 - **Parallel processing**: 10 worker threads for batch
-- **Config per model**: `airtable_sync_table_id`, `airtable_sync_field_mappings`, optional scope/preload
-- **Scheduled**: every 5 minutes via `AirtableSyncJob` → `AirtableSyncClassJob` per class
-- **Env**: `AIRTABLE_API_KEY`, `AIRTABLE_BASE_ID`, `AIRTABLE_TABLE_ID`
+- **Config per model**: `airtable_sync_table_id`, `airtable_sync_field_mappings`, optional `airtable_sync_sync_id`/`airtable_should_batch`/`airtable_batch_size`/`airtable_sync_preload`/`airtable_sync_scope`
+- **Scheduled**: every 5 minutes via `AirtableSyncJob` → `AirtableSyncClassJob` per class (see `AirtableSyncJob::CLASSES_TO_SYNC`)
+- **Env**: `AIRTABLE_API_KEY`, `AIRTABLE_BASE_ID`
+
+**Unified reviews table**: All four `Reviewable` subclasses sync to one Airtable table (`tblH5ENbMHrWR6hyd`, sync `J3D2bzea`). Shared sync config (table id, sync id, batch flags, ship preload, base field mappings) lives in `Reviewable.class_methods`. Each subclass declares a 2-letter `review_id_prefix` (`TA`/`RC`/`DR`/`BR`) and an `extra_review_field_mappings` override. Rows in Airtable are disambiguated by a prefixed "Review ID" column (e.g. `TA12`, `BR12`). Each class still gets its own `AirtableSync` row in the local table (different `record_identifier`); Airtable upserts merge them server-side via the shared sync source.
+
+**Ships table** (`tblz2umphZqnDoQDZ`, sync `PLi0fLU8`): one row per `Ship`, includes the three hour flavors (`Logged Hours`, `Approved Hours`, `Internal Hours` — see [arch-ship-and-koi.md](arch-ship-and-koi.md) §7), `Koi Awarded` (sum of `KoiTransaction` where `reason='ship_review'`), per-pipeline review statuses, and the user-facing fields (justification/feedback/links). Logged hours uses `Ship.batch_time_logged` (single SQL aggregate over recordings) to avoid N+1 across the sync run.
+
+**One-shot YSWS Unified Submissions upload** (`tbl1CXrjDLqtYp84y`): per-approval push, separate from the cron mirror. Two parallel jobs fire on approval (and from the backfill rake):
+
+1. `Ship after_update_commit :enqueue_unified_airtable_upload, if: :saved_change_to_status?` — fires when the ship reaches `:approved` and the user is non-trial. Enqueues both jobs below in parallel; the screenshot path runs independently of the record creation so the slow LLM/image work doesn't block the YSWS row from appearing.
+
+2. `ShipUnifiedAirtableUploadJob` — fast path. Calls `Ship#upload_to_unified_airtable!`, which builds a fields hash (HCA identity name/birthday/primary address, repo/demo links, project description, ship id) and POSTs/PATCHes via `AirtableSync.upload_or_create!`. Identifier suffix `"Ship#<id>/unified"` keeps the local `AirtableSync` row distinct from the cron mirror's `"Ship#<id>"`. `upload_or_create!` persists the returned airtable_id back so retries PATCH the existing row instead of creating duplicates (a hackworks gotcha we deliberately don't replicate). No Screenshot field is included here — that's handled by the second job via a different endpoint.
+
+3. `AttachShipUnifiedScreenshotJob` — slow path. Finds a source URL via `ShipChecks::UnifiedScreenshotFinder` (four-stage strategy below), caches it on `ship.frozen_screenshot`, processes via `ShipChecks::UnifiedScreenshotProcessor` (libvips → JPEG, progressive quality reduction until ≤5MB; supports PNG/JPG/WEBP/GIF + PDF rendered through libpoppler-glib8), then POSTs the bytes to `https://content.airtable.com/v0/{base}/{recordId}/Screenshot/uploadAttachment` via `AirtableSync.upload_attachment!`. The job retries with `wait: 15.seconds, attempts: 8` if the parallel upload job hasn't yet created the Airtable record (no airtable_id in `AirtableSync`). After a successful attachment, writes a sentinel `AirtableSync` row keyed `"Ship#<id>/unified/screenshot"` so retries skip — `uploadAttachment` *appends* to the field array, so a repeat would duplicate the screenshot. SVG sources are still skipped (would require librsvg).
+
+`UnifiedScreenshotFinder` strategy, in priority order:
+
+1. **Filename regex over the repo tree** — `zine|poster|flyer|magazine|page` + image/PDF extension. Fast, no LLM.
+2. **LLM filter over the repo tree** — list every image/PDF file in the tree (regardless of name) and ask the LLM which is the zine. Catches zines named "submission.pdf", "{project}.png", etc. Cheap text-only call over filenames.
+3. **LLM search of README images** — reuses the descriptions already memoized for `HasZinePage`, asks the LLM if any image is a zine.
+4. **Fallback when no zine exists** — LLM picks the best representative project image from the README (entire assembly, finished build on a desk, etc.) so the YSWS row still gets a usable screenshot.
+
+No HCB API code is touched — Fallout only pushes data into the YSWS table; downstream YSWS automation handles any actual money flow.
+
+Backfill: `bin/rake airtable:backfill_unified_ships` — dry-run by default, `APPLY=1` to enqueue, `SKIP_EXISTING=1` (default) avoids re-sending ships that already have a `"Ship#<id>/unified"` `AirtableSync` row. Filters: `SINCE`, `ONLY_SHIP_IDS`, `EXCLUDE_SHIP_IDS`. The rake enqueues the same parallel pair the live callback does. Run during quiet periods to avoid racing fresh approvals on the same ship (residual race window at the find-then-POST step can leave an orphaned Airtable row; the local `AirtableSync` UNIQUE index keeps only one airtable_id, but Airtable itself doesn't dedupe).
 
 ## Background Jobs — Solid Queue
 

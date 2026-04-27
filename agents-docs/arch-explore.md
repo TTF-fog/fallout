@@ -166,7 +166,7 @@ The public `/api/v1/explore/...` API is unaffected by ActionCable — clients po
 ## Serialization
 
 ### In-app feed (rich)
-`serialize_project_for_explore`, `serialize_journal_for_explore` — render markdown excerpts via Nokogiri, resolve cover images with multiple fallbacks (uploaded images → markdown image → recording thumbnail), build relative `href`s for client navigation.
+`serialize_project_for_explore`, `serialize_journal_for_explore` — render markdown excerpts via Nokogiri, resolve cover images via uploaded images or markdown images, build relative `href`s for client navigation. Recording media is NOT exposed on the public explore feed — recordings are restricted to the journal author, project owner, and project collaborators.
 
 ### Public API (lean)
 `serialize_project`, `serialize_journal` — plain text excerpts, single `cover_image_url` field, absolute URLs (`#{request.base_url}/...`).

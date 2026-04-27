@@ -190,7 +190,6 @@ class BulletinBoardController < ApplicationController
       associations: [ :user, :project, { images_attachments: :blob } ]
     ).call
     markdown_docs = rendered_journal_markdown_documents(entries)
-    preload_journal_recording_media(entries, markdown_docs)
 
     [
       entries.map { |entry| serialize_journal_for_explore(entry, markdown_docs.fetch(entry.id)) },
@@ -391,30 +390,9 @@ class BulletinBoardController < ApplicationController
     markdown_image_url = journal_markdown_image_url(markdown_doc)
     return { kind: "image", url: markdown_image_url } if markdown_image_url
 
-    entry.recordings.sort_by(&:created_at).each do |recording|
-      media = recording_media(recording.recordable)
-      return media if media
-    end
-
+    # Recordings are intentionally NOT shown on the public explore feed — they are
+    # restricted to the journal author, project owner, and project collaborators only.
     nil
-  end
-
-  def recording_media(recordable)
-    case recordable
-    when LapseTimelapse, LookoutTimelapse
-      return nil unless recordable.playback_url.present?
-
-      {
-        kind: "video",
-        url: recordable.playback_url,
-        poster_url: recordable.thumbnail_url
-      }
-    when YouTubeVideo
-      {
-        kind: "youtube",
-        thumbnail_url: recordable.thumbnail_url.presence || recordable.thumbnail_url_for(quality: "hqdefault")
-      }
-    end
   end
 
   def project_time_iso8601(timestamp)
@@ -431,24 +409,10 @@ class BulletinBoardController < ApplicationController
     entries.to_h { |entry| [ entry.id, rendered_user_markdown_document(entry.content.to_s) ] }
   end
 
-  def preload_journal_recording_media(entries, markdown_docs)
-    entries_for_recordings = entries.reject { |entry| journal_has_image_media?(entry, markdown_docs.fetch(entry.id)) }
-    return if entries_for_recordings.empty?
-
-    ActiveRecord::Associations::Preloader.new(
-      records: entries_for_recordings,
-      associations: { recordings: :recordable }
-    ).call
-  end
-
   def journal_cover_url(entry, markdown_doc)
     return url_for(entry.images.first) if entry.images.attached?
 
     journal_markdown_image_url(markdown_doc)
-  end
-
-  def journal_has_image_media?(entry, markdown_doc)
-    entry.images.attached? || journal_markdown_image_url(markdown_doc).present?
   end
 
   def journal_markdown_image_url(markdown_doc)

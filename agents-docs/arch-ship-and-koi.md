@@ -99,6 +99,24 @@ When ship status flips to `returned`, `aggregate_return_feedback` joins all retu
 
 This is the "I fixed one thing and re-shipped" optimization — reviewers don't redo work on already-judged recordings, and the optimization extends to re-ships after a returned/cancelled cycle.
 
+### Ship cycle (definition)
+
+A **ship cycle** is the window between two successive approvals on a project. It starts immediately after the previous approved ship and ends when one ship in the window reaches `:approved` — that approval terminates the current cycle and starts a fresh one.
+
+**First-cycle case** (no prior approval): the cycle stretches all the way back to the project's earliest history. Every ship the project has ever had — pending, returned, rejected — is part of that first cycle. Subsequent re-ships start fresh cycles only because they have an approved predecessor.
+
+Bounds (in code, see `Ship#previous_approved_ship`):
+- **Start cutoff** = `project.ships.approved.where("created_at < self.created_at").order(created_at: :desc).first&.created_at` (i.e. the immediately-preceding approval), or `Time.at(0)` for the first cycle.
+- **End** = the `created_at` of the ship that reaches `:approved` (the *current* ship in any computation about its own cycle).
+
+What's scoped to a cycle:
+- **Ships** in the cycle = `project.ships.where("created_at > start_cutoff AND created_at <= end")` — includes any rejected/returned/cancelled attempts plus the approved one that closed the cycle. Counter for `{ATTEMPTS_MSG}` derives from this.
+- **Journal entries** = entries with `ship_id` set to a ship in this cycle. `Ship#claim_journal_entries!` sets `ship_id` on `after_create` and explicitly skips entries already locked to an *approved* prior ship (cycle history is immutable).
+- **Recordings** = recordings whose journal entry is in the cycle.
+- **Hours** = the three flavors in §7, all derived from this cycle's recordings/journal entries (never the project's lifetime totals).
+
+Re-ships after a prior approval start a fresh cycle — counters reset, and the previous cycle's journal entries / hours / koi are sealed.
+
 ---
 
 ## 3. Multi-stage Review Pipeline
@@ -217,11 +235,60 @@ The TA is responsible for converting raw recording duration into `approved_secon
 
 `compute_internal_hours(ship)` (admin-only display) = `approved_seconds + design_review.hours_adjustment + build_review.hours_adjustment` / 3600. Returns nil if all zero.
 
-**Public vs internal hours**: the `approved_public_hours` shown to the user is just TA's `approved_seconds`. `hours_adjustment` on DR/BR exists but is internal-only.
+See [§7 Hours: User-Facing vs Internal](#7-hours-user-facing-vs-internal) for the full taxonomy of the three hour concepts and what each one drives.
 
 ---
 
-## 7. Re-ship Behavior (Critical Edge Cases)
+## 7. Hours: User-Facing vs Internal
+
+The system tracks three distinct hour concepts. They have different audiences, different computation paths, and (most importantly) feed different downstream consumers. Conflating them is the easiest way to introduce a financial bug.
+
+### The three concepts
+
+| Concept | What it represents | Where stored / computed | Who controls it |
+|---|---|---|---|
+| **Logged time** | What the user *claims* — the raw input from recordings | `Project#time_logged`, `Ship#total_hours` (re-aggregated SQL over recordings) | The user (by uploading timelapses / videos) |
+| **User-facing approved time** | The TA-blessed subset of logged time | `ship.approved_seconds` (mirrored from `time_audit_review.approved_seconds` via `sync_approved_seconds_from_ta!`) | The TA reviewer |
+| **Internal approved time** | User-facing + Phase 2 adjustments — the *operator's* view | `Admin*Controller#compute_internal_hours(ship)` = `approved_seconds + design_review.hours_adjustment + build_review.hours_adjustment` | TA + DR + BR reviewers, combined |
+
+Internal approved time is **derived on read** — there's no `internal_seconds` column. Each consumer recomputes it. The `compute_internal_hours` helper is duplicated across `app/controllers/admin/ships_controller.rb`, `app/controllers/admin/projects_controller.rb`, and `app/controllers/admin/reviews/base_controller.rb` (worth consolidating, but not blocking).
+
+### What each one drives
+
+| Consumer | Reads | Notes |
+|---|---|---|
+| User-visible dashboards (path header, project pages) | User-facing approved (or logged time, if not yet approved) | Never internal — users must not see the adjustment |
+| Airtable export (`Project.airtable_sync_preload`) | User-facing approved (`SUM(ships.approved_seconds)` as "Hours Approved") | External record — must match what the user sees |
+| **Koi awarding** (`ShipKoiAwarder.compute_amount`) | **User-facing approved** | See §10 — explicitly NOT internal. The user's reward must be derivable from what they see. |
+| Admin hours display (`HoursDisplay` component) | Internal as the headline; user-facing in parens labeled "User facing" | Reviewers see both side-by-side |
+| Admin sort/filter on hours columns | Internal | Operator-facing analytics |
+| Travel grant payouts | Internal (manually calculated) | Per `mail_intro` content: `$8.5/hour for design + build hours`. Admins compute this off-platform from the internal figure. NOT automated in code today. |
+| Koi preview shown to Phase 2 reviewer (DR/BR show pages, lines 509-514) | User-facing only — `Math.floor(7 * userFacingHours)` | Preview helper; the real award is computed server-side by `ShipKoiAwarder` and is the binding number |
+
+### Why `hours_adjustment` exists separately
+
+Phase 2 reviewers (DR/BR) sometimes need to credit or debit hours that the TA can't see — e.g., physical build work not captured on camera, or a deduction for low-quality work that nonetheless passed RC. Putting this knob on Phase 2 keeps roles focused:
+
+- **TA** answers: "Do these recordings reflect real work?" → sets `approved_seconds` (the user's contract).
+- **Phase 2** (DR/BR) answers: "Given the design/build outcome, what's the *real* hours figure?" → adds `hours_adjustment` for internal/operator use.
+
+Decoupling means Phase 2 can adjust internal totals (driving travel grants) without retroactively changing the user-visible "your approved hours" number — which would feel arbitrary to the user and would invalidate the TA's prior decision.
+
+### Why koi follows user-facing only
+
+The user-facing approved hours figure is **the contract**. What the user sees as "your approved hours" should be the basis for their koi reward. Decoupling them would mean the user couldn't audit their own koi balance from displayed numbers, and would let Phase 2 reviewers silently inflate or deflate the user's primary reward signal under cover of "internal" adjustments.
+
+If Phase 2 wants to adjust the koi specifically (e.g., quality bonus or deduction), the explicit knob is `koi_adjustment` on DR/BR — added on top of the hours-derived base in `ShipKoiAwarder.compute_amount`. This keeps the adjustment **visible and labeled** in the koi ledger description (`"Ship #X approved — Yh × 7 koi + Z koi review adjustment"`) rather than hidden inside an opaque hours number.
+
+### Quirk: koi preview vs award rounding
+
+The Phase 2 reviewer's koi preview in the DR/BR frontend uses `Math.floor(7 * userFacingHours)` where `userFacingHours` has already been rounded to 1 decimal place. The actual award (`ShipKoiAwarder.compute_amount`) uses `Rational(seconds * 7, 3600).round` on raw seconds.
+
+These can disagree by 1 koi at certain half-hour boundaries (e.g., exactly 9.5h: preview shows 66, award is 67). Reviewers should treat the preview as approximate. Don't "fix" the preview to match by reading raw seconds — that would tie the reviewer UI to backend rounding policy and make changing either harder. The award is authoritative.
+
+---
+
+## 8. Re-ship Behavior (Critical Edge Cases)
 
 After a ship is `returned` or `rejected`, the user can submit a new one for the same project (the policy block only applies to `pending`/`awaiting_identity` siblings).
 
@@ -248,7 +315,7 @@ If a user submits ship A, gets returned, fixes, submits ship B → ship A is in 
 
 ---
 
-## 8. Notifications
+## 9. Notifications
 
 `MailDeliveryService.ship_status_changed(ship)` (called by Ship's `after_update_commit`) creates an in-app `MailMessage`:
 - `approved` → "Your ship for X was approved!" (+ feedback if present), action_url to project.
@@ -259,7 +326,7 @@ The `notify_status_change` callback is wrapped in `rescue => e` and logs but doe
 
 ---
 
-## 9. Koi Economy
+## 10. Koi Economy
 
 ### Currency Surface
 
@@ -308,15 +375,54 @@ Balance = sum of ledger amounts MINUS reservations from non-rejected shop orders
 |---|---|---|
 | `streak_goal` | `StreakService.check_goal_completion` | `GOAL_KOI_REWARDS = { 3 => 1, 5 => 2, 7 => 5, 14 => 12 }` |
 | `admin_adjustment` | `Admin::KoiTransactionsController#create` | Hard-coded `reason = "admin_adjustment"`; `actor` set to `current_user`. Admin-only via `before_action :require_admin!`. |
-| `ship_review` | **Not currently created anywhere** ⚠️ | See gap below |
+| `ship_review` | `ShipKoiAwarder.call(ship)` invoked from `Ship#award_ship_review_koi!` (after_update_commit) and from `rake koi:reconcile_ship_reviews` | See "Ship Review Awarding" below |
 
-### ⚠️ Koi Awarding Gap
+### Ship Review Awarding
 
-`KoiTransaction::REASONS` includes `"ship_review"`, and `DesignReview`/`BuildReview` both have a `koi_adjustment` integer column that admin reviewers fill in. The review controllers permit `:koi_adjustment` in `review_params`. But **no callback or service translates `koi_adjustment` into a `KoiTransaction`**. Searched for `KoiTransaction.create` and only `streak_service.rb:162` and `admin/koi_transactions_controller.rb:27` show up.
+When a ship's status transitions to `:approved`, `Ship#award_ship_review_koi!` (an `after_update_commit` callback gated by `saved_change_to_status?`) calls `ShipKoiAwarder.call(self)`. The service is the single source of truth for the formula and is also called from the reconciliation rake task.
 
-Implication: setting `koi_adjustment` on a Phase 2 review currently has no effect on the user's koi balance. Either (a) the wiring is intentionally deferred and a future hook (e.g., `Ship#after_approval` or a service object) will create the transaction, or (b) it's an in-progress migration.
+**Formula:**
+```
+amount = round(approved_seconds * 7 / 3600) + design_review.koi_adjustment + build_review.koi_adjustment
+```
 
-If implementing this: a `Ship` after_update callback on `saved_change_to_status? && approved?` should iterate `[design_review, build_review].compact` and create one `KoiTransaction` per non-zero `koi_adjustment` with `reason: "ship_review"`, `actor: review.reviewer`, `description` referencing the project + cycle. Idempotency matters — re-firing on idempotent updates (e.g., `update_columns` from `sync_approved_seconds_from_ta!`) must not double-credit. Check `saved_change_to_status?` specifically (only fires on actual transition).
+**Hours basis**: `ship.approved_seconds` — the **public/user-facing** TA value. The internal `hours_adjustment` columns on DR/BR are deliberately NOT counted toward koi (they only affect internal hours reporting). The rate is **7 koi per hour** (`ShipKoiAwarder::RATE_KOI_PER_HOUR`).
+
+**Adjustments**: `koi_adjustment` columns on DesignReview and BuildReview are signed integers a reviewer can set during Phase 2. Both are summed into the award.
+
+**Re-ship correctness**: `ship.approved_seconds` is set by TA from `compute_approved_seconds(annotations)` over `new_journal_entries` only — entries created strictly after the previous approved ship's `created_at`. So each cycle's ship records exactly the *new* hours. Summing one award per approved ship gives the correct lifetime total without subtracting prior cycles. Example: ship A approved at 10h → 70 koi; ship B (same project) later approved at 15h *new* hours → +105 koi, lifetime 175 koi.
+
+**Result tagging**: `ShipKoiAwarder.call` returns a `Result` with `status:` one of `:created`, `:skipped_already_awarded` (DB unique index rejected — race or replay), `:skipped_zero_amount`, `:skipped_trial_user`, `:skipped_not_approved`. Used by the rake task to tally counts.
+
+#### Layered safeguards (financial-grade)
+
+Koi flows downstream into HCB grant orders → real USD. Multiple independent layers prevent double-issuance:
+
+1. **`saved_change_to_status?` callback gate** — the `after_update_commit` only fires when `status` actually changed. Editing `justification`, `feedback`, or any non-status field on an approved ship will NOT re-trigger the award.
+2. **`Ship#status_transition_allowed` validation** — blocks transitions out of `approved`/`returned`/`rejected`. Prevents Rails-mediated re-approval.
+3. **`KoiTransaction` is read-only** — `before_update` and `before_destroy` raise `ActiveRecord::ReadonlyRecord`. The ledger cannot be wiped to "reset" dedup.
+4. **Partial unique index** (`index_koi_transactions_on_ship_review_uniqueness`) — `WHERE reason = 'ship_review' AND ship_id IS NOT NULL` enforces at most one ship_review row per ship at the database level. This is the absolute guarantee. `ShipKoiAwarder` rescues `ActiveRecord::RecordNotUnique` and returns `:skipped_already_awarded`.
+5. **`KoiTransaction#ship_id_consistency` validation** — enforces `reason == "ship_review"` ⟺ `ship_id` present, blocking malformed inserts in either direction.
+6. **Reconciliation safety net** — `rake koi:reconcile_ship_reviews` finds approved ships missing their award and re-calls the service. Idempotent (layer 4 absorbs duplicates). See the rake task for usage.
+
+#### Failure handling
+
+Any error inside the callback is caught, logged, and reported to `ErrorReporter`. The ship's approval is NOT rolled back — fail-open preserves the reviewer's decision; operators close the gap via `rake koi:reconcile_ship_reviews APPLY=1`.
+
+**Zero-amount transactions are skipped**: KoiTransaction validates `amount: { other_than: 0 }`. If hours-derived koi exactly cancels with a negative `koi_adjustment`, no transaction is created and the result is `:skipped_zero_amount`.
+
+#### Reconciliation rake task
+
+`rake koi:reconcile_ship_reviews` (in `lib/tasks/koi.rake`) is the operator tool for backfilling missed awards or recovering from callback failures.
+
+- **Default mode is dry-run**: prints what would be issued without inserting.
+- `APPLY=1` to actually issue.
+- `SINCE=YYYY-MM-DD` filters by `ships.updated_at` (which on an approved ship is approximately the approval time).
+- `EXCLUDE_SHIP_IDS=1,2,3` skips specific ships (e.g., suspected gaming, banned users).
+- Output: per-recipient totals, grand koi total, top-10 recipients, per-ship breakdown (first 50). No HCB/USD values are printed — operator does that conversion separately.
+- Always idempotent — safe to run multiple times. Layer 4 absorbs duplicates.
+
+If you change the rate (currently `7`) or the source-of-truth field (currently `approved_seconds`), update both this doc and the user-visible documentation under `docs/`. **Historical KoiTransactions are immutable** — a rate change does NOT retroactively re-award; rerunning the rake task will skip already-awarded ships via layer 4.
 
 ### Where Balance Is Surfaced
 
@@ -354,7 +460,7 @@ Both `User#koi` and `User#gold` short-circuit to `0` for trial users. `ShopOrder
 
 ---
 
-## 10. Concurrency & Safety Edge Cases
+## 11. Concurrency & Safety Edge Cases
 
 | Risk | Mitigation |
 |---|---|
@@ -374,7 +480,7 @@ Both `User#koi` and `User#gold` short-circuit to `0` for trial users. `ShopOrder
 
 ---
 
-## 11. Frontend Pages (Reviewer)
+## 12. Frontend Pages (Reviewer)
 
 | Path | Purpose |
 |---|---|
@@ -388,7 +494,7 @@ Each show page polls heartbeat and listens for 409 to surface "claim lost" UX.
 
 ---
 
-## 12. Open Questions / Watch Items
+## 13. Open Questions / Watch Items
 
 - **Ship-review koi awarding** is not implemented — `koi_adjustment` is captured but never converted to a `KoiTransaction`. Confirm whether this is intentional (deferred) or a gap before relying on it.
 - **`ship_type` is always `design`** by default; no UI flow currently sets `build`. If/when build-type ships are introduced, the submission form needs a selector and the routing needs to handle both.

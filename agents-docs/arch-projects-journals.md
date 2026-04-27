@@ -70,7 +70,7 @@ Ship (audit-trailed)
 
 **Policy (`app/policies/journal_entry_policy.rb`):**
 - `create?`: project owner always (preserves trial behavior); collaborators only if verified + flag enabled
-- `show?`: admin OR owner OR project owner/collaborator (flag-gated)
+- `show?`: admin OR journal author OR project owner (always) OR project collaborator (flag-gated). Project owner access is intentionally NOT flag-gated — owners always see entries on their own projects.
 - `update?`/`destroy?`: admin OR (entry author AND (project owner OR project collaborator with flag enabled)). The AND is important — the author must also have access to the project.
 - **Scope**: returns entries the user authored, entries on projects they own, and entries on projects they collaborate on (flag-gated)
 
