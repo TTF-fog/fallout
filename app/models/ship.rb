@@ -71,6 +71,13 @@ class Ship < ApplicationRecord
   after_update_commit :create_initial_reviews!, if: :became_pending_from_awaiting?
   after_update_commit :notify_status_change, if: :saved_change_to_status?
   after_update_commit :award_ship_review_koi!, if: :saved_change_to_status?
+  after_update_commit :enqueue_unified_airtable_upload, if: :saved_change_to_status?
+
+  # YSWS Unified Submissions table — receives a one-shot snapshot when a ship
+  # reaches :approved (financial-pipeline-adjacent; we only push data, never
+  # touch HCB API code). Identifier is suffixed "Ship#<id>/unified" so it
+  # doesn't collide with the analytics ship sync's "Ship#<id>" identifier.
+  UNIFIED_AIRTABLE_TABLE_ID = "tbl1CXrjDLqtYp84y"
 
   # Called when a user becomes fully_identity_gated? — moves their held submissions into the review queue.
   def self.promote_awaiting_identity_for(user)
@@ -252,6 +259,48 @@ class Ship < ApplicationRecord
     update_columns(approved_seconds: ta.approved_seconds)
   end
 
+  # One-shot upload to the YSWS Unified Submissions Airtable table at the moment
+  # the ship reaches :approved. Idempotent via AirtableSync record keyed
+  # "Ship#<id>/unified" — re-runs PATCH the same row instead of creating
+  # duplicates. Called from ShipUnifiedAirtableUploadJob (async to keep the
+  # approval transaction off the Airtable HTTP path).
+  def upload_to_unified_airtable!
+    return unless approved?
+    return if user.trial?
+
+    identity = fetch_unified_identity
+    addresses = identity["addresses"].is_a?(Array) ? identity["addresses"] : []
+    primary_address = addresses.find { |a| a["primary"] } || addresses.first || {}
+
+    fields = {
+      "Code URL" => frozen_repo_link,
+      "Playable URL" => frozen_demo_link.presence || frozen_repo_link,
+      "First Name" => identity["first_name"],
+      "Last Name" => identity["last_name"],
+      "Email" => user.email,
+      "Description" => project.description,
+      "Address (Line 1)" => primary_address["line_1"],
+      "Address (Line 2)" => primary_address["line_2"],
+      "City" => primary_address["city"],
+      "State / Province" => primary_address["state"],
+      "Country" => primary_address["country"],
+      "ZIP / Postal Code" => primary_address["postal_code"],
+      "Birthday" => identity["birthday"],
+      "Ship" => id
+    }
+
+    AirtableSync.upload_or_create!(
+      UNIFIED_AIRTABLE_TABLE_ID,
+      self,
+      fields,
+      identifier: unified_airtable_identifier
+    )
+  end
+
+  def unified_airtable_identifier
+    "Ship##{id}/unified"
+  end
+
   private
 
   # Persist stretch_multiplier from TA annotations onto YouTubeVideo records so aggregation queries use correct values
@@ -400,5 +449,20 @@ class Ship < ApplicationRecord
   rescue => e
     Rails.logger.error("Ship##{id} koi award failed: #{e.message}")
     ErrorReporter.capture_exception(e, contexts: { ship_review_koi: { ship_id: id } })
+  end
+
+  def enqueue_unified_airtable_upload
+    return unless approved?
+    return if user.trial?
+    return unless ENV["AIRTABLE_API_KEY"].present?
+    ShipUnifiedAirtableUploadJob.perform_later(id)
+  end
+
+  def fetch_unified_identity
+    user.hca_identity || {}
+  rescue StandardError => e
+    Rails.logger.error("Ship##{id} unified upload — HCA identity fetch failed for user #{user.id}: #{e.message}")
+    ErrorReporter.capture_exception(e, contexts: { ship_unified_airtable: { ship_id: id, user_id: user.id, op: :hca_fetch } })
+    {}
   end
 end

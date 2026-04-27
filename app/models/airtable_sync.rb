@@ -95,9 +95,18 @@ class AirtableSync < ApplicationRecord
     upload_or_create!(table_id, record, fields, base_id: base_id)
   end
 
-  def self.upload_or_create!(table_id, object, fields, base_id: nil)
+  # POST a new row or PATCH an existing one. Idempotent: persists the returned
+  # airtable_id back to AirtableSync so subsequent calls PATCH instead of
+  # creating duplicates.
+  #
+  # `identifier:` lets the caller use a custom AirtableSync row when the same
+  # AR record syncs to multiple Airtable tables (e.g. a Ship that flows to both
+  # the analytics ships table via the cron and the YSWS unified table on
+  # approval — distinct identifiers prevent the unique index collision).
+  def self.upload_or_create!(table_id, object, fields, identifier: nil, base_id: nil)
+    identifier ||= build_identifier(object)
     base_id ||= ENV["AIRTABLE_BASE_ID"]
-    old_airtable_id = find_by(record_identifier: build_identifier(object))&.airtable_id
+    old_airtable_id = find_by(record_identifier: identifier)&.airtable_id
 
     if old_airtable_id.present?
       method = :patch
@@ -118,7 +127,14 @@ class AirtableSync < ApplicationRecord
     Rails.logger.info("Airtable individual sync response: #{response.status} - #{response.body}")
     raise "Airtable individual sync failed with status #{response.status}: #{response.body}" if response.status < 200 || response.status >= 300
 
-    JSON.parse(response.body)["id"]
+    airtable_id = JSON.parse(response.body)["id"]
+
+    # Persist airtable_id so the next call PATCHes the same row. Without this,
+    # retries after a successful POST would create duplicate Airtable rows.
+    sync_record = find_or_initialize_by(record_identifier: identifier)
+    sync_record.update!(airtable_id: airtable_id, last_synced_at: Time.current)
+
+    airtable_id
   end
 
   class << self

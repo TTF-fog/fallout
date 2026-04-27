@@ -102,6 +102,10 @@ Outbound sync for Users, Projects, ShopOrders, Ships, and the four review types 
 
 **Ships table** (`tblz2umphZqnDoQDZ`, sync `PLi0fLU8`): one row per `Ship`, includes the three hour flavors (`Logged Hours`, `Approved Hours`, `Internal Hours` — see [arch-ship-and-koi.md](arch-ship-and-koi.md) §7), `Koi Awarded` (sum of `KoiTransaction` where `reason='ship_review'`), per-pipeline review statuses, and the user-facing fields (justification/feedback/links). Logged hours uses `Ship.batch_time_logged` (single SQL aggregate over recordings) to avoid N+1 across the sync run.
 
+**One-shot YSWS Unified Submissions upload** (`tbl1CXrjDLqtYp84y`): per-approval push, separate from the cron mirror. Triggered by `Ship after_update_commit :enqueue_unified_airtable_upload, if: :saved_change_to_status?` — fires only when the ship reaches `:approved` and the user is non-trial. The callback enqueues `ShipUnifiedAirtableUploadJob`, which calls `Ship#upload_to_unified_airtable!` (builds a hand-crafted `fields` hash with HCA identity data — name/birthday/primary address — plus repo/demo links and project description, then POSTs/PATCHes via `AirtableSync.upload_or_create!`). Uses identifier suffix `"Ship#<id>/unified"` so the local `AirtableSync` row is distinct from the cron mirror's `"Ship#<id>"` row. `AirtableSync.upload_or_create!` persists the returned airtable_id back so retries PATCH the existing row instead of creating duplicates (a hackworks gotcha we deliberately don't replicate). No HCB API code is touched — Fallout only pushes data into the YSWS table; downstream YSWS automation handles any actual money flow.
+
+Backfill: `bin/rake airtable:backfill_unified_ships` — dry-run by default, `APPLY=1` to upload, `SKIP_EXISTING=1` (default) avoids re-sending ships that already have an `AirtableSync` row. Filters: `SINCE`, `ONLY_SHIP_IDS`, `EXCLUDE_SHIP_IDS`. Run during quiet periods to avoid racing fresh approvals on the same ship.
+
 ## Background Jobs — Solid Queue
 
 **Config** (`config/queue.yml`): 4 worker pools:
