@@ -20,13 +20,15 @@ ARG CURL_VERSION=7.88.1-10+deb12u14
 ARG LIBJEMALLOC2_VERSION=5.3.0-1
 ARG LIBVIPS42_VERSION=8.14.1-3+deb12u2
 ARG SQLITE3_VERSION=3.40.1-2+deb12u2
+ARG WGET_VERSION=1.21.3-1+b1
 
 RUN apt-get update -qq && \
     apt-get install --no-install-recommends -y \
       curl="${CURL_VERSION}" \
       libjemalloc2="${LIBJEMALLOC2_VERSION}" \
       libvips42="${LIBVIPS42_VERSION}" \
-      sqlite3="${SQLITE3_VERSION}" && \
+      sqlite3="${SQLITE3_VERSION}" \
+      wget="${WGET_VERSION}" && \
     rm -rf /var/lib/apt/lists /var/cache/apt/archives
 
 # Set production environment
