@@ -92,12 +92,12 @@ When ship status flips to `returned`, `aggregate_return_feedback` joins all retu
 
 ### Carry-forward (Re-ship Optimization)
 
-`carry_forward_ta_annotations!` runs during `create_initial_reviews!`. If the previous ship's TA was approved and had recording annotations:
+`carry_forward_ta_annotations!` runs during `create_initial_reviews!`. Source: any prior TA that was **approved, returned, OR cancelled** and has recording annotations (any non-pending state where a reviewer has made annotation progress).
 - Filter prior annotations down to recordings still present in this cycle.
-- If **all** current recordings already have annotations → auto-approve TA with recomputed `approved_seconds` (no human review needed).
-- Else if any current recordings already had annotations → seed the new TA with them (human only reviews the new ones).
+- If **all** current recordings already have annotations AND the prior TA was specifically `approved` → auto-approve TA with recomputed `approved_seconds` (no human review needed). Returned/cancelled prior TAs only seed annotations; they never auto-approve.
+- Else if any current recordings already had annotations → seed the new TA with them (human only reviews the new ones / the delta).
 
-This is the "I fixed one thing and re-shipped" optimization — reviewers don't redo work on already-judged recordings.
+This is the "I fixed one thing and re-shipped" optimization — reviewers don't redo work on already-judged recordings, and the optimization extends to re-ships after a returned/cancelled cycle.
 
 ---
 
@@ -306,7 +306,7 @@ Balance = sum of ledger amounts MINUS reservations from non-rejected shop orders
 
 | Reason | Created by | Notes |
 |---|---|---|
-| `streak_goal` | `StreakService.check_goal_completion` | `GOAL_KOI_REWARDS = { 3 => 1, 5 => 2, 7 => 5, 14 => 10 }` |
+| `streak_goal` | `StreakService.check_goal_completion` | `GOAL_KOI_REWARDS = { 3 => 1, 5 => 2, 7 => 5, 14 => 12 }` |
 | `admin_adjustment` | `Admin::KoiTransactionsController#create` | Hard-coded `reason = "admin_adjustment"`; `actor` set to `current_user`. Admin-only via `before_action :require_admin!`. |
 | `ship_review` | **Not currently created anywhere** ⚠️ | See gap below |
 

@@ -10,6 +10,8 @@ This index points to the per-subsystem docs. Start with [Project Architecture](p
 - [Auth & Users](auth-architecture.md) — HCA OAuth, trial users (STI), session management, before-action chain, Pundit
 - [Projects & Journals](arch-projects-journals.md) — Core domain: projects, journal entries, recordings, ships, collaboration
 - [Path & Gamification](arch-path-gamification.md) — 3D path progression, critters (gacha), koi/gold ledger, admin review pointers
+- [Bulletin Board](arch-bulletin-board.md) — Public community hub at `/bulletin_board`, bulletin events lifecycle, admin event management
+- [Explore Feed](arch-explore.md) — Public discovery for projects/journals (in-app feed + `/api/v1/explore` API), cursor pagination, search, live updates
 - [Frontend](arch-frontend.md) — React 19 + Inertia + Tailwind 4, pages, components, styling, state management
 - [Services & Infra](arch-services-infra.md) — HCA, Lapse, Lookout, Slack, YouTube, Airtable, jobs, storage, monitoring
 - [Cross-Cutting Patterns](arch-data-patterns.md) — Soft-delete, Pundit conventions, Flipper flags, PaperTrail, encryption
