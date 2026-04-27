@@ -76,8 +76,8 @@ class JustificationRenderer
     when "LOGGED_HOURS" then format_hours(logged_seconds)
     when "APPROVED_HOURS" then format_hours(@ship.approved_seconds.to_i)
     when "INTERNAL_HOURS" then format_hours(internal_seconds)
-    when "TOTAL_DEFLATION" then format("%.1fh", total_deflation_seconds / 3600.0)
-    when "JOURNAL_COUNT" then @ship.journal_entries.kept.count
+    when "TOTAL_DEFLATION" then total_deflation_formatted
+    when "JOURNAL_COUNT" then cycle_journal_entries.count
     when "RECORDING_COUNT" then recording_count
     when "TIMETRACKING_METHODS" then timetracking_methods
     when "SHIP_TYPE" then @ship.ship_type
@@ -106,11 +106,48 @@ class JustificationRenderer
     "#{user.display_name} (#{user.email})"
   end
 
-  # Logged seconds for this ship's cycle — sum of recording durations across
-  # journal entries claimed by this ship. Reuses Ship.batch_time_logged so we
-  # match the airtable mirror's numbers exactly.
+  # Cycle journal entries via time window, NOT via journal_entries.ship_id.
+  # Older ships (created before claim_journal_entries! existed or before the
+  # ship_id column was populated) have NULL ship_id on their entries, so a
+  # ship_id filter would return empty. The time window is the source of truth
+  # for which entries belong to this cycle — it matches Ship#new_journal_entries
+  # plus an upper bound at this ship's created_at (entries created after the
+  # ship was submitted aren't part of its cycle).
+  def cycle_journal_entries
+    @cycle_journal_entries ||= begin
+      cutoff = @ship.previous_approved_ship&.created_at || Time.at(0)
+      @ship.project.journal_entries.kept
+           .where("journal_entries.created_at > ? AND journal_entries.created_at <= ?", cutoff, @ship.created_at)
+    end
+  end
+
+  def cycle_journal_entry_ids
+    @cycle_journal_entry_ids ||= cycle_journal_entries.pluck(:id)
+  end
+
+  # Sum of recording durations across this cycle's journal entries. Single
+  # SQL aggregate (mirrors Ship.batch_time_logged but bound by entry id list).
   def logged_seconds
-    @logged_seconds ||= Ship.batch_time_logged([ @ship.id ])[@ship.id].to_i
+    @logged_seconds ||= compute_logged_seconds
+  end
+
+  def compute_logged_seconds
+    return 0 if cycle_journal_entry_ids.empty?
+    sql = <<~SQL.squish
+      SELECT COALESCE(SUM(CASE r.recordable_type
+        WHEN 'LapseTimelapse' THEN lt.duration
+        WHEN 'LookoutTimelapse' THEN lot.duration
+        WHEN 'YouTubeVideo' THEN yt.duration_seconds * yt.stretch_multiplier
+        ELSE 0 END), 0)
+      FROM recordings r
+      LEFT JOIN lapse_timelapses lt ON lt.id = r.recordable_id AND r.recordable_type = 'LapseTimelapse'
+      LEFT JOIN lookout_timelapses lot ON lot.id = r.recordable_id AND r.recordable_type = 'LookoutTimelapse'
+      LEFT JOIN you_tube_videos yt ON yt.id = r.recordable_id AND r.recordable_type = 'YouTubeVideo'
+      WHERE r.journal_entry_id IN (:ids)
+    SQL
+    ActiveRecord::Base.connection.select_value(
+      ActiveRecord::Base.sanitize_sql([ sql, ids: cycle_journal_entry_ids ])
+    ).to_i
   end
 
   def internal_seconds
@@ -121,7 +158,11 @@ class JustificationRenderer
 
   # Sum of hours REMOVED across TA and Phase 2, expressed as positive seconds.
   #   TA component: max(0, logged - approved)
+  #     - TA approved more than logged (rare): contributes 0, never negative.
   #   Phase 2 component: max(0, -hours_adjustment) per applicable review
+  #     - hours_adjustment is in seconds; negative means time removed from
+  #       the internal total, positive means time added (no deflation).
+  #     - Only the ship_type-matching review runs (other is nil → 0).
   def total_deflation_seconds
     ta = [ logged_seconds - @ship.approved_seconds.to_i, 0 ].max
     dr = [ -@ship.design_review&.hours_adjustment.to_i, 0 ].max
@@ -129,22 +170,30 @@ class JustificationRenderer
     ta + dr + br
   end
 
+  # "no" when zero, otherwise "X.Xh". The body wording is "<value> deflation
+  # was applied" — reads "no deflation was applied" or "3.4h deflation was
+  # applied".
+  def total_deflation_formatted
+    seconds = total_deflation_seconds
+    return "no" if seconds <= 0
+    format("%.1fh", seconds / 3600.0)
+  end
+
   def format_hours(seconds)
     format("%.1f", seconds / 3600.0)
   end
 
   def recording_count
-    Recording.joins(:journal_entry)
-             .where(journal_entries: { ship_id: @ship.id, discarded_at: nil })
-             .count
+    return 0 if cycle_journal_entry_ids.empty?
+    Recording.where(journal_entry_id: cycle_journal_entry_ids).count
   end
 
   # Methods actually used in this cycle's recordings. Order is fixed
   # (Lapse → Lookout → YouTube upload); methods with zero recordings are
   # skipped from the joined phrase.
   def timetracking_methods
-    types = Recording.joins(:journal_entry)
-                     .where(journal_entries: { ship_id: @ship.id, discarded_at: nil })
+    return "" if cycle_journal_entry_ids.empty?
+    types = Recording.where(journal_entry_id: cycle_journal_entry_ids)
                      .distinct
                      .pluck(:recordable_type)
     items = []

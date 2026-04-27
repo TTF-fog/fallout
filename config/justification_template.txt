@@ -51,12 +51,16 @@ Variables:
     {LOGGED_HOURS}          Raw timelapsed hours, 1 decimal (e.g. 18.5)
     {APPROVED_HOURS}        TA-approved user-facing hours, 1 decimal
     {INTERNAL_HOURS}        APPROVED_HOURS + DR/BR hours_adjustment, 1 decimal
-    {TOTAL_DEFLATION}       Sum of hours REMOVED across TA and Phase 2,
-                            expressed as a positive number with "h" suffix
-                            (zero if nothing was deflated). Components:
+    {TOTAL_DEFLATION}       Sum of hours REMOVED across TA and Phase 2.
+                            Renders "no" when zero, else "X.Xh" — designed to
+                            slot into "<value> deflation was applied", giving
+                            either "no deflation was applied" or
+                            "3.4h deflation was applied". Components:
                               - TA: max(0, LOGGED_HOURS - APPROVED_HOURS)
+                                    (TA approving MORE than logged contributes 0)
                               - DR/BR: max(0, -hours_adjustment) per review
-                            Examples: "0.0h", "3.4h"
+                                    (Phase 2 adding hours contributes 0)
+                            Examples: "no", "0.5h", "3.4h"
 
   Activity
     {JOURNAL_COUNT}         Journal entries claimed by this ship cycle
@@ -143,7 +147,7 @@ This project was approved at {APPROVED_AT} {ATTEMPTS_MSG} after 3 stages of revi
 
 3. A final check was done by {2ND_PASS_REVIEWER}, who is knowledgeable in hardware, to ensure nothing was missed prior, and that the projects meets our standards in terms of quality.
 
-In total, a {TOTAL_DEFLATION} deflation was applied. 
+In total, {TOTAL_DEFLATION} deflation was applied. 
 
 The final reviewer was asked to justify why this ship meets the standards of the Unified DB:
 
