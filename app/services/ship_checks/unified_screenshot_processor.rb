@@ -1,6 +1,9 @@
 # frozen_string_literal: true
 
 require "tempfile"
+# Addressable is a transitive dep of several gems but isn't autoloaded; require
+# it explicitly so Addressable::URI is defined when the worker boots.
+require "addressable/uri"
 
 module ShipChecks
   # Downloads a source file, transcodes to JPEG via libvips, and shrinks

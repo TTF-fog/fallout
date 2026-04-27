@@ -286,10 +286,13 @@ class Ship < ApplicationRecord
       "Country" => primary_address["country"],
       "ZIP / Postal Code" => primary_address["postal_code"],
       "Birthday" => identity["birthday"],
-      "Ship" => id
+      # Linked-record field — Airtable typecast (enabled in upload_or_create!)
+      # matches the array of primary-field values against the linked Ships
+      # table's primary field, so we send [id.to_s] not the integer.
+      "Ship" => [ id.to_s ]
     }
 
-    # Screenshot is set separately by AttachShipZineScreenshotJob via the
+    # Screenshot is set separately by AttachShipUnifiedScreenshotJob via the
     # content.airtable.com uploadAttachment endpoint — sending it here too
     # would conflict with that PATCH/append flow.
 
