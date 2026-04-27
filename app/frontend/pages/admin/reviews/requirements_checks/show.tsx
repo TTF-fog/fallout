@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, memo } from 'react'
+import { useState, useMemo, useCallback, useEffect, memo } from 'react'
 import type { ReactNode } from 'react'
 import { Link, router } from '@inertiajs/react'
 import { useReviewHeartbeat } from '@/hooks/useReviewHeartbeat'
@@ -501,6 +501,11 @@ export default function RequirementsChecksShow({
   const [flagging, setFlagging] = useState(false)
   const [isFlagged, setIsFlagged] = useState(project_flagged)
   const [refreshingTree, setRefreshingTree] = useState(false)
+  const [notes, setNotes] = useState<ReviewerNote[]>(reviewer_notes ?? [])
+
+  useEffect(() => {
+    if (reviewer_notes) setNotes(reviewer_notes)
+  }, [reviewer_notes])
 
   const handleRefreshTree = useCallback(async () => {
     setRefreshingTree(true)
@@ -594,7 +599,7 @@ export default function RequirementsChecksShow({
     <div className="h-screen flex flex-col overflow-hidden border-t-3 border-emerald-500">
       <TopBar
         project={project}
-        notesCount={reviewer_notes?.length ?? 0}
+        notesCount={notes.length}
         projectFlagged={isFlagged}
         flagging={flagging}
         onSkip={handleSkip}
@@ -604,7 +609,8 @@ export default function RequirementsChecksShow({
 
       {notesOpen && reviewer_notes && (
         <ProjectNotesWindow
-          notes={reviewer_notes}
+          notes={notes}
+          setNotes={setNotes}
           notesPath={reviewer_notes_path}
           shipId={review.ship_id}
           reviewStage="requirements_check"
