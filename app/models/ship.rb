@@ -98,8 +98,11 @@ class Ship < ApplicationRecord
   def self.airtable_sync_preload(records)
     ship_ids = records.map(&:id)
 
+    # Wrap qualified columns in Arel.sql — Rails 8.1 routes bare strings in
+    # pluck through attribute-name resolution, which mangles "projects.user_id"
+    # into a bare "user_id" reference against ships.
     project_user = Ship.where(id: ship_ids).joins(:project)
-                       .pluck(:id, "projects.id", "projects.user_id")
+                       .pluck(:id, Arel.sql("projects.id"), Arel.sql("projects.user_id"))
                        .to_h { |sid, pid, uid| [ sid, [ pid, uid ] ] }
 
     logged_seconds = batch_time_logged(ship_ids)

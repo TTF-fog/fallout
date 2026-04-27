@@ -77,7 +77,11 @@ module Reviewable
 
     def airtable_sync_preload(records)
       ship_ids = records.map(&:ship_id).compact.uniq
-      ships_by_id = Ship.where(id: ship_ids).pluck(:id, :project_id, :user_id)
+      # user_id lives on projects, not ships — join and use Arel.sql for the
+      # qualified column (bare strings in pluck go through attribute-name
+      # resolution in Rails 8.1).
+      ships_by_id = Ship.where(id: ship_ids).joins(:project)
+                        .pluck(:id, :project_id, Arel.sql("projects.user_id"))
                         .to_h { |id, pid, uid| [ id, [ pid, uid ] ] }
       { ships: ships_by_id }
     end
