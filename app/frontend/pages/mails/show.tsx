@@ -50,7 +50,7 @@ function MailShow({ mail, is_modal }: PageProps) {
             href={mail.action_url}
             className="py-1.5 px-4 border-2 font-bold uppercase bg-dark-brown text-light-brown border-dark-brown cursor-pointer hover:opacity-80"
           >
-            View
+            {mail.action_label ?? 'View'}
           </a>
         )}
         {mail.dismissable ? (

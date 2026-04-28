@@ -52,6 +52,7 @@ export interface MailItem {
   pinned: boolean
   dismissable: boolean
   action_url: string | null
+  action_label: string | null
   is_read: boolean
   source_type: string | null
   invite_id?: number
@@ -65,6 +66,7 @@ export interface MailDetail {
   pinned: boolean
   dismissable: boolean
   action_url: string | null
+  action_label: string | null
   source_type: string | null
   created_at: string
 }

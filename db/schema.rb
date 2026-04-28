@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_04_27_225016) do
+ActiveRecord::Schema[8.1].define(version: 2026_04_28_130957) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pg_trgm"
@@ -404,8 +404,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_27_225016) do
   end
 
   create_table "mail_messages", force: :cascade do |t|
+    t.string "action_label"
     t.string "action_url"
     t.bigint "author_id"
+    t.boolean "auto_open"
     t.text "content"
     t.datetime "created_at", null: false
     t.boolean "dismissable", default: true, null: false

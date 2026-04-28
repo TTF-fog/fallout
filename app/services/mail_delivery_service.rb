@@ -116,6 +116,18 @@ class MailDeliveryService
     )
   end
 
+  def self.professors_announcement
+    MailMessage.create!(
+      summary: "Need help with your project?",
+      content: "Introducing The Professors! These are mentors that can help you with your project, and redirect you when lost. Sign up below to mentor or be mentored!",
+      action_url: "https://hackclub.slack.com/archives/C0ACG0XQWGN/p1777315115802199",
+      action_label: "Sign up",
+      pinned: true,
+      dismissable: true,
+      filters: { full_users_only: true }
+    )
+  end
+
   def self.streak_goal_completed(user, target_days)
     MailMessage.create!(
       summary: "You completed your #{target_days}-day streak goal! Set a new goal to keep going!",
