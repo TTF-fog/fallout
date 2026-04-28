@@ -313,6 +313,11 @@ class Ship < ApplicationRecord
     "Ship##{id}/unified"
   end
 
+  def returning_reviewer
+    [ time_audit_review, requirements_check_review, design_review, build_review ]
+      .compact.find(&:returned?)&.reviewer
+  end
+
   private
 
   # Persist stretch_multiplier from TA annotations onto YouTubeVideo records so aggregation queries use correct values
@@ -437,11 +442,6 @@ class Ship < ApplicationRecord
       end
     end
     [ total.round, 0 ].max
-  end
-
-  def returning_reviewer
-    [ time_audit_review, requirements_check_review, design_review, build_review ]
-      .compact.find(&:returned?)&.reviewer
   end
 
   def aggregate_return_feedback
