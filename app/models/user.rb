@@ -5,10 +5,12 @@
 #  id                          :bigint           not null, primary key
 #  avatar                      :string           not null
 #  ban_type                    :string
+#  bio                         :text
 #  device_token                :text
 #  discarded_at                :datetime
 #  display_name                :string           not null
 #  email                       :string           not null
+#  gold_balance                :integer          default(0), not null
 #  has_hca_address             :boolean          default(FALSE), not null
 #  hca_token                   :text
 #  is_adult                    :boolean          default(FALSE), not null
@@ -108,6 +110,8 @@ class User < ApplicationRecord
   scope :verified, -> { where(type: nil) } # STI: verified users have type=nil; TrialUser subclass has type='TrialUser'
 
   validates :avatar, :display_name, :email, :timezone, presence: true
+  validates :email, format: { with: URI::MailTo::EMAIL_REGEXP }, allow_blank: true
+  validates :bio, length: { maximum: 100 }, allow_nil: true
   validates :slack_id, presence: true, unless: :trial?
   validates :hca_id, presence: true, unless: :trial?
   VALID_ROLES = %w[user admin time_auditor requirements_checker pass2_reviewer hcb].freeze
@@ -423,8 +427,7 @@ class User < ApplicationRecord
   def gold
     return 0 if trial? # Trial users cannot earn or spend gold
 
-    gold_transactions.sum(:amount) -
-      shop_orders.joins(:shop_item).where(shop_items: { currency: "gold" }).where.not(state: :rejected).sum("frozen_price * quantity")
+    gold_balance
   end
 
   def self.normalize_country_code(country)

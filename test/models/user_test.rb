@@ -5,10 +5,12 @@
 #  id                          :bigint           not null, primary key
 #  avatar                      :string           not null
 #  ban_type                    :string
+#  bio                         :text
 #  device_token                :text
 #  discarded_at                :datetime
 #  display_name                :string           not null
 #  email                       :string           not null
+#  gold_balance                :integer          default(0), not null
 #  has_hca_address             :boolean          default(FALSE), not null
 #  hca_token                   :text
 #  is_adult                    :boolean          default(FALSE), not null

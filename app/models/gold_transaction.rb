@@ -35,4 +35,12 @@ class GoldTransaction < ApplicationRecord
   # Prevent accidental mutation — these records are the canonical history
   before_update { raise ActiveRecord::ReadonlyRecord }
   before_destroy { raise ActiveRecord::ReadonlyRecord }
+
+  after_create :increment_user_gold_balance
+
+  private
+
+  def increment_user_gold_balance
+    User.update_counters(user_id, gold_balance: amount)
+  end
 end

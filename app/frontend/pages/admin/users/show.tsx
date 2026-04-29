@@ -566,6 +566,8 @@ export default function AdminUsersShow({
             </Field>
             <Field label="Projects">{user.projects_count}</Field>
             <Field label="Joined">{user.created_at}</Field>
+            {user.pronouns != null && <Field label="Pronouns">{user.pronouns}</Field>}
+            {user.bio != null && <Field label="Bio">{user.bio}</Field>}
           </dl>
         </CardContent>
       </Card>

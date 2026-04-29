@@ -1,19 +1,26 @@
-import { type ReactNode, useState, useRef } from 'react'
-import { router } from '@inertiajs/react'
+import { type ReactNode, useState, useRef, useEffect } from 'react'
+import { motion } from 'motion/react'
+import { router, usePage } from '@inertiajs/react'
+import type { SharedProps } from '@/types'
 import { Modal } from '@inertiaui/modal-react'
 import { DirectUpload } from '@rails/activestorage'
 import Axios from 'axios'
 import Frame from '@/components/shared/Frame'
-import ProgressBar from '@/components/shared/ProgressBar'
 import { notify } from '@/lib/notifications'
+import { ArrowLeftIcon, TrashIcon } from '@heroicons/react/20/solid'
+import ProgressBar from '@/components/shared/ProgressBar'
 
 type Tab = 'body' | 'bg' | 'eyes' | 'hats' | 'mouth' | 'tie' | 'ears' | 'cheeks'
 
 type PageProps = {
   display_name: string
   avatar: string
+  bio: string | null
+  email: string
+  pronouns: string | null
   current_streak: number
   total_hours: number
+  approved_hours: number
   body_images: string[]
   bg_images: string[]
   eye_images: string[]
@@ -28,6 +35,7 @@ type PageProps = {
 }
 
 const HOURS_GOAL = 60
+const BIO_MAX_LENGTH = 100
 
 const TABS: { key: Tab; label: string }[] = [
   { key: 'bg', label: 'Scene' },
@@ -53,8 +61,12 @@ function modalHeaders() {
 function ProfileShow({
   display_name,
   avatar,
+  bio: initial_bio,
+  email: initial_email,
+  pronouns,
   current_streak,
   total_hours,
+  approved_hours,
   body_images,
   bg_images,
   eye_images,
@@ -67,6 +79,13 @@ function ProfileShow({
   has_slack_token,
   is_modal,
 }: PageProps) {
+  const shared = usePage<SharedProps>().props
+
+  function signOut(e: React.MouseEvent) {
+    e.preventDefault()
+    router.delete(shared.sign_out_path)
+  }
+
   const [currentAvatar, setCurrentAvatar] = useState(avatar)
   const [selectedBody, setSelectedBody] = useState<string | null>(body_images[0] ?? null)
   const [selectedBg, setSelectedBg] = useState<string | null>(bg_images[0] ?? null)
@@ -77,15 +96,52 @@ function ProfileShow({
   const [selectedEar, setSelectedEar] = useState<string | null>(ear_images[0] ?? null)
   const [selectedCheek, setSelectedCheek] = useState<string | null>(cheek_images[0] ?? null)
   const [activeTab, setActiveTab] = useState<Tab>('body')
-  const [uploading, setUploading] = useState(false)
+  const [bio, setBio] = useState(initial_bio ?? '')
+
+  const [email, setEmail] = useState(initial_email)
+  const [emailFocused, setEmailFocused] = useState(false)
+  const [emailFitWidth, setEmailFitWidth] = useState<number | null>(null)
+  const emailMirrorRef = useRef<HTMLSpanElement>(null)
+  const [selectedPronouns, setSelectedPronouns] = useState(pronouns)
+  const [showPronounsMenu, setShowPronounsMenu] = useState(false)
+  const pronounsRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!showPronounsMenu) return
+    function handleClick(e: MouseEvent) {
+      if (pronounsRef.current && !pronounsRef.current.contains(e.target as Node)) {
+        setShowPronounsMenu(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [showPronounsMenu])
+  const [showEmailWarning, setShowEmailWarning] = useState(false)
   const [saving, setSaving] = useState(false)
   const [settingSlack, setSettingSlack] = useState(false)
   const [randomizing, setRandomizing] = useState(false)
   const [showCustomizer, setShowCustomizer] = useState(false)
-  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [hasVisitedPfpEditor, setHasVisitedPfpEditor] = useState(() => {
+    try {
+      return !!localStorage.getItem('pfp-editor-visited')
+    } catch {
+      return false
+    }
+  })
 
-  const hoursProgress = Math.min((total_hours / HOURS_GOAL) * 100, 100)
-  const hoursDisplay = Math.min(total_hours, HOURS_GOAL)
+  function markPfpEditorVisited() {
+    if (hasVisitedPfpEditor) return
+    try {
+      localStorage.setItem('pfp-editor-visited', '1')
+    } catch {
+      // storage unavailable; event + state still update for the current session
+    }
+    window.dispatchEvent(new CustomEvent('pfp-editor-visited'))
+    setHasVisitedPfpEditor(true)
+  }
+
+  const approvedProgress = Math.min((approved_hours / HOURS_GOAL) * 100, 100)
+  const qualified = total_hours >= HOURS_GOAL
 
   const imagesByTab: Record<Tab, string[]> = {
     body: body_images,
@@ -124,40 +180,11 @@ function ProfileShow({
     body: 'w-full h-full object-cover',
     bg: 'w-full h-full object-cover',
     eyes: 'w-full h-full object-cover scale-170 -translate-y-3',
-    hats: 'w-full h-full object-cover scale-140 translate-y-8',
-    mouth: 'w-full h-full object-cover scale-240 -translate-y-7',
-    tie: 'w-full h-full object-cover scale-220 -translate-y-13.5 -translate-x-0.5',
-    ears: 'w-full h-full object-cover scale-120 translate-y-3',
+    hats: 'w-full h-full object-cover scale-140 translate-y-6',
+    mouth: 'w-full h-full object-cover scale-240 -translate-y-6',
+    tie: 'w-full h-full object-cover scale-220 -translate-y-13 -translate-x-0.5',
+    ears: 'w-full h-full object-cover scale-114 translate-y-3',
     cheeks: 'w-full h-full object-cover scale-160 -translate-y-4',
-  }
-
-  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    if (!file) return
-    e.target.value = ''
-    setUploading(true)
-    const upload = new DirectUpload(file, direct_upload_url)
-    upload.create((error, blob) => {
-      setUploading(false)
-      if (error) {
-        notify('alert', 'Failed to upload image.')
-        return
-      }
-      if (is_modal) {
-        Axios.patch('/profile', { avatar_blob_signed_id: blob.signed_id }, { headers: modalHeaders() })
-          .then(() => setCurrentAvatar(`/user-attachments/blobs/redirect/${blob.signed_id}/${blob.filename}`))
-          .catch(() => notify('alert', 'Failed to save avatar.'))
-      } else {
-        router.patch(
-          '/profile',
-          { avatar_blob_signed_id: blob.signed_id },
-          {
-            preserveScroll: true,
-            onSuccess: () => setCurrentAvatar(`/user-attachments/blobs/redirect/${blob.signed_id}/${blob.filename}`),
-          },
-        )
-      }
-    })
   }
 
   async function composeIconToBlob(): Promise<Blob | null> {
@@ -221,6 +248,7 @@ function ProfileShow({
           .then(() => {
             setCurrentAvatar(newAvatarUrl)
             setSaving(false)
+            router.reload({ only: ['user'] })
           })
           .catch(() => {
             setSaving(false)
@@ -258,21 +286,46 @@ function ProfileShow({
       notify('alert', 'Failed to compose image.')
       return
     }
-    const buffer = await blob.arrayBuffer()
-    const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)))
     const csrf = document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content || ''
     try {
-      await Axios.post('/profile/set_slack_photo', { image_data: base64 }, { headers: { 'X-CSRF-Token': csrf } })
+      const buffer = await blob.arrayBuffer()
+      const bytes = new Uint8Array(buffer)
+      let binary = ''
+      for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i])
+      const base64 = btoa(binary)
+      const response = await Axios.post(
+        '/profile/set_slack_photo',
+        { image_data: base64 },
+        { headers: { 'X-CSRF-Token': csrf } },
+      )
+      const newAvatarUrl: string | null = response.data?.avatar_url ?? null
+      if (newAvatarUrl) {
+        setCurrentAvatar(newAvatarUrl)
+        router.reload({ only: ['user'] })
+      }
       notify('notice', 'Slack photo updated!')
     } catch (e: unknown) {
       if (Axios.isAxiosError(e) && e.response?.status === 401) {
-        // Token was revoked — redirect to re-auth
         window.location.href = '/auth/slack/start'
       } else {
         notify('alert', 'Failed to set Slack photo.')
       }
     } finally {
       setSettingSlack(false)
+    }
+  }
+
+  async function handleResetToSlackPfp() {
+    const csrf = document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content || ''
+    try {
+      const response = await Axios.delete('/profile/custom_avatar', {
+        headers: { 'X-CSRF-Token': csrf, ...modalHeaders() },
+      })
+      setCurrentAvatar(response.data.avatar_url)
+      notify('notice', 'Photo reset to Slack profile picture.')
+      router.reload({ only: ['user'] })
+    } catch {
+      notify('alert', 'Failed to reset photo.')
     }
   }
 
@@ -325,8 +378,7 @@ function ProfileShow({
         setSelectedEar(pick(ear_images))
         setSelectedCheek(pick(cheek_images))
 
-        // Ease out: interval grows from 60ms → 280ms as progress approaches 1
-        const interval = Math.round(60 + progress * progress * 220)
+        const interval = Math.round(50 + progress * progress * progress * 650)
         setTimeout(step, interval)
       }
       step()
@@ -335,89 +387,205 @@ function ProfileShow({
     setRandomizing(false)
   }
 
+  function handleSaveProfile(data: { bio?: string; email?: string; pronouns?: string | null }) {
+    if (is_modal) {
+      Axios.patch('/profile', data, { headers: modalHeaders() }).catch(() => notify('alert', 'Failed to save.'))
+    } else {
+      router.patch('/profile', data, { preserveScroll: true, onError: () => notify('alert', 'Failed to save.') })
+    }
+  }
+
   const profileView = (
-    <div className="flex flex-col items-center justify-center h-full p-4 md:p-6">
+    <div className="flex flex-col items-center justify-center h-full p-4 md:p-6 relative">
+      <div className="flex flex-row whitespace-nowrap pb-4 sm:flex-col gap-2 sm:absolute top-4 md:top-6 left-4 md:left-6 ">
+        {shared.auth.user?.is_staff && (
+          <a
+            href="/admin"
+            className="bg-dark-brown text-center rounded-lg px-2 py-0.5 text-light-brown w-full text-base hover:scale-94 transition-all cursor-pointer block"
+          >
+            Admin
+          </a>
+        )}
+        <button
+          type="button"
+          onClick={signOut}
+          className="text-center rounded-lg px-3 py-0.5 text-dark-brown w-full text-base hover:scale-94 transition-all cursor-pointer block"
+        >
+          Log out
+        </button>
+      </div>
       <button
         type="button"
-        onClick={() => setShowCustomizer(true)}
+        onClick={() => {
+          setShowCustomizer(true)
+          markPfpEditorVisited()
+        }}
         className="relative shrink-0 cursor-pointer group"
         aria-label="Customize profile picture"
       >
         <img
           src={currentAvatar}
           alt={display_name}
-          className="rounded-lg size-40 outline-dark-brown outline-2 object-cover"
+          className="rounded-lg sm:size-50 outline-dark-brown outline-2 object-cover"
         />
-
+        {!hasVisitedPfpEditor && (
+          <>
+            <span className="absolute -top-1 -right-1 rounded-full size-4 bg-coral z-10" />
+            <span className="absolute -top-1 -right-1 rounded-full size-4 bg-coral animate-ping z-10" />
+          </>
+        )}
         <div className="absolute inset-0 rounded-lg bg-dark-brown opacity-0 group-hover:opacity-30 transition-opacity" />
         <div className="absolute -bottom-3 -right-3 rounded-full w-8 h-8 border-dark-brown border-2 bg-beige flex items-center justify-center transition-opacity">
           <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path
               d="M2 16H3.425L13.2 6.225L11.775 4.8L2 14.575V16ZM0 18V13.75L13.2 0.575C13.4 0.391667 13.6208 0.25 13.8625 0.15C14.1042 0.05 14.3583 0 14.625 0C14.8917 0 15.15 0.05 15.4 0.15C15.65 0.25 15.8667 0.4 16.05 0.6L17.425 2C17.625 2.18333 17.7708 2.4 17.8625 2.65C17.9542 2.9 18 3.15 18 3.4C18 3.66667 17.9542 3.92083 17.8625 4.1625C17.7708 4.40417 17.625 4.625 17.425 4.825L4.25 18H0ZM12.475 5.525L11.775 4.8L13.2 6.225L12.475 5.525Z"
-              fill="#1D1B20"
+              fill="#61453a"
             />
           </svg>
         </div>
       </button>
 
       <h1 className="font-bold text-3xl text-dark-brown mt-4">{display_name}</h1>
-      <div className="flex gap-2  text-brown text-xs items-center">
-        <span className="">pronouns</span>
-        <span className="w-1 h-1 bg-brown rounded-full inline-block" />
-        <span className="">email@gmail.com</span>
-      </div>
-      <span className="text-brown text-sm mt-4">bing bong user bio here bing bong coming soon</span>
 
-      <div className="mt-4 w-80">
-        <ProgressBar progress={hoursProgress} borderClassName="border-dark-brown" />
-        <span className="text-brown text-sm font-medium mt-1 block text-center">
-          {hoursDisplay}h / {HOURS_GOAL}h
-        </span>
+      <div className="flex gap-2 text-brown text-xs items-center">
+        <div className="relative" ref={pronounsRef}>
+          <button
+            type="button"
+            onClick={() => setShowPronounsMenu((v) => !v)}
+            className="text-brown text-xs border-b border-transparent hover:border-brown cursor-pointer pt-1"
+          >
+            {selectedPronouns ?? 'add pronouns'}
+          </button>
+          {showPronounsMenu && (
+            <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 bg-dark-brown rounded-md px-2 py-1.5 z-10 flex gap-1 shadow-md">
+              <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-dark-brown rotate-45 " />
+              {['she/her', 'he/him', 'they/them'].map((p) => (
+                <button
+                  key={p}
+                  type="button"
+                  onClick={() => {
+                    const next = selectedPronouns === p ? null : p
+                    setSelectedPronouns(next)
+                    setShowPronounsMenu(false)
+                    handleSaveProfile({ pronouns: next })
+                  }}
+                  className={`text-xs px-2 py-0.5 rounded-sm cursor-pointer whitespace-nowrap ${selectedPronouns === p ? 'bg-beige text-brown font-bold' : 'text-beige hover:bg-beige/20'}`}
+                >
+                  {p}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+        <span className="mt-1 w-1 h-1 bg-brown rounded-full inline-block" />
+        <div className="relative">
+          <span
+            ref={emailMirrorRef}
+            aria-hidden
+            className="absolute invisible whitespace-pre text-xs p-1 pointer-events-none"
+          >
+            {email || ' '}
+          </span>
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => {
+              setEmail(e.target.value)
+              if (e.target.value !== initial_email) setShowEmailWarning(true)
+            }}
+            onFocus={() => {
+              setEmailFocused(true)
+              setEmailFitWidth(null)
+            }}
+            onBlur={() => {
+              setEmailFocused(false)
+              setShowEmailWarning(false)
+              if (emailMirrorRef.current) setEmailFitWidth(emailMirrorRef.current.scrollWidth)
+              handleSaveProfile({ email })
+            }}
+            className="bg-transparent border-b px-1 pt-1 border-transparent hover:border-brown focus:border-brown outline-none text-brown text-xs min-w-0"
+            style={
+              emailFocused || emailFitWidth === null
+                ? { width: `calc(${Math.max(email.length, 10)}ch * 0.9)` }
+                : { width: emailFitWidth }
+            }
+          />
+          {showEmailWarning && (
+            <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-48 bg-dark-brown text-beige text-xs rounded-md px-3 py-2 z-10 text-center shadow-md">
+              This is the email your HCB cards will be sent to
+              <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-dark-brown rotate-45" />
+            </div>
+          )}
+        </div>
+      </div>
+      <div className="mt-2 flex flex-col items-center w-full max-w-80">
+        <textarea
+          value={bio}
+          onChange={(e) => setBio(e.target.value.slice(0, BIO_MAX_LENGTH))}
+          onBlur={() => handleSaveProfile({ bio })}
+          placeholder="Add a bio..."
+          rows={2}
+          className="w-full text-brown text-sm resize-none bg-transparent border-b p-2 border-transparent hover:border-brown focus:border-brown outline-none text-center placeholder:text-brown/40 overflow-hidden"
+        />
+      </div>
+
+      <div className="mt-4 w-full max-w-80">
+        <ProgressBar progress={approvedProgress} trackClassName="bg-beige" />
+        <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mt-1">
+          <span className="text-brown text-sm font-medium mt-1 block text-center">
+            Approved:{' '}
+            {qualified ? 'Congrats on qualifying! YIPPPPEEEEE -Soup' : `${approved_hours ?? 0}h / ${HOURS_GOAL}h`}
+          </span>
+          <span className="text-brown text-sm font-medium mt-1 block text-center">
+            Total: {total_hours ?? 0}h / {HOURS_GOAL}h
+          </span>
+        </div>
       </div>
     </div>
   )
 
   const customizerView = (
-    <div className="flex flex-col p-4 md:p-6">
-      <button
-        type="button"
-        onClick={() => setShowCustomizer(false)}
-        className="flex items-center gap-1 text-brown mb-4 cursor-pointer w-fit"
-        aria-label="Back to profile"
-      >
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path
-            d="M19 12H5M5 12L12 19M5 12L12 5"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-        <span className="text-sm font-medium">Back</span>
-      </button>
-      <div className="flex flex-col bg-brown gap-3 rounded-md w-full py-2 px-4">
-        <ul className="flex gap-1">
-          {TABS.map(({ key, label }) => (
-            <li key={key}>
-              <button
-                type="button"
-                onClick={() => setActiveTab(key)}
-                className={
-                  activeTab === key
-                    ? ' font-bold bg-beige px-1 py-1 text-brown rounded-sm'
-                    : 'py-1 text-beige px-1 rounded-sm'
-                }
-              >
-                {label}
-              </button>
-            </li>
-          ))}
-        </ul>
-        <div className="flex h-full w-full gap-x-2 bg-brown rounded-md">
+    <div className="flex flex-col p-4 md:p-6 overflow-x-hidden my-auto">
+      <div className="flex flex-col gap-3 rounded-md w-full py-2 px-2">
+        <div className="flex items-center">
+          <button
+            type="button"
+            onClick={() => setShowCustomizer(false)}
+            className="cursor-pointer text-dark-brown hover:opacity-80 shrink-0"
+            aria-label="Back"
+          >
+            <ArrowLeftIcon className="w-6 h-6" />
+          </button>
+          <ul className="mx-auto w-fit flex flex-wrap justify-center gap-1 border-2 border-dark-brown p-1 list-none rounded-md">
+            {TABS.map(({ key, label }) => (
+              <li key={key}>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab(key)}
+                  className="relative py-1 px-2 text-xs sm:text-sm rounded-sm cursor-pointer"
+                >
+                  {activeTab === key && (
+                    <motion.div
+                      layoutId="active-tab-pill"
+                      className="absolute inset-0 bg-dark-brown rounded-sm"
+                      transition={{ type: 'spring', stiffness: 500, damping: 40 }}
+                    />
+                  )}
+                  <span
+                    className={`relative z-10 ${activeTab === key ? 'font-semibold text-light-brown' : 'font-semibold text-dark-brown'}`}
+                  >
+                    {label}
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+          <div className="w-6 shrink-0" />
+        </div>
+        <div className="flex flex-col sm:flex-row h-full w-full gap-2 rounded-md mt-">
           <div className="flex flex-col gap-2">
             <div
-              className="relative rounded-lg grow aspect-square border-2 border-dark-brown shrink-0 h-70"
+              className="relative rounded-lg grow aspect-square border-2 border-dark-brown shrink-0 w-full sm:h-80"
               style={
                 selectedBg
                   ? { backgroundImage: `url(${selectedBg})`, backgroundSize: 'cover', backgroundPosition: 'center' }
@@ -440,64 +608,55 @@ function ProfileShow({
               {selectedEye && <img src={selectedEye} alt="" className="absolute inset-0 w-full h-full object-cover" />}
               {selectedHat && <img src={selectedHat} alt="" className="absolute inset-0 w-full h-full object-cover" />}
             </div>
-            <div className="flex gap-1 w-full">
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={uploading}
-                className="bg-dark-brown text-beige px-1 py-1 rounded-sm w-fit flex items-center justify-center disabled:opacity-60 cursor-pointer"
-                aria-label="Upload custom profile picture"
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path
-                    d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"
-                    stroke="#fcf1e5"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              </button>
-              <button
-                type="button"
-                onClick={handleSaveFalloutPfp}
-                disabled={saving}
-                className="bg-dark-brown text-beige px-1 py-1 rounded-sm w-fit flex items-center justify-center disabled:opacity-60 cursor-pointer"
-                aria-label="Save as Fallout profile picture"
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path
-                    d="M17 21V13H7V21M7 3V8H15M19 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V5C3 4.46957 3.21071 3.96086 3.58579 3.58579C3.96086 3.21071 4.46957 3 5 3H16L21 8V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21Z"
-                    stroke="#fcf1e5"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              </button>
+            <div className="flex gap-1 w-full items-stretch">
               <button
                 type="button"
                 onClick={handleSetAsSlack}
                 disabled={settingSlack}
-                className="text-sm font-medium bg-dark-brown text-beige px-3 py-1 rounded-md w-fit h-fit disabled:opacity-60 cursor-pointer"
+                className="text-sm font-medium bg-dark-brown text-beige px-3 py-1 rounded-md w-fit disabled:opacity-60 cursor-pointer hover:opacity-80"
               >
                 {settingSlack ? 'Setting…' : 'Set as Slack'}
               </button>
+              <div className="relative group z-10 w-fit h-full">
+                <button
+                  type="button"
+                  onClick={handleSaveFalloutPfp}
+                  disabled={saving}
+                  className="bg-dark-brown text-beige px-1 py-1 rounded-sm w-fit h-full flex items-center justify-center disabled:opacity-60 cursor-pointer hover:opacity-80"
+                  aria-label="Save as Fallout profile picture"
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path
+                      d="M17 21V13H7V21M7 3V8H15M19 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V5C3 4.46957 3.21071 3.96086 3.58579 3.58579C3.96086 3.21071 4.46957 3 5 3H16L21 8V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21Z"
+                      stroke="#fcf1e5"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </button>
+                <span className="pointer-events-none absolute top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-dark-brown px-2 py-1 text-xs text-light-brown opacity-0 transition-opacity group-hover:opacity-100 z-50">
+                  Set this as my Fallout pfp!
+                </span>
+              </div>
               <button
                 type="button"
                 onClick={handleRandomize}
                 disabled={randomizing}
-                className="ml-auto bg-dark-brown text-beige px-1 py-1 rounded-sm w-fit flex items-center justify-center disabled:opacity-60 cursor-pointer"
+                className="ml-auto bg-dark-brown text-beige text-sm space-x-2 px-1 py-1 rounded-sm w-fit h-full flex items-center justify-center disabled:opacity-60 cursor-pointer hover:opacity-80"
                 aria-label="Randomize character"
               >
+                <span className="pl-1">Random</span>
+
                 <svg
                   width="18"
                   height="18"
                   viewBox="0 0 24 24"
                   fill="none"
                   xmlns="http://www.w3.org/2000/svg"
-                  className={randomizing ? 'animate-spin' : ''}
+                  className={randomizing ? 'animate-spin [animation-direction:reverse]' : ''}
                 >
+                  Random
                   <path
                     d="M1 4.00044V10.0004M1 10.0004H7M1 10.0004L5.64 5.64044C7.02091 4.26186 8.81245 3.36941 10.7447 3.09755C12.6769 2.8257 14.6451 3.18917 16.3528 4.1332C18.0605 5.07723 19.4152 6.55068 20.2126 8.33154C21.0101 10.1124 21.2072 12.1042 20.7742 14.0068C20.3413 15.9094 19.3017 17.6198 17.8121 18.8802C16.3226 20.1406 14.4637 20.8828 12.5157 20.9949C10.5677 21.107 8.63598 20.583 7.01166 19.5018C5.38734 18.4206 4.15839 16.8408 3.51 15.0004"
                     stroke="#fcf1e5"
@@ -507,28 +666,60 @@ function ProfileShow({
                   />
                 </svg>
               </button>
+              <div className="relative group z-10 w-fit h-full">
+                <button
+                  type="button"
+                  onClick={handleResetToSlackPfp}
+                  className="bg-dark-brown text-beige px-1 py-1 rounded-sm w-fit h-full flex items-center justify-center cursor-pointer hover:opacity-80"
+                  aria-label="Return to Slack pfp"
+                >
+                  <TrashIcon className="w-5 h-4" />
+                </button>
+                <span className="pointer-events-none absolute top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-dark-brown px-2 py-1 text-xs text-light-brown opacity-0 transition-opacity group-hover:opacity-100 z-50">
+                  Return to Slack pfp on Fallout
+                </span>
+              </div>
             </div>
           </div>
-          <div className="h-full overflow-y-auto">
-            <div className="grow grid grid-cols-3 gap-1">
+          <div className="h-48 sm:h-full overflow-y-auto">
+            <div className="grow grid grid-cols-4 sm:grid-cols-3 gap-1">
               {imagesByTab[activeTab].map((src) => {
                 const selected = selectedByTab[activeTab] === src
                 return (
-                  <button
-                    key={src}
-                    type="button"
-                    onClick={() => settersByTab[activeTab](src)}
-                    className={`aspect-square rounded-sm overflow-hidden border-2 cursor-pointer bg-white  ${selected ? 'border-dark-brown' : 'border-beige'}`}
-                  >
-                    <img src={src} alt="" className={imageClassByTab[activeTab]} />
-                  </button>
+                  <div key={src} className="relative aspect-square">
+                    {selected && (
+                      <motion.div
+                        layoutId={randomizing ? undefined : `selected-item-border-${activeTab}`}
+                        className="absolute inset-0 rounded-sm border-2 border-dark-brown pointer-events-none z-10"
+                        transition={{ type: 'spring', stiffness: 500, damping: 40 }}
+                      />
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => settersByTab[activeTab](src)}
+                      className="flex w-full h-full rounded-sm overflow-hidden cursor-pointer bg-white transition-transform hover:scale-95"
+                    >
+                      <img src={src} alt="" className={`block ${imageClassByTab[activeTab]}`} />
+                    </button>
+                  </div>
                 )
               })}
-              <button
-                type="button"
-                onClick={() => settersByTab[activeTab](null)}
-                className={`aspect-square rounded overflow-hidden border-2 cursor-pointer bg-beige ${selectedByTab[activeTab] === null ? 'border-dark-brown bg-white' : 'border-beige bg-white'}`}
-              />
+              {activeTab !== 'bg' && (
+                <div className="relative aspect-square">
+                  {selectedByTab[activeTab] === null && (
+                    <motion.div
+                      layoutId={randomizing ? undefined : `selected-item-border-${activeTab}`}
+                      className="absolute inset-0 rounded border-2 border-dark-brown pointer-events-none z-10"
+                      transition={{ type: 'spring', stiffness: 500, damping: 40 }}
+                    />
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => settersByTab[activeTab](null)}
+                    className="flex w-full h-full rounded overflow-hidden cursor-pointer bg-white"
+                  />
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -537,30 +728,24 @@ function ProfileShow({
   )
 
   const content = (
-    <div className="w-[600px] h-[520px] flex flex-col">{showCustomizer ? customizerView : profileView}</div>
-  )
-
-  const fileInput = (
-    <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
+    <div className="w-full md:w-[600px] max-h-[85vh] md:h-[520px] overflow-y-auto md:overflow-visible flex flex-col">
+      {showCustomizer ? customizerView : profileView}
+    </div>
   )
 
   if (is_modal) {
     return (
-      <Modal panelClasses="" paddingClasses="w-fit mx-auto top-1/2 -translate-y-1/2" closeButton={false}>
-        <Frame showBorderOnMobile>
-          {fileInput}
-          {content}
-        </Frame>
+      <Modal
+        panelClasses="w-full md:w-fit"
+        paddingClasses="w-full xs:px-2 md:px-0 md:w-fit mx-auto top-1/2 -translate-y-1/2"
+        closeButton={false}
+      >
+        <Frame innerClassName="p-2 xs:p-4 md:p-3">{content}</Frame>
       </Modal>
     )
   }
 
-  return (
-    <>
-      {fileInput}
-      {content}
-    </>
-  )
+  return content
 }
 
 ProfileShow.layout = (page: ReactNode) => page

@@ -197,7 +197,11 @@ class Admin::UsersController < Admin::ApplicationController
       discarded_at: user.discarded_at&.strftime("%b %d, %Y"),
       created_at: user.created_at.strftime("%b %d, %Y")
     }
-    detail[:email] = user.email if current_user.admin? # PII — admin-only
+    if current_user.admin? # PII — admin-only
+      detail[:email] = user.email
+      detail[:pronouns] = user.pronouns
+      detail[:bio] = user.bio
+    end
     detail
   end
 

@@ -37,7 +37,7 @@ class SlackAuthController < ApplicationController
     end
 
     current_user.update!(slack_token: token_data.dig("authed_user", "access_token"))
-    redirect_to profile_path, notice: "Slack connected! Click \"Set as Slack\" to update your photo."
+    redirect_to path_path, notice: "Slack connected! Click \"Set as Slack\" to update your photo."
   rescue StandardError => e
     ErrorReporter.capture_exception(e)
     redirect_to profile_path, alert: "Failed to connect Slack."

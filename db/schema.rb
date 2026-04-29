@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_04_28_130957) do
+ActiveRecord::Schema[8.1].define(version: 2026_04_29_120000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pg_trgm"
@@ -155,6 +155,23 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_28_130957) do
     t.index ["discarded_at"], name: "index_collaborators_on_discarded_at"
     t.index ["user_id", "collaboratable_type", "collaboratable_id"], name: "index_collaborators_uniqueness", unique: true
     t.index ["user_id"], name: "index_collaborators_on_user_id"
+  end
+
+  create_table "collapse_timelapses", force: :cascade do |t|
+    t.string "collapse_session_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "last_refreshed_at"
+    t.string "name"
+    t.integer "screenshot_count"
+    t.text "session_token", null: false
+    t.string "status"
+    t.string "thumbnail_url"
+    t.integer "tracked_seconds"
+    t.datetime "updated_at", null: false
+    t.bigint "user_id", null: false
+    t.string "video_url"
+    t.index ["collapse_session_id"], name: "index_collapse_timelapses_on_collapse_session_id", unique: true
+    t.index ["user_id"], name: "index_collapse_timelapses_on_user_id"
   end
 
   create_table "critters", force: :cascade do |t|
@@ -866,11 +883,13 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_28_130957) do
   create_table "users", force: :cascade do |t|
     t.string "avatar", null: false
     t.string "ban_type"
+    t.text "bio"
     t.datetime "created_at", null: false
     t.text "device_token"
     t.datetime "discarded_at"
     t.string "display_name", null: false
     t.string "email", null: false
+    t.integer "gold_balance", default: 0, null: false
     t.boolean "has_hca_address", default: false, null: false
     t.string "hca_id"
     t.text "hca_token"
@@ -943,6 +962,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_28_130957) do
   add_foreign_key "collaboration_invites", "users", column: "invitee_id"
   add_foreign_key "collaboration_invites", "users", column: "inviter_id"
   add_foreign_key "collaborators", "users"
+  add_foreign_key "collapse_timelapses", "users"
   add_foreign_key "critters", "journal_entries"
   add_foreign_key "critters", "users"
   add_foreign_key "design_reviews", "ships"

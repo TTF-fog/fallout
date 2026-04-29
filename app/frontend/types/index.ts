@@ -191,6 +191,8 @@ export interface AdminUserDetail {
   id: number
   display_name: string
   email?: string
+  pronouns?: string | null
+  bio?: string | null
   avatar: string
   slack_id: string | null
   roles: string[]

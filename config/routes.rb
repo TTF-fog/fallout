@@ -365,6 +365,7 @@ Rails.application.routes.draw do
 
   resource :profile, only: [ :show, :update ] do
     post :set_slack_photo, on: :member
+    delete :custom_avatar, on: :member
   end
 
   resource :streak_goal, only: [ :show, :create, :destroy ]

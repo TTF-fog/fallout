@@ -22,8 +22,8 @@ type PageProps = {
   user: {
     id: number
     display_name: string
-    email: string
     koi: number
+    gold: number
     avatar: string
   }
   has_projects: boolean
@@ -411,10 +411,10 @@ export default function PathIndex() {
         initial={false}
         animate={{ opacity: pathIntro.hudVisible ? 1 : 0 }}
         transition={PATH_ENTRY_FADE_TRANSITION}
-        className="fixed z-20 top-2 left-2 right-2 xs:p-6 flex flex-col gap-2"
+        className="fixed z-20 top-2 left-2 right-2 xs:p-2 md:p-6 flex flex-col gap-2"
         style={{ pointerEvents: pathIntro.hudVisible ? 'auto' : 'none' }}
       >
-        <Header koiBalance={user.koi} avatar={user.avatar} displayName={user.display_name} />
+        <Header koiBalance={user.koi} goldBalance={user.gold} avatar={user.avatar} displayName={user.display_name} />
         <AnnouncementsBar />
       </motion.div>
 
@@ -424,9 +424,9 @@ export default function PathIndex() {
         transition={{ ...PATH_ENTRY_FADE_TRANSITION, delay: pathIntro.hudVisible ? 0.12 : 0 }}
         className="fixed h-full z-10 flex justify-end items-end p-8 w-full pointer-events-none"
       >
-        <div className="flex flex-col items-center justify-center xs:justify-end w-full sm:w-fit h-fit space-y-6 pointer-events-auto">
+        <div className="flex flex-col hidden sm:inline-flex items-end justify-end w-full sm:w-fit h-fit space-y-6 pointer-events-auto">
           {authUser?.is_trial && <SignUpCta signInPath={sign_in_path} />}
-          <div className="hidden xs:block">
+          <div className="">
             <BgmPlayer />
           </div>
         </div>
@@ -455,7 +455,7 @@ export default function PathIndex() {
               </ModalLink>
             ) : (
               <button onClick={() => notify('alert', 'This is locked! Click on the star')}>
-                <img src="/icon/project.webp" alt="Projects" className="cursor-pointer" />
+                <img src="/icon/project.webp" alt="Projects" className="cursor-pointer w-25" />
               </button>
             )}
           </TooltipTrigger>
@@ -469,7 +469,7 @@ export default function PathIndex() {
               </ModalLink>
             ) : features.shop && authUser?.is_trial ? (
               <button onClick={() => notify('alert', 'This is locked! Click on the star')}>
-                <img src="/icon/shop.webp" alt="Shop" className="cursor-pointer" />
+                <img src="/icon/shop.webp" alt="Shop" className="cursor-pointer w-25" />
               </button>
             ) : (
               <button onClick={() => notify('alert', "The shop isn't open yet. Check back later!")}>

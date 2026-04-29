@@ -21,9 +21,9 @@ class PathController < ApplicationController
       user: {
         id: current_user.id, # Used by the frontend to subscribe to the per-user live-update stream
         display_name: current_user.display_name,
-        email: current_user.email,
         koi: current_user.koi,
-        avatar: current_user.avatar
+        gold: current_user.gold,
+        avatar: current_user.custom_avatar.attached? ? url_for(current_user.custom_avatar) : current_user.avatar
       },
       has_projects: current_user.projects.kept.exists? || (collaborators_enabled? && Collaborator.kept.where(user: current_user, collaboratable_type: "Project").exists?),
       journal_entry_count: journal_entries.size,
