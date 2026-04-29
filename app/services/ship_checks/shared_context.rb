@@ -125,7 +125,7 @@ module ShipChecks
       data = github_api("/repos/#{github_nwo}/contents/.gitmodules")
       return [] unless data&.key?("content")
       content = Base64.decode64(data["content"]).force_encoding("UTF-8").scrub("")
-      content.scan(/url\s*=\s*.*github\.com[:/]([^/\s]+\/[^\s.]+)/).flatten
+      content.scan(%r{url\s*=\s*.*github\.com[:/]([^/\s]+/[^\s.]+)}).flatten
     rescue StandardError
       []
     end
