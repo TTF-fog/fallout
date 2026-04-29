@@ -7,6 +7,8 @@ class Api::V1::ExploreController < Api::V1::BaseController
   SORTS = %w[active newest].freeze
   DEFAULT_LIMIT = 20
   MAX_LIMIT = 50
+  MEILISEARCH_SEARCH_LIMIT = 1000
+  PROJECT_SEARCH_CURSOR_PREFIX = "search".freeze
   PROJECT_ACTIVITY_NULL_CURSOR_VALUE = "none".freeze
   PROJECT_ACTIVITY_SQL = "latest_activity.last_activity_at".freeze
   PROJECT_ACTIVITY_SELECT_SQL = "projects.*, #{PROJECT_ACTIVITY_SQL} AS explore_activity_at".freeze
@@ -17,31 +19,39 @@ class Api::V1::ExploreController < Api::V1::BaseController
   def projects
     sort = normalized_sort
     query = params[:query].to_s.strip.presence
-    effective_limit = query.present? ? MAX_LIMIT : limit
+    page_limit = limit
 
     scope = Project.public_for_explore.preload(:user)
 
     if query.present?
-      ranked_ids = search_project_ids(query)
-      return render json: empty_response("projects", sort, query) if ranked_ids.empty?
+      offset = decode_project_search_cursor(params[:cursor])
+      ranked_ids = search_project_ids(query, limit: [ offset + page_limit + 1, MEILISEARCH_SEARCH_LIMIT ].min)
+      page_ids = ranked_ids[offset, page_limit + 1] || []
+      has_more = page_ids.size > page_limit
+      page_ids = page_ids.first(page_limit)
+      return render json: empty_response("projects", sort, query) if page_ids.empty?
 
-      projects = scope.where(id: ranked_ids)
-                      .order(Arel.sql("array_position(ARRAY[#{ranked_ids.join(',')}]::bigint[], projects.id)"))
-                      .limit(effective_limit + 1)
+      projects = scope.where(id: page_ids)
+                      .order(Arel.sql("array_position(ARRAY[#{page_ids.join(',')}]::bigint[], projects.id)"))
                       .to_a
-      has_more = projects.size > effective_limit
-      projects = projects.first(effective_limit)
       preload_project_context(projects)
 
-      return render json: build_response("projects", projects.map { |p| serialize_project(p) }, nil, has_more, sort, query)
+      return render json: build_response(
+        "projects",
+        projects.map { |p| serialize_project(p) },
+        has_more ? encode_project_search_cursor(offset + page_limit) : nil,
+        has_more,
+        sort,
+        query
+      )
     end
 
     scope = order_projects(scope, sort)
     scope = apply_project_cursor(scope, sort: sort, cursor: params[:cursor])
 
-    projects = scope.limit(effective_limit + 1).to_a
-    has_more = projects.size > effective_limit
-    projects = projects.first(effective_limit)
+    projects = scope.limit(page_limit + 1).to_a
+    has_more = projects.size > page_limit
+    projects = projects.first(page_limit)
     preload_project_context(projects)
 
     render json: build_response(
@@ -60,15 +70,17 @@ class Api::V1::ExploreController < Api::V1::BaseController
   # Params: query, cursor, limit
   def journals
     query = params[:query].to_s.strip.presence
-    effective_limit = query.present? ? MAX_LIMIT : limit
+    page_limit = limit
 
     scope = JournalEntry.public_for_explore
 
     if query.present?
       begin
-        matching_ids = JournalEntry.ms_search(query, sort: ["created_at:desc"], limit: 500).map(&:id)
+        matching_ids = JournalEntry
+          .ms_search(query, sort: [ "created_at:desc" ], limit: MEILISEARCH_SEARCH_LIMIT)
+          .map(&:id)
         scope = scope.where(id: matching_ids)
-      rescue Meilisearch::ApiError, Errno::ECONNREFUSED
+      rescue Meilisearch::ApiError, Meilisearch::CommunicationError, Errno::ECONNREFUSED
         scope = scope.search(query)
       end
     end
@@ -80,9 +92,9 @@ class Api::V1::ExploreController < Api::V1::BaseController
     entries_scope = JournalEntry.where(id: latest_ids).order(created_at: :desc, id: :desc)
     entries_scope = apply_journal_cursor(entries_scope, params[:cursor])
 
-    entries = entries_scope.limit(effective_limit + 1).to_a
-    has_more = entries.size > effective_limit
-    entries = entries.first(effective_limit)
+    entries = entries_scope.limit(page_limit + 1).to_a
+    has_more = entries.size > page_limit
+    entries = entries.first(page_limit)
 
     ActiveRecord::Associations::Preloader.new(
       records: entries,
@@ -166,6 +178,10 @@ class Api::V1::ExploreController < Api::V1::BaseController
     Base64.urlsafe_encode64("#{cursor_time_value}|#{project.id}", padding: false)
   end
 
+  def encode_project_search_cursor(offset)
+    Base64.urlsafe_encode64("#{PROJECT_SEARCH_CURSOR_PREFIX}|#{offset}", padding: false)
+  end
+
   def decode_project_cursor(cursor)
     cursor_at, cursor_id = Base64.urlsafe_decode64(cursor).split("|", 2)
     raise ArgumentError if cursor_at.blank? || cursor_id.blank?
@@ -174,6 +190,18 @@ class Api::V1::ExploreController < Api::V1::BaseController
       cursor_at == PROJECT_ACTIVITY_NULL_CURSOR_VALUE ? nil : Time.iso8601(cursor_at),
       Integer(cursor_id)
     ]
+  end
+
+  def decode_project_search_cursor(cursor)
+    return 0 if cursor.blank?
+
+    prefix, offset = Base64.urlsafe_decode64(cursor).split("|", 2)
+    raise ArgumentError unless prefix == PROJECT_SEARCH_CURSOR_PREFIX && offset.present?
+
+    offset = Integer(offset)
+    raise ArgumentError if offset.negative?
+
+    offset
   end
 
   def project_cursor_time(project, sort:)
@@ -207,13 +235,18 @@ class Api::V1::ExploreController < Api::V1::BaseController
       .index_by(&:project_id)
   end
 
-  def search_project_ids(query)
-    project_ids = Project.ms_search(query, filter: "is_unlisted = false", sort: ["journal_count:desc", "created_at:desc"], limit: 500).map(&:id)
-    journal_project_ids = JournalEntry.ms_search(query, sort: ["created_at:desc"], limit: 500).map(&:project_id).uniq
+  def search_project_ids(query, limit:)
+    project_ids = Project
+      .ms_search(query, filter: "is_unlisted = false", sort: [ "journal_count:desc", "created_at:desc" ], limit: limit)
+      .map(&:id)
+    journal_project_ids = JournalEntry
+      .ms_search(query, sort: [ "created_at:desc" ], limit: limit)
+      .map(&:project_id)
+      .uniq
     (project_ids + (journal_project_ids - project_ids)).uniq
-  rescue Meilisearch::ApiError, Errno::ECONNREFUSED
-    project_matches = Project.public_for_explore.search(query).select(:id).map(&:id)
-    journal_matches = JournalEntry.public_for_explore.search(query).select(:project_id).map(&:project_id)
+  rescue Meilisearch::ApiError, Meilisearch::CommunicationError, Errno::ECONNREFUSED
+    project_matches = Project.public_for_explore.search(query).select(:id).limit(limit).map(&:id)
+    journal_matches = JournalEntry.public_for_explore.search(query).select(:project_id).limit(limit).map(&:project_id)
     (project_matches + (journal_matches - project_matches)).uniq
   end
 
