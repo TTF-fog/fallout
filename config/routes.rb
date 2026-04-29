@@ -228,7 +228,6 @@ Rails.application.routes.draw do
   constraints Constraints::StaffConstraint.new do
     namespace :admin do
       get "/" => "dashboard#index", as: :root
-      get "other_stats" => "other_stats#index" # Unlisted stats page for internal use
 
       # Per-type review queues must be defined before the catch-all ships resource
       namespace :reviews do
