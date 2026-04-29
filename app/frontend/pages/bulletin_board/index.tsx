@@ -26,8 +26,8 @@ const EXPLORE_PAGE_SIZE = 5
 // Coalesces bursts of bulletin_explore broadcasts (e.g. a project discard cascading to its journals)
 // so we issue at most one bucket refresh per ~half-second of activity.
 const EXPLORE_LIVE_REFRESH_DEBOUNCE_MS = 500
-// Server-side cap on /bulletin_board/search?limit=… is 50; mirror it client-side so a deeply
-// scrolled user still gets the top slice refreshed without forcing the server to over-query.
+// Live refresh replaces the visible slice after broadcasts, capped so a deeply scrolled user does
+// not force a very large background refresh.
 const EXPLORE_LIVE_REFRESH_MAX_LIMIT = 50
 const EXPLORE_LOAD_AHEAD_PX = 480
 const EVENT_COUNT_TRANSITION: Transition = {
@@ -735,7 +735,7 @@ const ExploreSection = memo(function ExploreSection({ explore, exploreStats, inn
   const nextCursor = activeExploreBucket?.next_cursor ?? null
   const hasHiddenCachedExploreEntries = cachedExploreEntries.length > exploreList.length
   const hasServerExploreEntries = activeExploreBucket?.has_more ?? false
-  const hasMoreExplore = hasHiddenCachedExploreEntries || hasServerExploreEntries
+  const hasMoreExplore = hasHiddenCachedExploreEntries || (hasServerExploreEntries && !!nextCursor)
   // Sync render-time derived values into the live-refresh ref so the debounced setTimeout reads
   // the latest filter/sort/loaded-count when a broadcast eventually fires.
   liveRefreshDepsRef.current = {
@@ -947,12 +947,7 @@ const ExploreSection = memo(function ExploreSection({ explore, exploreStats, inn
 
   const canLoadMoreRef = useRef(false)
   canLoadMoreRef.current =
-    hasMoreExplore &&
-    (hasHiddenCachedExploreEntries || !!nextCursor) &&
-    !isLoadingMore &&
-    !isSearching &&
-    !isExploreBucketPending &&
-    !exploreLoadInFlightRef.current
+    hasMoreExplore && !isLoadingMore && !isSearching && !isExploreBucketPending && !exploreLoadInFlightRef.current
 
   const scheduleExploreLoadCheck = () => {
     window.cancelAnimationFrame(exploreLoadCheckFrameRef.current)

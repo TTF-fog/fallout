@@ -129,7 +129,7 @@ GET /api/v1/explore/projects
 | --- | --- | --- |
 | `sort` | string | `active` (default) sorts by latest journal activity. `newest` sorts by creation date. |
 | `query` | string | Full-text search across project names, descriptions, and journal content. |
-| `cursor` | string | Opaque cursor from a previous response. |
+| `cursor` | string | Opaque cursor from a previous response, including search responses. |
 | `limit` | number | Between 1 and 50, defaults to 20. |
 
 **Response**
@@ -179,7 +179,7 @@ Returns one journal entry per project (the most recent one), sorted newest first
 | Name | Type | Description |
 | --- | --- | --- |
 | `query` | string | Full-text search across journal content. |
-| `cursor` | string | Opaque cursor from a previous response. |
+| `cursor` | string | Opaque cursor from a previous response, including search responses. |
 | `limit` | number | Between 1 and 50, defaults to 20. |
 
 **Response**
@@ -218,6 +218,8 @@ Returns one journal entry per project (the most recent one), sorted newest first
 All list endpoints use cursor-based pagination. When `has_more` is `true`, pass the `next_cursor` value as the `cursor` parameter on your next request to get the next page.
 
 Cursors are opaque strings. Do not try to parse or construct them.
+
+Search pagination follows the configured Meilisearch `maxTotalHits` limit.
 
 ---
 

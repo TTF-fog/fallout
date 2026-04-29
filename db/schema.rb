@@ -957,7 +957,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_27_062137) do
   add_foreign_key "critters", "users"
   add_foreign_key "design_reviews", "ships"
   add_foreign_key "design_reviews", "users", column: "reviewer_id"
-  add_foreign_key "dialog_campaigns", "users", name: "dialog_campaigns_user_id_fkey"
+  add_foreign_key "dialog_campaigns", "users"
   add_foreign_key "gold_transactions", "users"
   add_foreign_key "gold_transactions", "users", column: "actor_id"
   add_foreign_key "hcb_connections", "users", column: "connected_by_id"

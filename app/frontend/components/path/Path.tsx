@@ -9,7 +9,7 @@ import React, {
   type CSSProperties,
   type ReactNode,
 } from 'react'
-import { motion } from 'motion/react'
+import { animate, motion } from 'motion/react'
 import * as Sentry from '@sentry/react'
 import { ModalLink } from '@inertiaui/modal-react'
 
@@ -49,6 +49,15 @@ const PATH_ENTRY_NODE_DURATION_MS = 720
 const PATH_ENTRY_GRASS_FADE_DURATION_MS = 480
 const PATH_ENTRY_SCROLL_DURATION_MS = 1050
 const PATH_ENTRY_EASE = 'cubic-bezier(0.22, 1, 0.36, 1)'
+const BOARD_POP_HIDDEN_Y = 96
+const BOARD_POP_HIDDEN_SCALE = 0.98
+const BOARD_POP_VISIBLE_SCALE = 1
+const BOARD_POP_HILL_CLEARANCE = 48
+const BOARD_POP_OPACITY_IN_DURATION = 0.18
+const BOARD_POP_OPACITY_OUT_DURATION = 0.12
+
+type BoardLayer = 'back' | 'front'
+type BoardPopAnimation = { stop: () => void }
 
 const ONBOARDING_GRASS_SPRITES: Array<{
   src: string
@@ -170,6 +179,10 @@ function Path({ nodes, introTransition }: PathProps) {
   const frontBillboardRefs = useRef<(HTMLDivElement | null)[]>([])
   const backBoardRefs = useRef<(HTMLDivElement | null)[]>([])
   const frontBoardRefs = useRef<(HTMLDivElement | null)[]>([])
+  const backBoardContentRefs = useRef<(HTMLDivElement | null)[]>([])
+  const frontBoardContentRefs = useRef<(HTMLDivElement | null)[]>([])
+  const boardPopVisibleRefs = useRef<boolean[]>([])
+  const boardPopAnimationsRef = useRef<Partial<Record<BoardLayer, BoardPopAnimation[]>>[]>([])
   const backCanvasRef = useRef<HTMLCanvasElement | null>(null)
   const frontCanvasRef = useRef<HTMLCanvasElement | null>(null)
   const backCtxRef = useRef<CanvasRenderingContext2D | null>(null)
@@ -293,6 +306,15 @@ function Path({ nodes, introTransition }: PathProps) {
   )
 
   useEffect(() => {
+    return () => {
+      boardPopAnimationsRef.current.forEach((animations) => {
+        animations.back?.forEach((animation) => animation.stop())
+        animations.front?.forEach((animation) => animation.stop())
+      })
+    }
+  }, [])
+
+  useEffect(() => {
     const W = windowSize.w
     const H = windowSize.h
     const O = PERSPECTIVE_OFFSET_PX
@@ -300,6 +322,7 @@ function Path({ nodes, introTransition }: PathProps) {
     const dpr = window.devicePixelRatio || 1
     const invTwoR = 1 / (2 * planetRadius)
     const centerX = (W - RIGHT_MARGIN) / 2
+    const reducedMotion = prefersReducedMotion()
 
     const setupCanvas = (canvas: HTMLCanvasElement) => {
       canvas.width = W * dpr
@@ -361,6 +384,82 @@ function Path({ nodes, introTransition }: PathProps) {
       }
 
       ctx.restore()
+    }
+
+    const setBoardContentInstantly = (node: HTMLDivElement, visible: boolean) => {
+      const y = visible ? 0 : BOARD_POP_HIDDEN_Y
+      const scale = visible ? BOARD_POP_VISIBLE_SCALE : BOARD_POP_HIDDEN_SCALE
+      node.style.transform = `translateY(${y}px) scale(${scale})`
+      node.style.opacity = visible ? '1' : '0'
+      node.style.visibility = visible ? 'visible' : 'hidden'
+      node.style.pointerEvents = visible ? 'auto' : 'none'
+    }
+
+    const animateBoardContent = (
+      bi: number,
+      layer: BoardLayer,
+      node: HTMLDivElement,
+      visible: boolean,
+      animateChange: boolean,
+    ) => {
+      const animations = boardPopAnimationsRef.current[bi] ?? {}
+      boardPopAnimationsRef.current[bi] = animations
+      animations[layer]?.forEach((animation) => animation.stop())
+
+      if (!animateChange) {
+        delete animations[layer]
+        setBoardContentInstantly(node, visible)
+        return
+      }
+
+      node.style.visibility = 'visible'
+      node.style.pointerEvents = visible ? 'auto' : 'none'
+
+      const transformControls = animate(
+        node,
+        {
+          y: visible ? 0 : BOARD_POP_HIDDEN_Y,
+          scale: visible ? BOARD_POP_VISIBLE_SCALE : BOARD_POP_HIDDEN_SCALE,
+        },
+        visible
+          ? { type: 'spring', stiffness: 360, damping: 22, mass: 0.62 }
+          : { type: 'spring', stiffness: 760, damping: 42, mass: 0.38 },
+      )
+      const opacityControls = animate(
+        node,
+        { opacity: visible ? 1 : 0 },
+        {
+          duration: visible ? BOARD_POP_OPACITY_IN_DURATION : BOARD_POP_OPACITY_OUT_DURATION,
+          ease: 'easeOut',
+        },
+      )
+      const nextAnimations = [transformControls, opacityControls]
+
+      animations[layer] = nextAnimations
+      void Promise.all(nextAnimations).then(() => {
+        if (!visible && boardPopVisibleRefs.current[bi] === visible) {
+          node.style.visibility = 'hidden'
+        }
+
+        const currentAnimations = boardPopAnimationsRef.current[bi]
+        if (currentAnimations?.[layer] === nextAnimations) {
+          delete currentAnimations[layer]
+        }
+      })
+    }
+
+    const setBoardPopVisible = (bi: number, visible: boolean) => {
+      const previousVisible = boardPopVisibleRefs.current[bi]
+      if (previousVisible === visible) return
+
+      boardPopVisibleRefs.current[bi] = visible
+      const animateChange = !reducedMotion && (previousVisible !== undefined || visible)
+
+      const backContent = backBoardContentRefs.current[bi]
+      if (backContent) animateBoardContent(bi, 'back', backContent, visible, animateChange)
+
+      const frontContent = frontBoardContentRefs.current[bi]
+      if (frontContent) animateBoardContent(bi, 'front', frontContent, visible, animateChange)
     }
 
     let prevLow = 0
@@ -427,22 +526,25 @@ function Path({ nodes, introTransition }: PathProps) {
           const pastInflection = effectiveY >= inflectionGroundY
           const bottom = `${rawY}px`
           const transform = `translateZ(${-curveZ}px) rotateX(-${GROUND_ANGLE}deg)`
-          // Fade out when the next board toward the viewer (higher index, lower y) enters the foreground
           const nextRawY = bi + 1 < boards.length ? boards[bi + 1].y + scrollOffset : -Infinity
-          const opacity = nextRawY > 0 && nextRawY < inflectionGroundY ? '0' : '1'
+          const boardScreenY = screenYAt(effectiveY, planetRadius, H)
+          const visible =
+            rawY > 0 &&
+            boardScreenY >= inflectionScreenY + BOARD_POP_HILL_CLEARANCE &&
+            !(nextRawY > 0 && nextRawY < inflectionGroundY)
+          setBoardPopVisible(bi, visible)
+
           const back = backBoardRefs.current[bi]
           if (back) {
             back.style.bottom = bottom
             back.style.transform = transform
             back.style.visibility = pastInflection ? 'visible' : 'hidden'
-            back.style.opacity = opacity
           }
           const front = frontBoardRefs.current[bi]
           if (front) {
             front.style.bottom = bottom
             front.style.transform = transform
             front.style.visibility = pastInflection ? 'hidden' : 'visible'
-            front.style.opacity = opacity
           }
         })
       }
@@ -719,27 +821,41 @@ function Path({ nodes, introTransition }: PathProps) {
               {boards.map((board, bi) => (
                 <div
                   key={bi}
-                  ref={(el) => { backBoardRefs.current[bi] = el }}
+                  ref={(el) => {
+                    backBoardRefs.current[bi] = el
+                  }}
                   style={{
                     position: 'absolute',
                     left: `${board.leftPct}%`,
                     width: `${boardWidthPct}%`,
                     height: 'auto',
                     transformOrigin: 'bottom center',
-                    transition: 'opacity 0.5s ease',
                   }}
                 >
-                  <ModalLink
-                    href="/bulletin_board"
-                    panelClasses="bulletin-board-modal-panel min-h-screen max-md:w-full max-md:max-w-none"
-                    paddingClasses="p-0 md:max-w-6xl md:mx-auto"
-                    closeButton={false}
-                    maxWidth="7xl"
-                    className="block cursor-pointer"
-                    style={{ pointerEvents: 'auto', transform: `translateY(${BILLBOARD_Y_OFFSET}px)` }}
+                  <div
+                    ref={(el) => {
+                      backBoardContentRefs.current[bi] = el
+                    }}
+                    style={{
+                      transform: `translateY(${BOARD_POP_HIDDEN_Y}px) scale(${BOARD_POP_HIDDEN_SCALE})`,
+                      transformOrigin: 'bottom center',
+                      opacity: 0,
+                      visibility: 'hidden',
+                      pointerEvents: 'none',
+                    }}
                   >
-                    <img src="/path/board.svg" alt="Bulletin board" style={{ width: '100%', display: 'block' }} />
-                  </ModalLink>
+                    <ModalLink
+                      href="/bulletin_board"
+                      panelClasses="bulletin-board-modal-panel min-h-screen max-md:w-full max-md:max-w-none"
+                      paddingClasses="p-0 md:max-w-6xl md:mx-auto"
+                      closeButton={false}
+                      maxWidth="7xl"
+                      className="block cursor-pointer"
+                      style={{ pointerEvents: 'auto', transform: `translateY(${BILLBOARD_Y_OFFSET}px)` }}
+                    >
+                      <img src="/path/board.svg" alt="Bulletin board" style={{ width: '100%', display: 'block' }} />
+                    </ModalLink>
+                  </div>
                 </div>
               ))}
               {billboards.map((b, i) => (
@@ -832,27 +948,41 @@ function Path({ nodes, introTransition }: PathProps) {
               {boards.map((board, bi) => (
                 <div
                   key={bi}
-                  ref={(el) => { frontBoardRefs.current[bi] = el }}
+                  ref={(el) => {
+                    frontBoardRefs.current[bi] = el
+                  }}
                   style={{
                     position: 'absolute',
                     left: `${board.leftPct}%`,
                     width: `${boardWidthPct}%`,
                     height: 'auto',
                     transformOrigin: 'bottom center',
-                    transition: 'opacity 0.5s ease',
                   }}
                 >
-                  <ModalLink
-                    href="/bulletin_board"
-                    panelClasses="bulletin-board-modal-panel min-h-screen max-md:w-full max-md:max-w-none"
-                    paddingClasses="p-0 md:max-w-6xl md:mx-auto"
-                    closeButton={false}
-                    maxWidth="7xl"
-                    className="block cursor-pointer"
-                    style={{ pointerEvents: 'auto', transform: `translateY(${BILLBOARD_Y_OFFSET}px)` }}
+                  <div
+                    ref={(el) => {
+                      frontBoardContentRefs.current[bi] = el
+                    }}
+                    style={{
+                      transform: `translateY(${BOARD_POP_HIDDEN_Y}px) scale(${BOARD_POP_HIDDEN_SCALE})`,
+                      transformOrigin: 'bottom center',
+                      opacity: 0,
+                      visibility: 'hidden',
+                      pointerEvents: 'none',
+                    }}
                   >
-                    <img src="/path/board.svg" alt="Bulletin board" style={{ width: '100%', display: 'block' }} />
-                  </ModalLink>
+                    <ModalLink
+                      href="/bulletin_board"
+                      panelClasses="bulletin-board-modal-panel min-h-screen max-md:w-full max-md:max-w-none"
+                      paddingClasses="p-0 md:max-w-6xl md:mx-auto"
+                      closeButton={false}
+                      maxWidth="7xl"
+                      className="block cursor-pointer"
+                      style={{ pointerEvents: 'auto', transform: `translateY(${BILLBOARD_Y_OFFSET}px)` }}
+                    >
+                      <img src="/path/board.svg" alt="Bulletin board" style={{ width: '100%', display: 'block' }} />
+                    </ModalLink>
+                  </div>
                 </div>
               ))}
               {billboards.map((b, i) => (
