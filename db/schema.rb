@@ -342,8 +342,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_28_130957) do
     t.datetime "created_at", null: false
     t.text "description", null: false
     t.string "reason", null: false
+    t.bigint "ship_id"
     t.bigint "user_id", null: false
     t.index ["actor_id"], name: "index_koi_transactions_on_actor_id"
+    t.index ["ship_id"], name: "index_koi_transactions_on_ship_review_uniqueness", unique: true, where: "(((reason)::text = 'ship_review'::text) AND (ship_id IS NOT NULL))"
     t.index ["user_id", "created_at"], name: "index_koi_transactions_on_user_id_and_created_at"
     t.index ["user_id"], name: "index_koi_transactions_on_user_id"
   end
@@ -969,6 +971,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_28_130957) do
   add_foreign_key "journal_entries", "projects"
   add_foreign_key "journal_entries", "ships"
   add_foreign_key "journal_entries", "users"
+  add_foreign_key "koi_transactions", "ships"
   add_foreign_key "koi_transactions", "users"
   add_foreign_key "koi_transactions", "users", column: "actor_id"
   add_foreign_key "lapse_timelapses", "users"

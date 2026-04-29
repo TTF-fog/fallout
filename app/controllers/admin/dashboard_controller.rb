@@ -52,21 +52,57 @@ class Admin::DashboardController < Admin::ApplicationController
     end.sort_by { |r| -r[:review_count] }
   end
 
-  # Sums approved_seconds per reviewer for time audit reviews only
+  # Sums approved seconds per reviewer, attributed per recording annotation.
+  # Each recording annotation stores a reviewer_id for who annotated it; hours are
+  # split across reviewers based on which recordings they actually worked on rather
+  # than crediting all hours to whoever submitted/approved the review.
+  # Reviews without per-annotation reviewer_id (old data) fall back to the review-level reviewer_id.
   def time_audited_stats(scope)
-    rows = scope
-      .joins("INNER JOIN users ON users.id = time_audit_reviews.reviewer_id")
-      .group("users.id", "users.display_name", "users.avatar")
-      .select(
-        "users.id",
-        "users.display_name",
-        "users.avatar",
-        "SUM(time_audit_reviews.approved_seconds) AS total_approved_seconds"
-      )
-      .map do |r|
-        { id: r.id, display_name: r.display_name, avatar: r.avatar, total_approved_seconds: r.total_approved_seconds.to_i }
+    reviews = scope
+      .where.not(reviewer_id: nil)
+      .includes(ship: { journal_entries: { recordings: :recordable } })
+
+    seconds_by_reviewer = Hash.new(0)
+
+    reviews.each do |ta|
+      rec_annotations = ta.annotations&.dig("recordings") || {}
+      fallback_reviewer_id = ta.reviewer_id
+
+      ta.ship.journal_entries.kept.each do |entry|
+        entry.recordings.each do |rec|
+          ann = rec_annotations[rec.id.to_s] || {}
+          reviewer_id = ann["reviewer_id"]&.to_i || fallback_reviewer_id
+
+          multiplier = rec.recordable.is_a?(YouTubeVideo) ? (ann["stretch_multiplier"]&.to_f || 1.0) : 60.0
+          raw = case rec.recordable
+                when LookoutTimelapse, LapseTimelapse then rec.recordable.duration.to_i
+                when YouTubeVideo then rec.recordable.duration_seconds.to_i
+                else 0
+                end
+          base = rec.recordable.is_a?(YouTubeVideo) ? raw * multiplier : raw
+
+          approved = base
+          (ann["segments"] || []).each do |seg|
+            range = (seg["end_seconds"].to_f - seg["start_seconds"].to_f) * multiplier
+            case seg["type"]
+            when "removed"  then approved -= range
+            when "deflated" then approved -= range * (seg["deflated_percent"].to_f / 100)
+            end
+          end
+
+          seconds_by_reviewer[reviewer_id] += [ approved, 0 ].max
+        end
       end
-      .sort_by { |r| -r[:total_approved_seconds] }
+    end
+
+    reviewer_ids = seconds_by_reviewer.keys
+    users = User.where(id: reviewer_ids).index_by(&:id)
+
+    rows = seconds_by_reviewer.filter_map do |reviewer_id, total|
+      user = users[reviewer_id]
+      next unless user
+      { id: reviewer_id, display_name: user.display_name, avatar: user.avatar, total_approved_seconds: total.round }
+    end.sort_by { |r| -r[:total_approved_seconds] }
 
     { time_audited: rows }
   end
@@ -95,13 +131,14 @@ class Admin::DashboardController < Admin::ApplicationController
       .group("ships.created_at::date")
       .sum(Arel.sql(raw_duration_sql))
 
-    # Audited seconds removed on the date TA review reached terminal status
+    # Raw recording seconds removed on the date the TA review reached terminal status.
+    # Uses the same raw duration metric as hours_added so both sides are comparable.
     hours_removed_by_day = TimeAuditReview
       .where(status: terminal_statuses)
-      .where.not(approved_seconds: nil)
       .where("time_audit_reviews.updated_at < ?", end_date.end_of_day)
+      .joins(ship: { journal_entries: :recordings })
       .group("time_audit_reviews.updated_at::date")
-      .sum("time_audit_reviews.approved_seconds")
+      .sum(Arel.sql(raw_duration_sql))
 
     cumulative_added = Ship
       .joins(journal_entries: :recordings)
@@ -110,9 +147,9 @@ class Admin::DashboardController < Admin::ApplicationController
 
     cumulative_removed = TimeAuditReview
       .where(status: terminal_statuses)
-      .where.not(approved_seconds: nil)
       .where("time_audit_reviews.updated_at < ?", start_date)
-      .sum("time_audit_reviews.approved_seconds")
+      .joins(ship: { journal_entries: :recordings })
+      .sum(Arel.sql(raw_duration_sql))
 
     (start_date..end_date).map do |date|
       cumulative_added += hours_added_by_day[date].to_i

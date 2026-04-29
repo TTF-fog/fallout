@@ -50,7 +50,7 @@ class Admin::Reviews::TimeAuditsController < Admin::Reviews::BaseController
   def update
     authorize @review
 
-    if @review.update(review_params)
+    if @review.update(stamp_annotation_reviewer(review_params))
       respond_to do |format|
         format.json { render json: { ok: true } }
         format.html do
@@ -95,6 +95,22 @@ class Admin::Reviews::TimeAuditsController < Admin::Reviews::BaseController
       permitted[:annotations] = raw.is_a?(Hash) ? raw.slice("recordings") : nil
     end
     permitted
+  end
+
+  # Stamp the current reviewer's id on each recording annotation that doesn't already
+  # have one, so the dashboard leaderboard can attribute hours to the correct reviewer
+  # rather than crediting all hours to whoever submits/approves the review.
+  def stamp_annotation_reviewer(permitted_params)
+    recordings = permitted_params.dig(:annotations, "recordings")
+    return permitted_params unless recordings.is_a?(Hash)
+
+    existing = @review.annotations&.dig("recordings") || {}
+    recordings.each do |rec_id, data|
+      next if existing.dig(rec_id, "reviewer_id").present? # preserve original annotator
+      data["reviewer_id"] = current_user.id
+    end
+
+    permitted_params
   end
 
   def serialize_review_detail(review)
