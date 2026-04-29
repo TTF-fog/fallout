@@ -8,17 +8,20 @@
 #  reason      :string           not null
 #  created_at  :datetime         not null
 #  actor_id    :bigint
+#  ship_id     :bigint
 #  user_id     :bigint           not null
 #
 # Indexes
 #
 #  index_koi_transactions_on_actor_id                (actor_id)
+#  index_koi_transactions_on_ship_review_uniqueness  (ship_id) UNIQUE WHERE (((reason)::text = 'ship_review'::text) AND (ship_id IS NOT NULL))
 #  index_koi_transactions_on_user_id                 (user_id)
 #  index_koi_transactions_on_user_id_and_created_at  (user_id,created_at)
 #
 # Foreign Keys
 #
 #  fk_rails_...  (actor_id => users.id)
+#  fk_rails_...  (ship_id => ships.id)
 #  fk_rails_...  (user_id => users.id)
 #
 class KoiTransaction < ApplicationRecord

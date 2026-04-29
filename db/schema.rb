@@ -157,23 +157,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_28_130957) do
     t.index ["user_id"], name: "index_collaborators_on_user_id"
   end
 
-  create_table "collapse_timelapses", force: :cascade do |t|
-    t.string "collapse_session_id", null: false
-    t.datetime "created_at", null: false
-    t.datetime "last_refreshed_at"
-    t.string "name"
-    t.integer "screenshot_count"
-    t.text "session_token", null: false
-    t.string "status"
-    t.string "thumbnail_url"
-    t.integer "tracked_seconds"
-    t.datetime "updated_at", null: false
-    t.bigint "user_id", null: false
-    t.string "video_url"
-    t.index ["collapse_session_id"], name: "index_collapse_timelapses_on_collapse_session_id", unique: true
-    t.index ["user_id"], name: "index_collapse_timelapses_on_user_id"
-  end
-
   create_table "critters", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.bigint "journal_entry_id", null: false
@@ -641,6 +624,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_28_130957) do
     t.integer "price"
     t.boolean "requires_shipping", default: true, null: false
     t.string "status", default: "available", null: false
+    t.boolean "ticket", default: false, null: false
     t.datetime "updated_at", null: false
     t.index ["status"], name: "index_shop_items_on_status"
   end
@@ -895,8 +879,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_28_130957) do
     t.text "lapse_token"
     t.boolean "onboarded", default: false, null: false
     t.string "pending_lookout_tokens", default: [], null: false, array: true
+    t.string "pronouns"
     t.string "roles", default: [], null: false, array: true
     t.string "slack_id"
+    t.text "slack_token"
     t.integer "streak_freezes", default: 1, null: false
     t.boolean "streak_in_app_notifications", default: true, null: false
     t.boolean "streak_slack_notifications", default: true, null: false
@@ -957,7 +943,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_28_130957) do
   add_foreign_key "collaboration_invites", "users", column: "invitee_id"
   add_foreign_key "collaboration_invites", "users", column: "inviter_id"
   add_foreign_key "collaborators", "users"
-  add_foreign_key "collapse_timelapses", "users"
   add_foreign_key "critters", "journal_entries"
   add_foreign_key "critters", "users"
   add_foreign_key "design_reviews", "ships"
