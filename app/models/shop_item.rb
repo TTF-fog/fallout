@@ -12,6 +12,7 @@
 #  price                :integer
 #  requires_shipping    :boolean          default(TRUE), not null
 #  status               :string           default("available"), not null
+#  ticket               :boolean          default(FALSE), not null
 #  created_at           :datetime         not null
 #  updated_at           :datetime         not null
 #
