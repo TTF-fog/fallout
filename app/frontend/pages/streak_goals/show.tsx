@@ -37,7 +37,7 @@ const GOAL_REWARDS: Record<number, number> = {
   3: 1,
   5: 2,
   7: 5,
-  14: 10,
+  14: 12,
 }
 
 const MASCOT_SPRING = { type: 'spring' as const, stiffness: 900, damping: 110, mass: 10 }
