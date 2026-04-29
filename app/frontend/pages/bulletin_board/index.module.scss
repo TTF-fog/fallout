@@ -447,6 +447,10 @@ $beige: var(--color-light-brown);
   scroll-margin-top: 1rem;
 }
 
+.sortTabsPrimary {
+  z-index: 1;
+}
+
 .sortTabs {
   position: relative;
   display: grid;

@@ -54,7 +54,13 @@ class Project < ApplicationRecord
     attribute :journal_count do
       kept_journal_entries.count
     end
-    searchable_attributes %w[name description tags]
+    attribute :owner_name do
+      user.display_name
+    end
+    attribute :collaborator_names do
+      collaborator_users.map(&:display_name)
+    end
+    searchable_attributes %w[name description tags owner_name collaborator_names]
     ranking_rules %w[words typo proximity attribute sort exactness]
     sortable_attributes %w[journal_count created_at]
     filterable_attributes %w[is_unlisted]

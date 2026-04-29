@@ -1194,7 +1194,7 @@ const ExploreSection = memo(function ExploreSection({ explore, exploreStats, inn
           <motion.div
             layout="position"
             transition={EXPLORE_POSITION_TRANSITION}
-            className={styles.sortTabs}
+            className={`${styles.sortTabs} ${styles.sortTabsPrimary}`}
             data-active-index={category === 'projects' ? 0 : 1}
             role="group"
             aria-label="Explore category"

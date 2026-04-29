@@ -50,7 +50,13 @@ class JournalEntry < ApplicationRecord
       created_at.to_i
     end
     attribute :project_id
-    searchable_attributes %w[content project_name project_description]
+    attribute :owner_name do
+      project.user.display_name
+    end
+    attribute :collaborator_names do
+      (project.collaborator_users + collaborator_users).map(&:display_name).uniq
+    end
+    searchable_attributes %w[content project_name project_description owner_name collaborator_names]
     ranking_rules %w[words typo proximity attribute sort exactness]
     sortable_attributes %w[created_at]
     filterable_attributes %w[project_id]
