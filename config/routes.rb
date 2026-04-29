@@ -343,6 +343,9 @@ Rails.application.routes.draw do
   get "auth/lapse/start" => "lapse_auth#start", as: :lapse_start
   get "auth/lapse/callback" => "lapse_auth#callback", as: :lapse_callback
 
+  get "auth/slack/start" => "slack_auth#start", as: :slack_start
+  get "auth/slack/callback" => "slack_auth#callback", as: :slack_callback
+
   get "auth/hcb/start" => "hcb_auth#start", as: :hcb_start
   get "auth/hcb/callback" => "hcb_auth#callback", as: :hcb_callback
   delete "auth/hcb" => "hcb_auth#destroy", as: :hcb_disconnect
@@ -359,6 +362,10 @@ Rails.application.routes.draw do
   get "bulletin_board" => "bulletin_board#index", as: :bulletin_board
   get "bulletin_board/search" => "bulletin_board#search", as: :bulletin_board_search # JSON endpoint for debounced explore search; stays on the page instead of re-rendering via Inertia
   get "bulletin_board/events/:id" => "bulletin_board#event", as: :bulletin_board_event
+
+  resource :profile, only: [ :show, :update ] do
+    post :set_slack_photo, on: :member
+  end
 
   resource :streak_goal, only: [ :show, :create, :destroy ]
 

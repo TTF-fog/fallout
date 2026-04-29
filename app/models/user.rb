@@ -16,7 +16,9 @@
 #  lapse_token                 :text
 #  onboarded                   :boolean          default(FALSE), not null
 #  pending_lookout_tokens      :string           default([]), not null, is an Array
+#  pronouns                    :string
 #  roles                       :string           default([]), not null, is an Array
+#  slack_token                 :text
 #  streak_freezes              :integer          default(1), not null
 #  streak_in_app_notifications :boolean          default(TRUE), not null
 #  streak_slack_notifications  :boolean          default(TRUE), not null
@@ -61,6 +63,8 @@ class User < ApplicationRecord
     { conditions: sql }
   end
 
+  has_one_attached :custom_avatar
+
   has_many :ahoy_visits, class_name: "Ahoy::Visit", dependent: :nullify
   has_many :ahoy_events, class_name: "Ahoy::Event", dependent: :nullify
   has_one :latest_locatable_visit, -> { where.not(country: [ nil, "" ]).order(started_at: :desc) }, class_name: "Ahoy::Visit"
@@ -98,6 +102,7 @@ class User < ApplicationRecord
 
   encrypts :hca_token
   encrypts :lapse_token
+  encrypts :slack_token
   encrypts :device_token, deterministic: true # Deterministic so find_by lookups work
 
   scope :verified, -> { where(type: nil) } # STI: verified users have type=nil; TrialUser subclass has type='TrialUser'

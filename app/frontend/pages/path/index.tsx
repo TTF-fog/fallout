@@ -424,7 +424,7 @@ export default function PathIndex() {
         transition={{ ...PATH_ENTRY_FADE_TRANSITION, delay: pathIntro.hudVisible ? 0.12 : 0 }}
         className="fixed h-full z-10 flex justify-end items-end p-8 w-full pointer-events-none"
       >
-        <div className="flex flex-col items-center justify-center sm:justify-end w-full sm:w-fit h-fit space-y-6 pointer-events-auto">
+        <div className="flex flex-col items-center justify-center xs:justify-end w-full sm:w-fit h-fit space-y-6 pointer-events-auto">
           {authUser?.is_trial && <SignUpCta signInPath={sign_in_path} />}
           <div className="hidden xs:block">
             <BgmPlayer />
@@ -436,13 +436,13 @@ export default function PathIndex() {
         initial={false}
         animate={{ opacity: pathIntro.hudVisible ? 1 : 0 }}
         transition={{ ...PATH_ENTRY_FADE_TRANSITION, delay: pathIntro.hudVisible ? 0.2 : 0 }}
-        className="fixed z-10 flex flex-row xs:flex-col items-center xs:items-start space-y-4 bottom-2 left-2 xs:bottom-6 xs:left-6"
+        className="fixed z-10 grid grid-cols-4  place-items-center xs:flex xs:flex-col items-center xs:items-start space-y-4 bottom-2 left-2 xs:bottom-6 xs:left-6"
         style={{ pointerEvents: pathIntro.hudVisible ? 'auto' : 'none' }}
       >
         <Tooltip alwaysShow={docsNudgeReady && !modalOpen} disabled={isDialogOverlayOpen}>
           <TooltipTrigger>
             <Link href="/docs" onClick={() => setReadDocsNudge(false)}>
-              <img src="/icon/guide.webp" alt="Guide" className="cursor-pointer w-20 xs:w-25" />
+              <img src="/icon/guide.webp" alt="Guide" className="cursor-pointer w-25" />
             </Link>
           </TooltipTrigger>
           <TooltipContent>{readDocsNudge ? 'Read this!' : 'Docs & Resources'}</TooltipContent>
@@ -455,7 +455,7 @@ export default function PathIndex() {
               </ModalLink>
             ) : (
               <button onClick={() => notify('alert', 'This is locked! Click on the star')}>
-                <img src="/icon/project.webp" alt="Projects" className="cursor-pointer w-25" />
+                <img src="/icon/project.webp" alt="Projects" className="cursor-pointer" />
               </button>
             )}
           </TooltipTrigger>
@@ -465,15 +465,15 @@ export default function PathIndex() {
           <TooltipTrigger>
             {features.shop && !authUser?.is_trial ? (
               <ModalLink href="/shop" className="outline-0">
-                <img src="/icon/shop.webp" alt="Shop" className="cursor-pointer w-20 xs:w-25" />
+                <img src="/icon/shop.webp" alt="Shop" className="cursor-pointer w-25" />
               </ModalLink>
             ) : features.shop && authUser?.is_trial ? (
               <button onClick={() => notify('alert', 'This is locked! Click on the star')}>
-                <img src="/icon/shop.webp" alt="Shop" className="cursor-pointer w-20 xs:w-25" />
+                <img src="/icon/shop.webp" alt="Shop" className="cursor-pointer" />
               </button>
             ) : (
               <button onClick={() => notify('alert', "The shop isn't open yet. Check back later!")}>
-                <img src="/icon/shop.webp" alt="Shop" className="cursor-pointer w-20 xs:w-25" />
+                <img src="/icon/shop.webp" alt="Shop" className="cursor-pointer w-25" />
               </button>
             )}
           </TooltipTrigger>
