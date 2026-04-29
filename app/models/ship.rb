@@ -444,6 +444,11 @@ class Ship < ApplicationRecord
     [ total.round, 0 ].max
   end
 
+  def returning_reviewer
+    [ time_audit_review, requirements_check_review, design_review, build_review ]
+      .compact.find(&:returned?)&.reviewer
+  end
+
   def aggregate_return_feedback
     [ time_audit_review, requirements_check_review, design_review, build_review ]
       .compact.select(&:returned?).filter_map(&:feedback).join("\n\n---\n\n")
