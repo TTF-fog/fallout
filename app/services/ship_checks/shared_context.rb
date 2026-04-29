@@ -102,7 +102,32 @@ module ShipChecks
       return nil unless repo_meta
       branch = repo_meta["default_branch"] || "main"
       data = github_api("/repos/#{github_nwo}/git/trees/#{branch}?recursive=1")
-      data&.dig("tree")&.map { |f| f["path"] }
+      return nil unless data
+      entries = data["tree"] || []
+      paths = entries.map { |f| f["path"] }
+
+      # Submodules appear as type "commit" — fetch their trees too
+      submodule_nwos = fetch_submodule_nwos
+      submodule_nwos.each do |nwo|
+        sub_meta = github_api("/repos/#{nwo}")
+        next unless sub_meta
+        sub_branch = sub_meta["default_branch"] || "main"
+        sub_data = github_api("/repos/#{nwo}/git/trees/#{sub_branch}?recursive=1")
+        next unless sub_data
+        sub_paths = (sub_data["tree"] || []).map { |f| f["path"] }
+        paths.concat(sub_paths)
+      end
+
+      paths
+    end
+
+    def fetch_submodule_nwos
+      data = github_api("/repos/#{github_nwo}/contents/.gitmodules")
+      return [] unless data&.key?("content")
+      content = Base64.decode64(data["content"]).force_encoding("UTF-8").scrub("")
+      content.scan(/url\s*=\s*.*github\.com[:/]([^/\s]+\/[^\s.]+)/).flatten
+    rescue StandardError
+      []
     end
 
     def fetch_readme_content
