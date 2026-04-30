@@ -34,6 +34,7 @@ class Api::V1::UsersController < Api::V1::BaseController
       display_name: user.display_name,
       koi: user.koi,
       gold: user.gold,
+      streak: StreakDay.current_streak(user),
       critters: {
         total: user.critters.size,
         shiny_count: user.critters.count(&:shiny?),
