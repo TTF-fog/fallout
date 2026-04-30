@@ -74,6 +74,10 @@ module ShipChecks
       project.repo_link.present? && github_nwo.nil?
     end
 
+    def github_rate_limited?
+      @github_rate_limited || false
+    end
+
     private
 
     def github_api(path)
@@ -86,7 +90,12 @@ module ShipChecks
       request = Net::HTTP::Get.new(uri)
       request["Accept"] = "application/vnd.github.v3+json"
       request["User-Agent"] = "Fallout-Preflight"
+      request["Authorization"] = "Bearer #{ENV['GITHUB_TOKEN']}" if ENV["GITHUB_TOKEN"].present?
       response = http.request(request)
+      if response.code == "429" || (response.code == "403" && response["x-ratelimit-remaining"] == "0")
+        @github_rate_limited = true
+        return nil
+      end
       return nil unless response.is_a?(Net::HTTPSuccess)
       JSON.parse(response.body)
     rescue StandardError
