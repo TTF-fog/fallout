@@ -30,9 +30,9 @@ interface BacklogPoint {
   backlog: number
 }
 
-interface UnauditedHoursPoint {
-  date: string
-  hours: number
+interface RecentActivity {
+  count: number
+  avg_turnaround_seconds: number | null
 }
 
 interface Props {
@@ -41,7 +41,7 @@ interface Props {
     this_week: PeriodStats
   }
   backlog_chart: BacklogPoint[]
-  unaudited_hours_chart: UnauditedHoursPoint[]
+  recent_activity: RecentActivity
 }
 
 function formatDuration(seconds: number): string {
@@ -139,12 +139,8 @@ const backlogChartConfig: ChartConfig = {
   backlog: { label: 'Unreviewed ships', color: 'hsl(217, 91%, 60%)' },
 }
 
-const unauditedHoursChartConfig: ChartConfig = {
-  hours: { label: 'Unaudited hours', color: 'hsl(142, 71%, 45%)' },
-}
-
 export default function AdminDashboardIndex() {
-  const { stats, backlog_chart, unaudited_hours_chart } = usePage<Props>().props
+  const { stats, backlog_chart, recent_activity } = usePage<Props>().props
 
   const toCountRows = (data: PeriodStats): RowItem[] =>
     data.reviewers.map((r) => ({ ...r, value: r.review_count, label: `${r.review_count}` }))
@@ -227,63 +223,24 @@ export default function AdminDashboardIndex() {
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Unaudited Shipped Hours</CardTitle>
+            <CardTitle className="text-sm font-medium">Reviews in Last 24h</CardTitle>
           </CardHeader>
           <CardContent>
-            <ChartContainer config={unauditedHoursChartConfig} className="h-[250px] w-full">
-              <AreaChart data={unaudited_hours_chart} margin={{ top: 4, right: 4, bottom: 0, left: -20 }}>
-                <defs>
-                  <linearGradient id="unauditedHoursFill" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="var(--color-hours)" stopOpacity={0.3} />
-                    <stop offset="100%" stopColor="var(--color-hours)" stopOpacity={0.02} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid vertical={false} strokeDasharray="3 3" />
-                <XAxis
-                  dataKey="date"
-                  tickLine={false}
-                  axisLine={false}
-                  tickMargin={8}
-                  tickFormatter={(v: string) => {
-                    const d = new Date(v + 'T00:00:00')
-                    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-                  }}
-                  interval="preserveStartEnd"
-                />
-                <YAxis
-                  tickLine={false}
-                  axisLine={false}
-                  tickMargin={8}
-                  allowDecimals={false}
-                  tickFormatter={(v: number) => `${v}h`}
-                />
-                <ChartTooltip
-                  content={
-                    <ChartTooltipContent
-                      labelFormatter={(v: string) => {
-                        const d = new Date(v + 'T00:00:00')
-                        return d.toLocaleDateString('en-US', {
-                          month: 'long',
-                          day: 'numeric',
-                          year: 'numeric',
-                        })
-                      }}
-                      formatter={(value: unknown) => {
-                        const h = value as number
-                        return [`${h}h`, 'Unaudited hours']
-                      }}
-                    />
-                  }
-                />
-                <Area
-                  type="monotone"
-                  dataKey="hours"
-                  stroke="var(--color-hours)"
-                  strokeWidth={2}
-                  fill="url(#unauditedHoursFill)"
-                />
-              </AreaChart>
-            </ChartContainer>
+            <p className="text-3xl font-bold tabular-nums">{recent_activity.count}</p>
+            <p className="text-sm text-muted-foreground mt-1">ships reviewed</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Avg. Review Turnaround (24h)</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-3xl font-bold tabular-nums">
+              {recent_activity.avg_turnaround_seconds != null
+                ? formatDuration(recent_activity.avg_turnaround_seconds)
+                : '—'}
+            </p>
+            <p className="text-sm text-muted-foreground mt-1">from ship to decision</p>
           </CardContent>
         </Card>
         </div>

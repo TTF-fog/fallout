@@ -21,7 +21,7 @@ class Admin::DashboardController < Admin::ApplicationController
         }
       },
       backlog_chart: backlog_by_day,
-      unaudited_hours_chart: unaudited_hours_by_day
+      recent_activity: recent_24h_activity
     }
   end
 
@@ -128,54 +128,23 @@ class Admin::DashboardController < Admin::ApplicationController
 
   private
 
-  def unaudited_hours_by_day
-    start_date = Date.new(2026, 4, 7)
-    end_date = Date.today
+  # Count and average review turnaround for TA reviews completed in the past 24 hours.
+  # Turnaround = time from ship submission (ship.created_at) to review completion (completed_at).
+  def recent_24h_activity
+    since = 24.hours.ago
+    completed = TimeAuditReview
+      .where(status: %w[approved returned rejected])
+      .where("completed_at >= ?", since)
+      .joins(:ship)
+      .pluck("time_audit_reviews.completed_at", "ships.created_at")
 
-    terminal_statuses = %w[approved returned rejected]
-
-    raw_duration_sql = <<~SQL.squish
-      CASE recordings.recordable_type
-        WHEN 'LapseTimelapse'   THEN (SELECT duration FROM lapse_timelapses WHERE id = recordings.recordable_id)
-        WHEN 'LookoutTimelapse' THEN (SELECT duration FROM lookout_timelapses WHERE id = recordings.recordable_id)
-        WHEN 'YouTubeVideo'     THEN (SELECT duration_seconds * stretch_multiplier FROM you_tube_videos WHERE id = recordings.recordable_id)
-        ELSE 0
-      END
-    SQL
-
-    # Raw recording seconds attributed to ship creation date
-    hours_added_by_day = Ship
-      .joins(journal_entries: :recordings)
-      .where("ships.created_at < ?", end_date.end_of_day)
-      .group("ships.created_at::date")
-      .sum(Arel.sql(raw_duration_sql))
-
-    # Raw recording seconds removed on the date the TA review was finalized.
-    # Uses completed_at (set once on first terminal transition) rather than updated_at,
-    # which drifts whenever annotations are edited after the review is closed.
-    hours_removed_by_day = TimeAuditReview
-      .where(status: terminal_statuses)
-      .where("time_audit_reviews.completed_at < ?", end_date.end_of_day)
-      .joins(ship: { journal_entries: :recordings })
-      .group("time_audit_reviews.completed_at::date")
-      .sum(Arel.sql(raw_duration_sql))
-
-    cumulative_added = Ship
-      .joins(journal_entries: :recordings)
-      .where("ships.created_at < ?", start_date)
-      .sum(Arel.sql(raw_duration_sql))
-
-    cumulative_removed = TimeAuditReview
-      .where(status: terminal_statuses)
-      .where("time_audit_reviews.completed_at < ?", start_date)
-      .joins(ship: { journal_entries: :recordings })
-      .sum(Arel.sql(raw_duration_sql))
-
-    (start_date..end_date).map do |date|
-      cumulative_added += hours_added_by_day[date].to_i
-      cumulative_removed += hours_removed_by_day[date].to_i
-      { date: date.iso8601, hours: [ (cumulative_added - cumulative_removed) / 3600.0, 0 ].max.round(1) }
+    count = completed.size
+    avg_seconds = if count > 0
+      total = completed.sum { |completed_at, ship_created_at| (completed_at - ship_created_at).to_i }
+      (total.to_f / count).round
     end
+
+    { count: count, avg_turnaround_seconds: avg_seconds }
   end
 
   def backlog_by_day
@@ -201,36 +170,5 @@ class Admin::DashboardController < Admin::ApplicationController
       cumulative_completed += completed_by_day[date].to_i
       { date: date.iso8601, backlog: cumulative_ships - cumulative_completed }
     end
-  end
-
-  def reviewer_stats(scope)
-    rows = scope
-      .joins("INNER JOIN users ON users.id = time_audit_reviews.reviewer_id")
-      .group("users.id", "users.display_name", "users.avatar")
-      .select(
-        "users.id",
-        "users.display_name",
-        "users.avatar",
-        "COUNT(*) AS review_count",
-        "SUM(time_audit_reviews.approved_seconds) AS total_approved_seconds"
-      )
-      .order("review_count DESC")
-      .map do |r|
-        {
-          id: r.id,
-          display_name: r.display_name,
-          avatar: r.avatar,
-          review_count: r.review_count,
-          total_approved_seconds: r.total_approved_seconds.to_i
-        }
-      end
-
-    top = rows.first
-    {
-      reviewers: rows,
-      top_reviewer: top,
-      total_reviews: rows.sum { |r| r[:review_count] },
-      total_approved_seconds: rows.sum { |r| r[:total_approved_seconds] }
-    }
   end
 end
