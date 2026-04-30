@@ -140,7 +140,8 @@ function ProfileShow({
     setHasVisitedPfpEditor(true)
   }
 
-  const approvedProgress = Math.min((approved_hours / HOURS_GOAL) * 100, 100)
+  const approvedProgress = Math.min(((approved_hours ?? 0) / HOURS_GOAL) * 100, 100)
+  const totalProgress = Math.min(((total_hours ?? 0) / HOURS_GOAL) * 100, 100)
   const qualified = total_hours >= HOURS_GOAL
 
   const imagesByTab: Record<Tab, string[]> = {
@@ -530,16 +531,19 @@ function ProfileShow({
       </div>
 
       <div className="mt-4 w-full max-w-80">
-        <ProgressBar progress={approvedProgress} trackClassName="bg-beige" />
+        <ProgressBar progress={approvedProgress} secondaryProgress={totalProgress} trackClassName="bg-beige" />
         <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mt-1">
           <span className="text-brown text-sm font-medium mt-1 block text-center">
             Approved:{' '}
-            {qualified ? 'Congrats on qualifying! YIPPPPEEEEE -Soup' : `${approved_hours ?? 0}h / ${HOURS_GOAL}h`}
+            {`${approved_hours ?? 0}h / ${HOURS_GOAL}h`}
           </span>
           <span className="text-brown text-sm font-medium mt-1 block text-center">
             Total: {total_hours ?? 0}h / {HOURS_GOAL}h
           </span>
         </div>
+        {(approved_hours ?? 0) >= HOURS_GOAL && (
+          <span className="text-brown text-sm font-medium mt-1 block text-center">YIPPPEEEE! Congrats on qualifying! -Soup</span>
+        )}
       </div>
     </div>
   )

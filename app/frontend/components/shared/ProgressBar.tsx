@@ -2,6 +2,7 @@ import { type CSSProperties, useEffect, useRef, useState } from 'react'
 
 type ProgressBarProps = {
   progress: number
+  secondaryProgress?: number
   className?: string
   striped?: boolean
   trackClassName?: string
@@ -108,6 +109,7 @@ function loadRememberedProgress(
 
 const ProgressBar = ({
   progress,
+  secondaryProgress,
   className = '',
   striped = true,
   trackClassName = '',
@@ -118,6 +120,7 @@ const ProgressBar = ({
   completionKey,
   onCompleteVisualsFinished,
 }: ProgressBarProps) => {
+  const clampedSecondaryProgress = secondaryProgress !== undefined ? clampProgress(secondaryProgress) : undefined
   const clampedProgress = clampProgress(progress)
   const [animatedProgress, setAnimatedProgress] = useState(() =>
     animateAcrossVisitsKey
@@ -239,6 +242,12 @@ const ProgressBar = ({
 
       <div className="w-full max-w-4xl mx-auto relative">
         <div className={`h-8 bg-white rounded-full border-3 border-gray-950 border-b-[6px] overflow-hidden relative ${trackClassName}`}>
+          {clampedSecondaryProgress !== undefined && (
+            <div
+              className="absolute inset-y-0 left-0 transition-all duration-500 bg-light-blue"
+              style={{ width: `${clampedSecondaryProgress}%` }}
+            />
+          )}
           <div
             className={`h-full transition-all duration-500 relative rounded-full ${endColorActive ? 'bg-green' : 'bg-blue'}`}
             style={{ width: `${animatedProgress}%` }}
