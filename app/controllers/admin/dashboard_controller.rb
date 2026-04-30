@@ -60,7 +60,12 @@ class Admin::DashboardController < Admin::ApplicationController
   def time_audited_stats(scope)
     reviews = scope
       .where.not(reviewer_id: nil)
-      .includes(ship: { journal_entries: { recordings: :recordable } })
+      .includes(ship: { journal_entries: :recordings })
+
+    # Preload all recordables in bulk (3 queries total) to avoid N+1 from
+    # polymorphic :recordable eager loading, which fires per-type-per-batch.
+    all_recordings = reviews.flat_map { |ta| ta.ship.journal_entries.flat_map(&:recordings) }
+    recordables_by_type_id = preload_recordables(all_recordings)
 
     seconds_by_reviewer = Hash.new(0)
 
@@ -70,16 +75,19 @@ class Admin::DashboardController < Admin::ApplicationController
 
       ta.ship.journal_entries.kept.each do |entry|
         entry.recordings.each do |rec|
+          recordable = recordables_by_type_id.dig(rec.recordable_type, rec.recordable_id)
+          next unless recordable
+
           ann = rec_annotations[rec.id.to_s] || {}
           reviewer_id = ann["reviewer_id"]&.to_i || fallback_reviewer_id
 
-          multiplier = rec.recordable.is_a?(YouTubeVideo) ? (ann["stretch_multiplier"]&.to_f || 1.0) : 60.0
-          raw = case rec.recordable
-                when LookoutTimelapse, LapseTimelapse then rec.recordable.duration.to_i
-                when YouTubeVideo then rec.recordable.duration_seconds.to_i
+          multiplier = recordable.is_a?(YouTubeVideo) ? (ann["stretch_multiplier"]&.to_f || 1.0) : 60.0
+          raw = case recordable
+                when LookoutTimelapse, LapseTimelapse then recordable.duration.to_i
+                when YouTubeVideo then recordable.duration_seconds.to_i
                 else 0
                 end
-          base = rec.recordable.is_a?(YouTubeVideo) ? raw * multiplier : raw
+          base = recordable.is_a?(YouTubeVideo) ? raw * multiplier : raw
 
           approved = base
           (ann["segments"] || []).each do |seg|
@@ -107,6 +115,17 @@ class Admin::DashboardController < Admin::ApplicationController
     { time_audited: rows }
   end
 
+  # Preloads all three recordable types in 3 queries and returns a nested hash
+  # { type_name => { id => record } } for O(1) lookup during iteration.
+  def preload_recordables(recordings)
+    by_type = recordings.group_by(&:recordable_type)
+    {
+      "LookoutTimelapse" => LookoutTimelapse.where(id: by_type["LookoutTimelapse"]&.map(&:recordable_id)).index_by(&:id),
+      "LapseTimelapse"   => LapseTimelapse.where(id: by_type["LapseTimelapse"]&.map(&:recordable_id)).index_by(&:id),
+      "YouTubeVideo"     => YouTubeVideo.where(id: by_type["YouTubeVideo"]&.map(&:recordable_id)).index_by(&:id)
+    }
+  end
+
   private
 
   def unaudited_hours_by_day
@@ -131,13 +150,14 @@ class Admin::DashboardController < Admin::ApplicationController
       .group("ships.created_at::date")
       .sum(Arel.sql(raw_duration_sql))
 
-    # Raw recording seconds removed on the date the TA review reached terminal status.
-    # Uses the same raw duration metric as hours_added so both sides are comparable.
+    # Raw recording seconds removed on the date the TA review was finalized.
+    # Uses completed_at (set once on first terminal transition) rather than updated_at,
+    # which drifts whenever annotations are edited after the review is closed.
     hours_removed_by_day = TimeAuditReview
       .where(status: terminal_statuses)
-      .where("time_audit_reviews.updated_at < ?", end_date.end_of_day)
+      .where("time_audit_reviews.completed_at < ?", end_date.end_of_day)
       .joins(ship: { journal_entries: :recordings })
-      .group("time_audit_reviews.updated_at::date")
+      .group("time_audit_reviews.completed_at::date")
       .sum(Arel.sql(raw_duration_sql))
 
     cumulative_added = Ship
@@ -147,7 +167,7 @@ class Admin::DashboardController < Admin::ApplicationController
 
     cumulative_removed = TimeAuditReview
       .where(status: terminal_statuses)
-      .where("time_audit_reviews.updated_at < ?", start_date)
+      .where("time_audit_reviews.completed_at < ?", start_date)
       .joins(ship: { journal_entries: :recordings })
       .sum(Arel.sql(raw_duration_sql))
 
