@@ -94,7 +94,7 @@ class Admin::Reviews::TimeAuditsController < Admin::Reviews::BaseController
       # Only allow the expected { "recordings" => { "<id>" => { ... } } } structure
       permitted[:annotations] = raw.is_a?(Hash) ? raw.slice("recordings") : nil
     end
-    permitted
+    permitted.to_h
   end
 
   # Stamp the current reviewer's id on each recording annotation that doesn't already
