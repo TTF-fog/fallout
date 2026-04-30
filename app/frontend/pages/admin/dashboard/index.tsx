@@ -223,7 +223,7 @@ export default function AdminDashboardIndex() {
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Reviews in Last 24h</CardTitle>
+            <CardTitle className="text-sm font-medium">Requirements Checks (Last 24h)</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold tabular-nums">{recent_activity.count}</p>
@@ -232,7 +232,7 @@ export default function AdminDashboardIndex() {
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Avg. Review Turnaround (24h)</CardTitle>
+            <CardTitle className="text-sm font-medium">Avg. Requirements Check Turnaround (24h)</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold tabular-nums">
@@ -240,7 +240,6 @@ export default function AdminDashboardIndex() {
                 ? formatDuration(recent_activity.avg_turnaround_seconds)
                 : '—'}
             </p>
-            <p className="text-sm text-muted-foreground mt-1">from ship to decision</p>
           </CardContent>
         </Card>
         </div>

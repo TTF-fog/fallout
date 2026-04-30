@@ -128,19 +128,19 @@ class Admin::DashboardController < Admin::ApplicationController
 
   private
 
-  # Count and average review turnaround for TA reviews completed in the past 24 hours.
-  # Turnaround = time from ship submission (ship.created_at) to review completion (completed_at).
+  # Count and average turnaround for requirements check reviews completed in the past 24 hours.
+  # Turnaround = time from ship submission (ship.created_at) to review completion (updated_at).
   def recent_24h_activity
     since = 24.hours.ago
-    completed = TimeAuditReview
+    completed = RequirementsCheckReview
       .where(status: %w[approved returned rejected])
-      .where("completed_at >= ?", since)
+      .where("requirements_check_reviews.updated_at >= ?", since)
       .joins(:ship)
-      .pluck("time_audit_reviews.completed_at", "ships.created_at")
+      .pluck("requirements_check_reviews.updated_at", "ships.created_at")
 
     count = completed.size
     avg_seconds = if count > 0
-      total = completed.sum { |completed_at, ship_created_at| (completed_at - ship_created_at).to_i }
+      total = completed.sum { |reviewed_at, ship_created_at| (reviewed_at - ship_created_at).to_i }
       (total.to_f / count).round
     end
 
