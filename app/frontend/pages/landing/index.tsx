@@ -1141,7 +1141,7 @@ export default function LandingIndex() {
           </footer>
         </div>
       </div>
-      <div className="fixed bottom-4 right-1/2 translate-x-1/2 xs:translate-x-0  xs:bottom-4 xs:right-4 w-[80%] xs:w-100 h-auto rounded-sm overflow-hidden bg-white z-50 flex flex-col border-2 border-dark-brown [transform:translateZ(0)]">
+      <div className="hidden sm:block fixed bottom-4 right-1/2 translate-x-1/2 xs:translate-x-0  xs:bottom-4 xs:right-4 w-[80%] xs:w-100 h-auto rounded-sm overflow-hidden bg-white z-50 flex flex-col border-2 border-dark-brown [transform:translateZ(0)]">
         <div
           className="w-full flex justify-between items-center px-4 py-2 cursor-pointer"
           onClick={() => {
