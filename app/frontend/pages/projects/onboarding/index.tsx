@@ -378,8 +378,6 @@ function SpinPhase({ onComplete, onReliefDone }: { onComplete: () => void; onRel
     const audio = audioRef.current
     if (!video) return
 
-    video.play()
-
     const playAudio = () => {
       audio?.play().catch(() => {})
     }
@@ -393,6 +391,14 @@ function SpinPhase({ onComplete, onReliefDone }: { onComplete: () => void; onRel
       onComplete()
     }
     video.addEventListener('ended', handleEnded, { once: true })
+
+    // Safari may block autoplay even for muted videos; fall back to completing immediately
+    video.play().catch(() => {
+      video.removeEventListener('ended', handleEnded)
+      onComplete()
+      onReliefDone()
+    })
+
     return () => {
       video.removeEventListener('ended', handleEnded)
       document.removeEventListener('click', playAudio)
