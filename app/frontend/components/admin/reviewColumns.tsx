@@ -11,7 +11,11 @@ const statusColors: Record<string, 'default' | 'secondary' | 'destructive' | 'ou
   cancelled: 'outline',
 }
 
-export function buildPendingColumns(basePath: string, siblingLabel?: string): ColumnDef<ReviewRow>[] {
+export function buildPendingColumns(
+  basePath: string,
+  siblingLabel?: string,
+  extraColumns: ColumnDef<ReviewRow>[] = [],
+): ColumnDef<ReviewRow>[] {
   return [
     {
       accessorKey: 'project_name',
@@ -38,6 +42,7 @@ export function buildPendingColumns(basePath: string, siblingLabel?: string): Co
         )
       },
     },
+    ...extraColumns,
     {
       accessorKey: 'reviewer_display_name',
       header: 'Reviewer',
@@ -59,7 +64,11 @@ export function buildPendingColumns(basePath: string, siblingLabel?: string): Co
   ]
 }
 
-export function buildAllColumns(isAdmin: boolean, basePath: string): ColumnDef<ReviewRow>[] {
+export function buildAllColumns(
+  isAdmin: boolean,
+  basePath: string,
+  extraColumns: ColumnDef<ReviewRow>[] = [],
+): ColumnDef<ReviewRow>[] {
   return [
     {
       accessorKey: 'id',
@@ -101,6 +110,7 @@ export function buildAllColumns(isAdmin: boolean, basePath: string): ColumnDef<R
         )
       },
     },
+    ...extraColumns,
     {
       accessorKey: 'reviewer_display_name',
       header: 'Reviewed By',

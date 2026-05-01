@@ -167,6 +167,9 @@ export interface ShipEvent {
   created_at_iso: string
   updated_at_iso: string
   reviewer_display_name: string | null
+  time_audit_status: string | null
+  requirements_check_status: string | null
+  design_review_status: string | null
 }
 
 export interface ProjectForm {
@@ -356,6 +359,7 @@ export interface ReviewRow {
   is_claimed: boolean
   claimed_by_display_name: string | null
   sibling_approved: boolean
+  requirements_check_reviewer_display_name: string | null
 }
 
 export interface TimeAuditReviewDetail {

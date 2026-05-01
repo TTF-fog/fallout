@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_04_29_120000) do
+ActiveRecord::Schema[8.1].define(version: 2026_04_30_000001) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pg_trgm"
@@ -867,6 +867,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_29_120000) do
     t.jsonb "annotations"
     t.integer "approved_seconds"
     t.datetime "claim_expires_at"
+    t.datetime "completed_at"
     t.datetime "created_at", null: false
     t.text "feedback"
     t.integer "lock_version", default: 0, null: false
@@ -874,6 +875,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_29_120000) do
     t.bigint "ship_id", null: false
     t.integer "status", default: 0, null: false
     t.datetime "updated_at", null: false
+    t.index ["completed_at"], name: "index_time_audit_reviews_on_completed_at"
     t.index ["reviewer_id"], name: "index_time_audit_reviews_on_reviewer_id"
     t.index ["ship_id"], name: "index_time_audit_reviews_on_ship_id", unique: true
     t.index ["status", "claim_expires_at"], name: "index_time_audit_reviews_on_status_and_claim_expires_at"

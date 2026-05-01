@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo, useRef } from 'react'
 import { router } from '@inertiajs/react'
 import { Modal, ModalLink, useModal } from '@inertiaui/modal-react'
-import { BookOpenIcon, ClockIcon } from '@heroicons/react/16/solid'
+import { BookOpenIcon, ClockIcon, CheckIcon } from '@heroicons/react/16/solid'
 import { EllipsisHorizontalIcon } from '@heroicons/react/20/solid'
 import { ArrowLeft, Pencil, Trash2, Feather, Loader2 } from 'lucide-react'
 import { DateTime } from 'luxon'
@@ -72,6 +72,34 @@ function shipStatusLabel(status: string): string {
     default:
       return status
   }
+}
+
+function ReviewProgressStep({ label, status }: { label: string; status: string | null }) {
+  const done = status === 'approved'
+  const active = status != null && status !== 'approved'
+  return (
+    <div className="flex flex-col items-center gap-1.5 flex-1">
+      <div
+        className={[
+          'w-8 h-8 rounded-full flex items-center justify-center transition-colors',
+          done ? 'bg-green text-white' : 'border-2 border-dashed border-brown bg-beige',
+        ].join(' ')}
+      >
+        {done && <CheckIcon className="w-5 h-5" />}
+      </div>
+      <span className={`text-xs font-medium ${done ? 'text-dark-brown' : 'text-brown'}`}>{label}</span>
+    </div>
+  )
+}
+
+function ReviewProgress({ ship }: { ship: ShipEvent }) {
+  return (
+    <div className="flex items-start gap-1 pt-0.5">
+      <ReviewProgressStep label="Time Audit" status={ship.time_audit_status} />
+      <ReviewProgressStep label="Req. Check" status={ship.requirements_check_status} />
+      <ReviewProgressStep label="Design Review" status={ship.design_review_status} />
+    </div>
+  )
 }
 
 function ordinal(day: number): string {
@@ -680,6 +708,7 @@ export default function ProjectsShow({
                     if (event.type === 'ship') {
                       const ship = event.ship
                       const isReturned = ship.status === 'returned'
+                      const isPending = ship.status === 'pending'
 
                       if (isReturned && ship.feedback) {
                         return (
@@ -688,7 +717,14 @@ export default function ProjectsShow({
                             isLast={isLast}
                             header={
                               <>
-                                <span className="font-medium">{project.name}</span> was returned{ship.reviewer_display_name ? <> by <span className="font-medium">{ship.reviewer_display_name}</span></> : null} <TimeAgo datetime={event.iso} />.
+                                <span className="font-medium">{project.name}</span> was returned
+                                {ship.reviewer_display_name ? (
+                                  <>
+                                    {' '}
+                                    by <span className="font-medium">{ship.reviewer_display_name}</span>
+                                  </>
+                                ) : null}{' '}
+                                <TimeAgo datetime={event.iso} />.
                               </>
                             }
                           >
@@ -707,6 +743,23 @@ export default function ProjectsShow({
                         )
                       }
 
+                      if (isPending) {
+                        return (
+                          <Timeline.DetailItem
+                            key={`ship-${ship.id}`}
+                            isLast={isLast}
+                            header={
+                              <>
+                                <InlineUser avatar={project.user_avatar} display_name={project.user_display_name} />{' '}
+                                submitted for review <TimeAgo datetime={event.iso} />.
+                              </>
+                            }
+                          >
+                            <ReviewProgress ship={ship} />
+                          </Timeline.DetailItem>
+                        )
+                      }
+
                       return (
                         <Timeline.SimpleItem
                           key={`ship-${ship.id}`}
@@ -714,7 +767,14 @@ export default function ProjectsShow({
                           header={
                             isReturned ? (
                               <>
-                                <span className="font-medium">{project.name}</span> was returned{ship.reviewer_display_name ? <> by <span className="font-medium">{ship.reviewer_display_name}</span></> : null} <TimeAgo datetime={event.iso} />.
+                                <span className="font-medium">{project.name}</span> was returned
+                                {ship.reviewer_display_name ? (
+                                  <>
+                                    {' '}
+                                    by <span className="font-medium">{ship.reviewer_display_name}</span>
+                                  </>
+                                ) : null}{' '}
+                                <TimeAgo datetime={event.iso} />.
                               </>
                             ) : (
                               <>

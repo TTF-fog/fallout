@@ -1,7 +1,7 @@
 class Admin::Reviews::DesignReviewsController < Admin::Reviews::BaseController
   def index
     base = policy_scope(DesignReview)
-      .includes(ship: [ :project, project: :user ], reviewer: [])
+      .includes(ship: [ :project, project: :user, requirements_check_review: :reviewer ], reviewer: [])
 
     pending_reviews = base.pending.where.not(ship_id: flagged_ship_ids).order(created_at: :asc).load
     @pagy, @all_reviews = pagy(base.order(created_at: :desc))

@@ -154,7 +154,8 @@ class Admin::Reviews::BaseController < Admin::ApplicationController
       created_at: review.created_at.strftime("%b %d, %Y"),
       is_claimed: review.claimed?,
       claimed_by_display_name: review.claimed? ? review.reviewer&.display_name : nil,
-      sibling_approved: sibling&.approved? || false
+      sibling_approved: sibling&.approved? || false,
+      requirements_check_reviewer_display_name: review.is_a?(DesignReview) ? ship.requirements_check_review&.reviewer&.display_name : nil
     }
   end
 
