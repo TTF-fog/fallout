@@ -413,7 +413,8 @@ class User < ApplicationRecord
 
     LapseTimelapse.joins(recording: :journal_entry).where(journal_entries: entry_scope).sum(:duration).to_i +
       YouTubeVideo.joins(recording: :journal_entry).where(journal_entries: entry_scope).sum(Arel.sql("duration_seconds * stretch_multiplier")).to_i +
-      LookoutTimelapse.joins(recording: :journal_entry).where(journal_entries: entry_scope).sum(:duration).to_i
+      LookoutTimelapse.joins(recording: :journal_entry).where(journal_entries: entry_scope).sum(:duration).to_i +
+      projects.kept.sum(:manual_seconds).to_i
   end
 
   def koi
