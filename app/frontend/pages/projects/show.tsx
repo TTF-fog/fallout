@@ -51,6 +51,7 @@ function formatByLine(project: ProjectDetail, collaborators: CollaboratorInfo[])
 type TimelineEvent =
   | { type: 'journal'; entry: JournalEntryCard; date: number; iso: string }
   | { type: 'ship'; ship: ShipEvent; date: number; iso: string }
+  | { type: 'blueprint_transfer'; entry: JournalEntryCard; date: number; iso: string }
   | { type: 'created'; date: number; iso: string }
 
 type JournalDateGroup = {
@@ -425,7 +426,7 @@ export default function ProjectsShow({
   const timelineEvents = useMemo<TimelineEvent[]>(() => {
     const events: TimelineEvent[] = [
       ...journal_entries.map((entry) => ({
-        type: 'journal' as const,
+        type: (entry.is_blueprint_transfer ? 'blueprint_transfer' : 'journal') as 'journal' | 'blueprint_transfer',
         entry,
         date: new Date(entry.created_at_iso).getTime(),
         iso: entry.created_at_iso,
@@ -453,7 +454,7 @@ export default function ProjectsShow({
     const groups: JournalDateGroup[] = []
     const map = new Map<string, JournalDateGroup>()
 
-    for (const entry of journal_entries) {
+    for (const entry of journal_entries.filter((e) => !e.is_blueprint_transfer)) {
       const date = journalDateTime(entry.created_at_iso)
       const dateKey = date?.toISODate() ?? entry.created_at_iso
       if (!map.has(dateKey)) {
@@ -703,6 +704,23 @@ export default function ProjectsShow({
                           />
                           {renderJournalRecordings(entry)}
                         </Timeline.DetailItem>
+                      )
+                    }
+                    if (event.type === 'blueprint_transfer') {
+                      const entry = event.entry
+                      return (
+                        <Timeline.SimpleItem
+                          key={`blueprint-${entry.id}`}
+                          isLast={isLast}
+                          header={
+                            <>
+                              <InlineUser avatar={project.user_avatar} display_name={project.user_display_name} />{' '}
+                              transferred project from Blueprint
+                              {entry.blueprint_hours ? ` (${entry.blueprint_hours}h)` : ''}{' '}
+                              <TimeAgo datetime={event.iso} />.
+                            </>
+                          }
+                        />
                       )
                     }
                     if (event.type === 'ship') {

@@ -216,9 +216,14 @@ class ProjectsController < ApplicationController
   end
 
   def serialize_journal_entry_card(journal_entry)
+    content = journal_entry.content.to_s
+    is_blueprint_transfer = content.start_with?("Project transferred from Blueprint!")
+    hours_match = content.match(/Duration Transferred: ([\d.]+)h/)
     {
       id: journal_entry.id,
-      content_html: helpers.render_user_markdown(journal_entry.content.to_s),
+      content_html: helpers.render_user_markdown(content),
+      is_blueprint_transfer: is_blueprint_transfer,
+      blueprint_hours: hours_match ? hours_match[1].to_f : nil,
       images: journal_entry.images.map { |img| url_for(img) },
       recordings_count: policy(journal_entry).show? ? journal_entry.recordings.size : 0, # Only expose recording count to entry author/owner/collaborator
       recordings: policy(journal_entry).show? ? journal_entry.recordings.filter_map { |recording| serialize_journal_recording(recording) } : [], # Only expose recordings to entry author/owner/collaborator

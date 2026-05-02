@@ -4,7 +4,7 @@ class PathController < ApplicationController
   skip_after_action :verify_policy_scoped, only: %i[index] # No scoped collection
 
   def index
-    mail_intro_id = deliver_mail_intro
+    mail_intro_id = deliver_mail_intro || deliver_auto_open_mail
 
     # Include both owned and collaborated journal entries for path progression
     owned = current_user.journal_entries.kept
@@ -37,6 +37,21 @@ class PathController < ApplicationController
   private
 
   NUDGE_INTERVAL_DAYS = 12
+
+  def deliver_auto_open_mail
+    return if current_user.trial?
+
+    mail = MailMessage.visible_to(current_user)
+      .where(auto_open: true)
+      .where.not(id: current_user.mail_interactions.read.select(:mail_message_id))
+      .order(created_at: :asc)
+      .first
+
+    return unless mail
+
+    current_user.mail_interactions.find_or_initialize_by(mail_message: mail).update!(read_at: Time.current)
+    mail.id
+  end
 
   def deliver_mail_intro
     return if current_user.trial?

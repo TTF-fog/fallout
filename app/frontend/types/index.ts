@@ -153,6 +153,8 @@ export interface JournalEntryCard {
   collaborators: { display_name: string; avatar: string }[]
   can_switch_project: boolean
   can_delete: boolean
+  is_blueprint_transfer: boolean
+  blueprint_hours: number | null
 }
 
 export interface JournalSwitchableProject {

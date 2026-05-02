@@ -135,4 +135,16 @@ class MailDeliveryService
       action_url: "/streak_goal"
     )
   end
+
+  def self.blueprint_transfer(user, project_names)
+    project_names = Array(project_names)
+    noun    = project_names.one? ? "Blueprint" : "Blueprints"
+    verb    = project_names.one? ? "has" : "have"
+    list    = project_names.join(", ")
+    MailMessage.create!(
+      summary: "Your #{noun}: #{list} #{verb} been transferred!",
+      content: "If something isn't as you're expecting, send us a message in #fallout-help.",
+      user: user
+    )
+  end
 end
