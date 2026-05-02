@@ -213,12 +213,23 @@ export interface AdminStreakDay {
   status: 'pending' | 'active' | 'frozen' | 'missed'
 }
 
+export interface AdminStreakGoal {
+  id: number
+  target_days: number
+  started_on: string
+  progress: number
+  completed: boolean
+  broken: boolean
+  restorable: boolean
+}
+
 export interface AdminStreakData {
   current_streak: number
   longest_streak: number
   total_active_days: number
   freezes_remaining: number
   days: AdminStreakDay[]
+  goals: AdminStreakGoal[]
 }
 
 export interface AdminProjectData {

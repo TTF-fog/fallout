@@ -294,6 +294,7 @@ Rails.application.routes.draw do
         member do
           patch :update_roles
           patch :update_streak_day # Admin streak day status override
+          patch :restore_streak_goal # Admin streak goal restore (fills blank/missed days with frozen)
         end
       end
       resources :activity_checks, only: [ :new, :create ]
