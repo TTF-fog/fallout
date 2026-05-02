@@ -32,7 +32,14 @@ import {
 import AuditLog, { AuditLogLoading } from '@/components/admin/AuditLog'
 import type { AuditLogEntry } from '@/components/admin/AuditLog'
 import StreakCalendar, { StreakCalendarLoading } from '@/components/admin/StreakCalendar'
-import type { AdminUserDetail, AdminProjectRow, AdminProjectData, AdminStreakData, PagyProps } from '@/types'
+import type {
+  AdminUserDetail,
+  AdminProjectRow,
+  AdminProjectData,
+  AdminStreakData,
+  AdminStreakGoal,
+  PagyProps,
+} from '@/types'
 
 const projectColumns: ColumnDef<AdminProjectRow>[] = [
   {
@@ -469,6 +476,94 @@ function HcbGrantCardsSection({ cards }: { cards: AdminHcbGrantCard[] }) {
   )
 }
 
+function StreakGoalSection({ goals, userId }: { goals: AdminStreakGoal[]; userId: number }) {
+  const [processing, setProcessing] = useState(false)
+
+  function restoreGoal(goal: AdminStreakGoal) {
+    setProcessing(true)
+    router.patch(
+      `/admin/users/${userId}/restore_streak_goal`,
+      {},
+      {
+        preserveState: true,
+        onSuccess: () => setProcessing(false),
+        onError: () => setProcessing(false),
+      },
+    )
+  }
+
+  return (
+    <Card>
+      <CardContent>
+        <h3 className="text-sm font-medium mb-3">Streak Goals</h3>
+        {goals.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No streak goals.</p>
+        ) : (
+          <div className="overflow-hidden rounded-md border border-border">
+            <table className="w-full text-sm">
+              <thead className="bg-muted/40 border-b border-border">
+                <tr className="text-left">
+                  <th className="p-2">Target</th>
+                  <th className="p-2">Progress</th>
+                  <th className="p-2">Started</th>
+                  <th className="p-2">Status</th>
+                  <th className="p-2" />
+                </tr>
+              </thead>
+              <tbody>
+                {goals.map((g) => (
+                  <tr key={g.id} className="border-b border-border last:border-0">
+                    <td className="p-2">{g.target_days} days</td>
+                    <td className="p-2">
+                      {g.progress} / {g.target_days}
+                    </td>
+                    <td className="p-2 text-muted-foreground">{g.started_on}</td>
+                    <td className="p-2">
+                      {g.completed ? (
+                        <Badge variant="default">Completed</Badge>
+                      ) : g.broken ? (
+                        <Badge variant="destructive">Broken</Badge>
+                      ) : (
+                        <Badge variant="secondary">In progress</Badge>
+                      )}
+                    </td>
+                    <td className="p-2 text-right">
+                      {g.restorable && (
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="outline" size="sm" disabled={processing}>
+                              Restore
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Restore streak goal?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Every day in the goal window ({g.started_on} + {g.target_days} days) that is blank or
+                                missed will be set to <strong>frozen</strong>. Active days are untouched.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => restoreGoal(g)} disabled={processing}>
+                                Restore
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
 export default function AdminUsersShow({
   user,
   valid_roles,
@@ -610,7 +705,10 @@ export default function AdminUsersShow({
 
       <div className="mt-8">
         <Deferred data="streak_data" fallback={<StreakCalendarLoading />}>
-          <StreakCalendar data={streak_data!} userId={user.id} />
+          <div className="space-y-4">
+            <StreakGoalSection goals={streak_data?.goals ?? []} userId={user.id} />
+            <StreakCalendar data={streak_data!} userId={user.id} />
+          </div>
         </Deferred>
       </div>
     </div>

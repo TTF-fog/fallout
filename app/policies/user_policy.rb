@@ -19,6 +19,10 @@ class UserPolicy < ApplicationPolicy
     admin?
   end
 
+  def restore_streak_goal?
+    admin?
+  end
+
   def destroy?
     admin? && record != user
   end

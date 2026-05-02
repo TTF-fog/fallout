@@ -88,7 +88,8 @@ class User < ApplicationRecord
   has_many :shop_orders, dependent: :destroy
   has_many :streak_days, dependent: :destroy
   has_many :streak_events, dependent: :destroy
-  has_one :streak_goal, -> { kept }, dependent: :destroy
+  has_many :streak_goals, dependent: :destroy
+  has_one :streak_goal, -> { kept }, dependent: :destroy, class_name: "StreakGoal"
   has_many :collaborations, -> { kept }, class_name: "Collaborator", dependent: :destroy
   has_many :collaborated_projects, through: :collaborations, source: :collaboratable, source_type: "Project"
   has_many :received_collaboration_invites, -> { kept }, class_name: "CollaborationInvite", foreign_key: :invitee_id, dependent: :destroy, inverse_of: :invitee

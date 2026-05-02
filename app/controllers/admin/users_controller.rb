@@ -32,12 +32,24 @@ class Admin::UsersController < Admin::ApplicationController
       is_self: @user == current_user,
       streak_data: InertiaRails.defer {
         streak_days = @user.streak_days.chronological.pluck(:date, :status)
+        most_recent_broken = @user.streak_goals.discarded.order(discarded_at: :desc).first
         {
           current_streak: StreakDay.current_streak(@user),
           longest_streak: StreakDay.longest_streak(@user),
           total_active_days: @user.streak_days.status_active.count,
           freezes_remaining: @user.streak_freezes,
-          days: streak_days.map { |date, status| { date: date.iso8601, status: status } }
+          days: streak_days.map { |date, status| { date: date.iso8601, status: status } },
+          goals: @user.streak_goals.order(created_at: :desc).map do |g|
+            {
+              id: g.id,
+              target_days: g.target_days,
+              started_on: g.started_on.iso8601,
+              progress: g.progress,
+              completed: g.completed?,
+              broken: g.discarded?,
+              restorable: most_recent_broken&.id == g.id && @user.streak_goal.nil?
+            }
+          end
         }
       },
       project_data: InertiaRails.defer {
@@ -133,6 +145,37 @@ class Admin::UsersController < Admin::ApplicationController
 
     @user.update!(roles: roles)
     redirect_to admin_user_path(@user), notice: "Roles updated."
+  end
+
+  def restore_streak_goal
+    @user = User.find(params[:id])
+    authorize @user
+
+    # Only broken (discarded) goals can be restored — active goals are already in progress.
+    goal = @user.streak_goals.discarded.order(discarded_at: :desc).first
+    unless goal
+      redirect_to admin_user_path(@user), alert: "No broken streak goal to restore."
+      return
+    end
+
+    if @user.streak_goal.present?
+      redirect_to admin_user_path(@user), alert: "User already has an active streak goal."
+      return
+    end
+
+    goal.undiscard
+
+    # Fill every day in the goal window with frozen if it has no active/frozen status.
+    (0...goal.target_days).each do |offset|
+      date = goal.started_on + offset.days
+      day = StreakDay.find_or_initialize_by(user: @user, date: date)
+      next if day.status_active? || day.status_frozen?
+
+      day.status = :frozen
+      day.save!
+    end
+
+    redirect_to admin_user_path(@user), notice: "Streak goal restored — blank and missed days set to frozen."
   end
 
   def update_streak_day
