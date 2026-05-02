@@ -143,40 +143,42 @@ function ReviewTopBar({
   const [flagReason, setFlagReason] = useState('')
 
   return (
-    <div className="z-50 bg-muted/40 border-b border-border px-4 py-2 flex items-center gap-3 shrink-0">
-      <Button variant="outline" size="sm" asChild>
-        <Link href="/admin/reviews/time_audits">End Session</Link>
-      </Button>
-      {!isTerminal && (
-        <Button variant="ghost" size="sm" onClick={onSkip}>
-          Skip
+    <div className="z-50 bg-muted/40 border-b border-border px-4 py-2 flex flex-col sm:flex-row sm:items-center gap-2 shrink-0">
+      <div className="flex items-center gap-3 flex-wrap">
+        <Button variant="outline" size="sm" asChild>
+          <Link href="/admin/reviews/time_audits">End Session</Link>
         </Button>
-      )}
+        {!isTerminal && (
+          <Button variant="ghost" size="sm" onClick={onSkip}>
+            Skip
+          </Button>
+        )}
 
-      <Separator orientation="vertical" className="h-6" />
+        <Separator orientation="vertical" className="h-6" />
 
-      <a
-        href={`/admin/projects/${project.id}`}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="font-semibold truncate hover:underline"
-      >
-        {project.name}
-      </a>
-      <a
-        href={`/admin/projects/${project.id}`}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="text-muted-foreground text-sm hover:underline"
-      >
-        (#{project.id})
-      </a>
-      <span className="text-sm text-muted-foreground">
-        {totalEntries} {totalEntries === 1 ? 'entry' : 'entries'} to review ({formatDuration(approvedSeconds)} /{' '}
-        {formatDuration(totalDuration)})
-      </span>
+        <a
+          href={`/admin/projects/${project.id}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="font-semibold truncate hover:underline"
+        >
+          {project.name}
+        </a>
+        <a
+          href={`/admin/projects/${project.id}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-muted-foreground text-sm hover:underline"
+        >
+          (#{project.id})
+        </a>
+        <span className="text-sm text-muted-foreground">
+          {totalEntries} {totalEntries === 1 ? 'entry' : 'entries'} to review ({formatDuration(approvedSeconds)} /{' '}
+          {formatDuration(totalDuration)})
+        </span>
+      </div>
 
-      <div className="flex items-center gap-2 ml-auto">
+      <div className="flex items-center gap-2 sm:ml-auto flex-wrap">
         <Button variant="outline" size="sm" asChild>
           <a href={`/admin/users/${project.user_id}`} target="_blank" rel="noopener noreferrer">
             <UserIcon data-icon="inline-start" />
@@ -1505,7 +1507,7 @@ const EntrySection = memo(
     }, [allSaved, isLast])
 
     return (
-      <div className="flex flex-col snap-start" style={expanded ? { height: 'calc(100vh - 45px)' } : undefined}>
+      <div className={`flex flex-col snap-start ${expanded ? 'md:h-[calc(100vh-45px)]' : ''}`}>
         {/* Entry header */}
         <button
           onClick={() => setExpanded((e) => !e)}
@@ -1548,9 +1550,9 @@ const EntrySection = memo(
 
         {/* Body */}
         {expanded && (
-          <div className="flex flex-1 min-h-0">
+          <div className="flex flex-col-reverse md:flex-row md:flex-1 md:min-h-0">
             {/* Left — videos */}
-            <div className="w-1/2 overflow-y-auto p-4 space-y-6">
+            <div className="md:w-1/2 md:overflow-y-auto p-4 space-y-6">
               {entry.recordings.map((rec) => {
                 const recId = String(rec.id)
                 const recAnnotation = annotations.recordings?.[recId]
@@ -1576,10 +1578,11 @@ const EntrySection = memo(
             </div>
 
             {/* Center divider — 5px scrollable gutter */}
-            <div className="w-1.5 shrink-0 bg-border" />
+            <div className="md:hidden h-px shrink-0 bg-border" />
+            <div className="hidden md:block w-1.5 shrink-0 bg-border" />
 
             {/* Right — journal */}
-            <div className="w-1/2 overflow-y-auto p-4 text-xs">
+            <div className="md:w-1/2 md:overflow-y-auto p-4 text-xs">
               <div
                 className="markdown-content max-w-none"
                 style={{ zoom: 0.75 }}

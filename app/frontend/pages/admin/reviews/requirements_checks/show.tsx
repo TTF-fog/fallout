@@ -132,7 +132,7 @@ const JournalEntriesList = memo(function JournalEntriesList({
           </div>
 
           {entry.recordings.length > 0 && (
-            <div className="grid grid-cols-3 gap-1.5">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-1.5">
               {entry.recordings.map((rec) => (
                 <div key={rec.id} className="text-xs rounded border border-border p-2 space-y-1">
                   <div className="flex items-center gap-1.5">
@@ -171,7 +171,7 @@ const JournalEntriesList = memo(function JournalEntriesList({
             dangerouslySetInnerHTML={{ __html: entry.content_html }}
           />
           {entry.images.length > 0 && (
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               {entry.images.map((img, j) => (
                 <a key={j} href={img} target="_blank" rel="noopener noreferrer">
                   <img src={img} alt="" className="rounded border border-border object-cover w-full max-h-24" />
@@ -364,7 +364,7 @@ function TopBar({
   const [flagReason, setFlagReason] = useState('')
 
   return (
-    <div className="z-50 bg-muted/40 border-b border-border px-4 py-2 flex items-center gap-3 shrink-0">
+    <div className="z-50 bg-muted/40 border-b border-border px-4 py-2 flex flex-wrap items-center gap-2 shrink-0">
       <Button variant="outline" size="sm" asChild>
         <Link href="/admin/reviews/requirements_checks">End Session</Link>
       </Button>
@@ -372,7 +372,7 @@ function TopBar({
         Skip
       </Button>
 
-      <Separator orientation="vertical" className="h-6" />
+      <Separator orientation="vertical" className="h-6 hidden sm:block" />
 
       <a
         href={`/admin/projects/${project.id}`}
@@ -382,9 +382,9 @@ function TopBar({
       >
         {project.name}
       </a>
-      <span className="text-sm text-muted-foreground">by {project.user_display_name}</span>
+      <span className="text-sm text-muted-foreground hidden sm:inline">by {project.user_display_name}</span>
 
-      <div className="flex items-center gap-2 ml-auto">
+      <div className="flex items-center flex-wrap gap-2 ml-auto">
         <Button variant="outline" size="sm" asChild>
           <a href={`/admin/users/${project.user_id}`} target="_blank" rel="noopener noreferrer">
             <UserIcon data-icon="inline-start" />
@@ -501,12 +501,33 @@ export default function RequirementsChecksShow({
   const [notesOpen, setNotesOpen] = useState(false)
   const [flagging, setFlagging] = useState(false)
   const [isFlagged, setIsFlagged] = useState(project_flagged)
+  const [reviewOpen, setReviewOpen] = useState(false)
   const [refreshingTree, setRefreshingTree] = useState(false)
   const [notes, setNotes] = useState<ReviewerNote[]>(reviewer_notes ?? [])
 
   useEffect(() => {
     if (reviewer_notes) setNotes(reviewer_notes)
   }, [reviewer_notes])
+
+  useEffect(() => {
+    if (isTerminal) return
+    try {
+      const saved = localStorage.getItem(`rc-draft:${review.id}`)
+      if (saved) {
+        const parsed = JSON.parse(saved)
+        if (!review.feedback && parsed.feedback) setFeedback(parsed.feedback)
+        if (!review.internal_reason && parsed.internalReason) setInternalReason(parsed.internalReason)
+      }
+    } catch {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const handleModalClose = useCallback(() => {
+    try {
+      localStorage.setItem(`rc-draft:${review.id}`, JSON.stringify({ feedback, internalReason }))
+    } catch {}
+    setReviewOpen(false)
+  }, [feedback, internalReason, review.id])
 
   const handleRefreshTree = useCallback(async () => {
     setRefreshingTree(true)
@@ -577,6 +598,9 @@ export default function RequirementsChecksShow({
   const handleSubmit = useCallback(
     (status: 'approved' | 'returned') => {
       setSubmitting(true)
+      try {
+        localStorage.removeItem(`rc-draft:${review.id}`)
+      } catch {}
       const url = skip
         ? `/admin/reviews/requirements_checks/${review.id}?skip=${skip}`
         : `/admin/reviews/requirements_checks/${review.id}`
@@ -619,9 +643,8 @@ export default function RequirementsChecksShow({
         />
       )}
 
-      <div className="flex-1 min-h-0 flex">
-        {/* Left: project info + preflight + journal */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div className="flex-1 min-h-0 sm:flex">
+        <div className="overflow-y-auto p-4 pb-24 sm:pb-4 space-y-4 sm:flex-1">
           {/* Project overview */}
           <div className="rounded-md border border-border overflow-hidden">
             <div className="p-3 space-y-1">
@@ -714,13 +737,50 @@ export default function RequirementsChecksShow({
             )}
 
             {/* Sibling review statuses */}
-            <div className="px-3 py-2 border-t border-border flex items-center gap-3 text-xs">
+            <div className="px-3 py-2 border-t border-border flex items-center gap-3 text-xs flex-wrap">
               <span className="text-muted-foreground">Reviews:</span>
               <SiblingBadge label="Time Audit" status={sibling_statuses.time_audit} />
               <SiblingBadge label="Requirements" status={sibling_statuses.requirements_check} />
               <SiblingBadge label="Design" status={sibling_statuses.design_review} />
               <SiblingBadge label="Build" status={sibling_statuses.build_review} />
             </div>
+
+            {/* Terminal: review result inline — mobile only, desktop shows in right panel */}
+            {isTerminal && (
+              <div className="sm:hidden px-3 py-2 border-t border-border space-y-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-xs text-muted-foreground font-semibold uppercase tracking-wide">
+                    Review Complete
+                  </span>
+                  <Badge
+                    className={
+                      review.status === 'approved'
+                        ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400'
+                        : review.status === 'returned'
+                          ? 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400'
+                          : review.status === 'rejected'
+                            ? 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400'
+                            : 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400'
+                    }
+                  >
+                    {review.status}
+                  </Badge>
+                  {review.reviewer_display_name && (
+                    <span className="text-xs text-muted-foreground">by {review.reviewer_display_name}</span>
+                  )}
+                </div>
+                {review.internal_reason && (
+                  <p className="text-xs text-muted-foreground whitespace-pre-wrap">
+                    <span className="font-medium">Internal:</span> {review.internal_reason}
+                  </p>
+                )}
+                {review.feedback && (
+                  <p className="text-xs text-muted-foreground whitespace-pre-wrap">
+                    <span className="font-medium">Feedback:</span> {review.feedback}
+                  </p>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Preflight checks */}
@@ -790,52 +850,51 @@ export default function RequirementsChecksShow({
           )}
         </div>
 
-        {/* Divider */}
-        <div className="w-px shrink-0 bg-border" />
-
-        {/* Right: review form / read-only summary */}
-        <div className="w-80 shrink-0 overflow-y-auto p-4 space-y-4">
+        {/* Desktop: divider + right panel */}
+        <div className="hidden sm:block w-px shrink-0 bg-border" />
+        <div className="hidden sm:flex sm:flex-col w-80 shrink-0 overflow-y-auto p-4 space-y-4">
           {isTerminal ? (
             <>
+              <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Review Complete</h3>
               <div className="space-y-2">
-                <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Review Complete</h3>
-                <Badge
-                  className={
-                    review.status === 'approved'
-                      ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400'
-                      : review.status === 'returned'
-                        ? 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400'
-                        : review.status === 'rejected'
-                          ? 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400'
-                          : 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400'
-                  }
-                >
-                  {review.status}
-                </Badge>
-                {review.reviewer_display_name && (
-                  <p className="text-xs text-muted-foreground">by {review.reviewer_display_name}</p>
+                <div className="flex items-center gap-2">
+                  <Badge
+                    className={
+                      review.status === 'approved'
+                        ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400'
+                        : review.status === 'returned'
+                          ? 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400'
+                          : review.status === 'rejected'
+                            ? 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400'
+                            : 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400'
+                    }
+                  >
+                    {review.status}
+                  </Badge>
+                  {review.reviewer_display_name && (
+                    <p className="text-xs text-muted-foreground">by {review.reviewer_display_name}</p>
+                  )}
+                </div>
+                {review.internal_reason && (
+                  <div className="space-y-1">
+                    <label className="text-xs text-muted-foreground">Internal Reason</label>
+                    <p className="text-sm whitespace-pre-wrap">{review.internal_reason}</p>
+                  </div>
+                )}
+                {review.feedback && (
+                  <div className="space-y-1">
+                    <label className="text-xs text-muted-foreground">Feedback</label>
+                    <p className="text-sm whitespace-pre-wrap">{review.feedback}</p>
+                  </div>
                 )}
               </div>
-              {review.internal_reason && (
-                <div className="space-y-1">
-                  <label className="text-xs text-muted-foreground">Internal Reason</label>
-                  <p className="text-sm whitespace-pre-wrap">{review.internal_reason}</p>
-                </div>
-              )}
-              {review.feedback && (
-                <div className="space-y-1">
-                  <label className="text-xs text-muted-foreground">Feedback</label>
-                  <p className="text-sm whitespace-pre-wrap">{review.feedback}</p>
-                </div>
-              )}
             </>
           ) : (
             <>
               <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Submit Review</h3>
-
               <div className="space-y-2">
                 <label className="text-xs text-muted-foreground">
-                  Internal Reason <span className="text-muted-foreground/60">(not shown to user)</span>
+                  Internal Reason <span className="opacity-60">(not shown to user)</span>
                 </label>
                 <Textarea
                   value={internalReason}
@@ -844,10 +903,9 @@ export default function RequirementsChecksShow({
                   className="h-20 text-sm resize-y"
                 />
               </div>
-
               <div className="space-y-2">
                 <label className="text-xs text-muted-foreground">
-                  Feedback <span className="text-muted-foreground/60">(shown to user)</span>
+                  Feedback <span className="opacity-60">(shown to user)</span>
                 </label>
                 <Textarea
                   value={feedback}
@@ -856,13 +914,16 @@ export default function RequirementsChecksShow({
                   className="h-20 text-sm resize-y"
                 />
               </div>
-
               <div className="space-y-2 pt-2">
                 <Button
                   className="w-full"
                   variant="default"
                   disabled={submitting}
-                  onClick={() => {handleSubmit('approved'); setFeedback(""); setInternalReason("")}}
+                  onClick={() => {
+                    handleSubmit('approved')
+                    setFeedback('')
+                    setInternalReason('')
+                  }}
                 >
                   {submitting ? (
                     <LoaderIcon className="size-4 animate-spin mr-1" />
@@ -871,12 +932,15 @@ export default function RequirementsChecksShow({
                   )}
                   Approve
                 </Button>
-
                 <Button
                   className="w-full"
                   variant="outline"
                   disabled={submitting || !feedback.trim()}
-                  onClick={() =>  {handleSubmit('returned'); setFeedback(""); setInternalReason(""); }}
+                  onClick={() => {
+                    handleSubmit('returned')
+                    setFeedback('')
+                    setInternalReason('')
+                  }}
                   title={!feedback.trim() ? 'Feedback is required when returning' : undefined}
                 >
                   Return (Needs Changes)
@@ -886,6 +950,87 @@ export default function RequirementsChecksShow({
           )}
         </div>
       </div>
+
+      {/* Mobile: floating submit button */}
+      {!isTerminal && (
+        <button
+          className="fixed bottom-6 right-6 z-40 sm:hidden bg-primary text-primary-foreground rounded-full px-4 py-2.5 shadow-lg text-sm font-medium hover:opacity-90 transition-opacity"
+          onClick={() => setReviewOpen(true)}
+        >
+          Review
+        </button>
+      )}
+
+      {/* Mobile: review modal */}
+      {reviewOpen && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center sm:hidden">
+          <div className="absolute inset-0 bg-[#000000]/20" onClick={handleModalClose} />
+          <div
+            className="relative z-10 w-full bg-background border border-border rounded-t-xl shadow-xl p-4 space-y-4 max-h-[85vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Submit Review</h3>
+
+            <div className="space-y-2">
+              <label className="text-xs text-muted-foreground">
+                Internal Reason <span className="opacity-60">(not shown to user)</span>
+              </label>
+              <Textarea
+                value={internalReason}
+                onChange={(e) => setInternalReason(e.target.value)}
+                placeholder="Justify your decision..."
+                className="h-20 text-sm resize-y"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-xs text-muted-foreground">
+                Feedback <span className="opacity-60">(shown to user)</span>
+              </label>
+              <Textarea
+                value={feedback}
+                onChange={(e) => setFeedback(e.target.value)}
+                placeholder="Feedback for the project author..."
+                className="h-20 text-sm resize-y"
+              />
+            </div>
+
+            <div className="space-y-2 pt-2">
+              <Button
+                className="w-full"
+                variant="default"
+                disabled={submitting}
+                onClick={() => {
+                  handleSubmit('approved')
+                  setFeedback('')
+                  setInternalReason('')
+                }}
+              >
+                {submitting ? (
+                  <LoaderIcon className="size-4 animate-spin mr-1" />
+                ) : (
+                  <CheckIcon data-icon="inline-start" />
+                )}
+                Approve
+              </Button>
+
+              <Button
+                className="w-full"
+                variant="outline"
+                disabled={submitting || !feedback.trim()}
+                onClick={() => {
+                  handleSubmit('returned')
+                  setFeedback('')
+                  setInternalReason('')
+                }}
+                title={!feedback.trim() ? 'Feedback is required when returning' : undefined}
+              >
+                Return (Needs Changes)
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -195,8 +195,8 @@ export default function AdminProjectGrantsOrdersIndex({
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-y-2 mb-4">
+        <div className="flex flex-wrap items-center gap-3">
           <h1 className="text-2xl font-semibold tracking-tight">Project Grants</h1>
           {(() => {
             const pill = {
@@ -245,7 +245,7 @@ export default function AdminProjectGrantsOrdersIndex({
       </div>
 
       {/* Top-level stats. Cheap aggregates from the controller — no deferred props. */}
-      <div className="grid grid-cols-3 gap-3 mb-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
         <div className="rounded-md border border-border p-3">
           <div className="text-xs text-muted-foreground uppercase tracking-wide">$ Issued</div>
           <div className="text-2xl font-semibold font-mono mt-1">
@@ -302,7 +302,7 @@ export default function AdminProjectGrantsOrdersIndex({
         </div>
       </div>
 
-      <div className="flex items-center gap-2 mb-4">
+      <div className="flex flex-wrap items-center gap-2 mb-4">
         {STATE_FILTERS.map((f) => (
           <Button
             key={f.value}
@@ -316,7 +316,7 @@ export default function AdminProjectGrantsOrdersIndex({
       </div>
 
       {selectedIds.size > 0 && (
-        <div className="flex items-center justify-between mb-4 p-3 border border-border rounded-md bg-muted/40">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4 p-3 border border-border rounded-md bg-muted/40">
           <div className="text-sm">
             <span className="font-medium">{selectedIds.size}</span> selected ·{' '}
             <span className="font-medium">{totalKoi}</span> koi ·{' '}
@@ -343,7 +343,7 @@ export default function AdminProjectGrantsOrdersIndex({
         </div>
       )}
 
-      <div className="overflow-hidden rounded-md border border-border">
+      <div className="overflow-x-auto rounded-md border border-border">
         <table className="w-full text-sm">
           <thead className="bg-muted/40 border-b border-border">
             <tr className="text-left">
@@ -455,8 +455,8 @@ export default function AdminProjectGrantsOrdersIndex({
           attention more urgently than the audit log of what moved. Purely informational:
           "resolve" doesn't change any money state, it just marks the admin has handled it. */}
       <div className="mt-10">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-y-2 mb-3">
+          <div className="flex flex-wrap items-center gap-3">
             <h2 className="text-xl font-semibold tracking-tight">
               Warnings
               {warnings.length > 0 && !warnings_include_resolved && (
@@ -527,7 +527,7 @@ export default function AdminProjectGrantsOrdersIndex({
           </div>
         )}
 
-        <div className="overflow-hidden rounded-md border border-border">
+        <div className="overflow-x-auto rounded-md border border-border">
           <table className="w-full text-sm">
             <thead className="bg-muted/40 border-b border-border">
               <tr className="text-left">
@@ -652,7 +652,7 @@ export default function AdminProjectGrantsOrdersIndex({
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-xl font-semibold tracking-tight">Topups ledger</h2>
         </div>
-        <div className="flex items-center gap-2 mb-3">
+        <div className="flex flex-wrap items-center gap-2 mb-3">
           {TOPUP_STATUS_FILTERS.map((s) => (
             <Button
               key={s.value}
@@ -665,7 +665,7 @@ export default function AdminProjectGrantsOrdersIndex({
           ))}
         </div>
 
-        <div className="overflow-hidden rounded-md border border-border">
+        <div className="overflow-x-auto rounded-md border border-border">
           <table className="w-full text-sm">
             <thead className="bg-muted/40 border-b border-border">
               <tr className="text-left">

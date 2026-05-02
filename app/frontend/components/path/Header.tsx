@@ -54,7 +54,7 @@ export default function Header({ koiBalance, goldBalance, avatar, displayName }:
           </div>
           <button
             type="button"
-            className="relative cursor-pointer group"
+            className="relative w-fit cursor-pointer group"
             onClick={() => {
               if (shared.auth.user?.is_trial) {
                 notify('alert', 'Please verify your account to access your mail.')
@@ -69,8 +69,8 @@ export default function Header({ koiBalance, goldBalance, avatar, displayName }:
             <img src="/envelope.webp" alt="mail" className="h-12 sm:h-16" />
             {shared.has_unread_mail && (
               <>
-                <span className="absolute top-1 right-0 rounded-full size-3 bg-coral" />
-                <span className="absolute top-1 right-0 rounded-full size-3 bg-coral animate-ping" />
+                <span className="absolute top-0 right-0 rounded-full size-3 bg-coral" />
+                <span className="absolute top-0 right-0 rounded-full size-3 bg-coral animate-ping" />
               </>
             )}
             <span className="pointer-events-none absolute -bottom-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-dark-brown px-2 py-1 text-xs text-light-brown opacity-0 transition-opacity group-hover:opacity-100">

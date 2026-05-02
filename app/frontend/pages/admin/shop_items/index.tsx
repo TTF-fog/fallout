@@ -103,7 +103,7 @@ function EditableRow({
   return (
     <TableRow className="align-top">
       <TableCell>
-        <select value={row.status} onChange={(e) => onChange('status', e.target.value)} className={inputClass}>
+        <select value={row.status} onChange={(e) => onChange('status', e.target.value)} className={`${inputClass} whitespace-nowrap`}>
           <option value="available">Available</option>
           <option value="unavailable">Unavailable</option>
         </select>
@@ -319,12 +319,12 @@ export default function AdminShopItemsIndex({ shop_items }: { shop_items: ShopIt
             <TableRow>
               <TableHead className="whitespace-nowrap">Status</TableHead>
               <TableHead className="whitespace-nowrap">Featured</TableHead>
-              <TableHead className="whitespace-nowrap">Streak Freeze</TableHead>
-              <TableHead className="whitespace-nowrap">Needs Shipping</TableHead>
+              <TableHead className="whitespace-normal">Streak Freeze</TableHead>
+              <TableHead className="whitespace-normal">Needs Shipping</TableHead>
               <TableHead className="whitespace-nowrap">Currency</TableHead>
               <TableHead className="min-w-36">Name</TableHead>
-              <TableHead className="min-w-16">Price</TableHead>
-              <TableHead className="min-w-16">USD</TableHead>
+              <TableHead className="min-w-24">Price</TableHead>
+              <TableHead className="min-w-24">USD</TableHead>
               <TableHead className="min-w-52">Description</TableHead>
               <TableHead className="min-w-48">Image URL</TableHead>
               <TableHead></TableHead>

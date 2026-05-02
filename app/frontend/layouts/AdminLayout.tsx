@@ -24,11 +24,11 @@ export default function AdminLayout({ children, flush }: { children: ReactNode; 
   }, [auth.user?.id])
 
   return (
-    <div className="admin bg-background text-foreground min-h-screen flex">
+    <div className="admin bg-background text-foreground min-h-screen">
       <AdminSidebar />
       <AdminCommandPalette />
 
-      <div className="flex-1 min-w-0">
+      <div className="pt-10 sm:pt-0 sm:pl-12">
         <FlashMessages />
         <main className={flush ? undefined : 'p-6'}>{children}</main>
       </div>

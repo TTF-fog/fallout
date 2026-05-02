@@ -94,7 +94,7 @@ function LeaderboardCard({ title, this_week, all_time }: { title: string; this_w
   const direction = tab === 'this_week' ? 'slide-in-from-left-2' : 'slide-in-from-right-2'
 
   return (
-    <Card>
+    <Card className="max-w-full">
       <CardHeader className="pb-2">
         <CardTitle className="text-sm font-medium">{title}</CardTitle>
       </CardHeader>
@@ -169,8 +169,8 @@ export default function AdminDashboardIndex() {
           this_week={toTimeRows(stats.this_week)}
           all_time={toTimeRows(stats.all_time)}
         />
-        <div className="flex flex-col gap-4">
-        <Card>
+        <div className="flex flex-col gap-4 min-w-0">
+        <Card className="max-w-full">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium">Unreviewed Ships</CardTitle>
           </CardHeader>
@@ -221,7 +221,7 @@ export default function AdminDashboardIndex() {
             </ChartContainer>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="max-w-full">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium">Requirements Checks (Last 24h)</CardTitle>
           </CardHeader>
@@ -230,7 +230,7 @@ export default function AdminDashboardIndex() {
             <p className="text-sm text-muted-foreground mt-1">ships reviewed</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="max-w-full">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium">Avg. Requirements Check Turnaround (24h)</CardTitle>
           </CardHeader>
