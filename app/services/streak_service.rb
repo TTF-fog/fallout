@@ -5,20 +5,21 @@ class StreakService
   GOAL_KOI_REWARDS = { 3 => 1, 5 => 2, 7 => 5, 14 => 12 }.freeze
   STREAK_ANNOUNCEMENT_CHANNEL = "C037157AL30" # Public channel for streak goal announcements
 
-  def self.record_activity(user)
+  def self.record_activity(user, date: nil)
     return if user.trial?
 
     reconcile_missed_days(user)
 
-    today = Time.current.in_time_zone(user.timezone).to_date
-    streak_day = StreakDay.find_or_initialize_by(user: user, date: today)
+    date ||= Time.current.in_time_zone(user.timezone).to_date
+    streak_day = StreakDay.find_or_initialize_by(user: user, date: date)
     return if streak_day.status_active?
-    return unless daily_seconds_logged(user, today) >= STREAK_THRESHOLD_SECONDS
+    return if streak_day.status_frozen? || streak_day.status_missed?
+    return unless daily_seconds_logged(user, date) >= STREAK_THRESHOLD_SECONDS
 
     streak_day.status = :active
     streak_day.save!
 
-    user.streak_events.create!(event_type: "day_completed", metadata: { date: today.iso8601 })
+    user.streak_events.create!(event_type: "day_completed", metadata: { date: date.iso8601 })
     check_milestones(user)
     check_goal_completion(user)
   end
@@ -102,6 +103,26 @@ class StreakService
 
     if user.streak_in_app_notifications
       MailDeliveryService.streak_reminder(user, current_streak)
+    end
+  end
+
+  def self.repair_frozen_day(user, journal_entry)
+    return unless journal_entry
+
+    tz = ActiveSupport::TimeZone[user.timezone] || ActiveSupport::TimeZone["UTC"]
+    date = journal_entry.created_at.in_time_zone(tz).to_date
+
+    user.with_lock do
+      streak_day = StreakDay.find_by(user: user, date: date)
+      next unless streak_day&.status_frozen?
+      next unless daily_seconds_logged(user, date) >= STREAK_THRESHOLD_SECONDS
+
+      streak_day.update!(status: :active)
+      User.where(id: user.id).update_all("streak_freezes = LEAST(streak_freezes + 1, #{MAX_FREEZES})")
+      user.reload
+      user.streak_events.create!(event_type: "freeze_restored", metadata: { date: date.iso8601, reason: "youtube_duration_late" })
+      check_milestones(user)
+      check_goal_completion(user)
     end
   end
 

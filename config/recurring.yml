@@ -73,3 +73,8 @@ production:
     class: HcaIdentityRefreshJob
     queue: background
     schedule: every 10 minutes
+
+  you_tube_video_backfill:
+    class: YouTubeVideoBackfillJob
+    queue: background
+    schedule: every day at 11pm
