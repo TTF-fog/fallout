@@ -436,13 +436,13 @@ export default function PathIndex() {
         initial={false}
         animate={{ opacity: pathIntro.hudVisible ? 1 : 0 }}
         transition={{ ...PATH_ENTRY_FADE_TRANSITION, delay: pathIntro.hudVisible ? 0.2 : 0 }}
-        className="fixed z-10 grid grid-cols-4  place-items-center xs:flex xs:flex-col items-center xs:items-start space-y-4 bottom-2 left-2 xs:bottom-6 xs:left-6"
+        className="fixed z-10 grid grid-cols-4  place-items-center xs:flex xs:flex-col items-center xs:items-start short:space-y-0 space-y-4 bottom-2 left-2 xs:bottom-6 xs:left-6"
         style={{ pointerEvents: pathIntro.hudVisible ? 'auto' : 'none' }}
       >
         <Tooltip alwaysShow={docsNudgeReady && !modalOpen} disabled={isDialogOverlayOpen}>
           <TooltipTrigger>
             <Link href="/docs" onClick={() => setReadDocsNudge(false)}>
-              <img src="/icon/guide.webp" alt="Guide" className="cursor-pointer w-25" />
+              <img src="/icon/guide.webp" alt="Guide" className="cursor-pointer short:w-20 w-25" />
             </Link>
           </TooltipTrigger>
           <TooltipContent>{readDocsNudge ? 'Read this!' : 'Docs & Resources'}</TooltipContent>
@@ -451,7 +451,7 @@ export default function PathIndex() {
           <TooltipTrigger>
             {has_projects ? (
               <ModalLink href="/projects" onProjectDeleted={reloadPathProgress} className="outline-0">
-                <img src="/icon/project.webp" alt="Projects" className="cursor-pointer w-25" />
+                <img src="/icon/project.webp" alt="Projects" className="cursor-pointer short:w-20 w-25" />
               </ModalLink>
             ) : (
               <button onClick={() => notify('alert', 'This is locked! Click on the star')}>
@@ -465,15 +465,15 @@ export default function PathIndex() {
           <TooltipTrigger>
             {features.shop && !authUser?.is_trial ? (
               <ModalLink href="/shop" className="outline-0">
-                <img src="/icon/shop.webp" alt="Shop" className="cursor-pointer w-25" />
+                <img src="/icon/shop.webp" alt="Shop" className="cursor-pointer short:w-20 w-25" />
               </ModalLink>
             ) : features.shop && authUser?.is_trial ? (
               <button onClick={() => notify('alert', 'This is locked! Click on the star')}>
-                <img src="/icon/shop.webp" alt="Shop" className="cursor-pointer w-25" />
+                <img src="/icon/shop.webp" alt="Shop" className="cursor-pointer short:w-20 w-25" />
               </button>
             ) : (
               <button onClick={() => notify('alert', "The shop isn't open yet. Check back later!")}>
-                <img src="/icon/shop.webp" alt="Shop" className="cursor-pointer w-25" />
+                <img src="/icon/shop.webp" alt="Shop" className="cursor-pointer short:w-20 w-25" />
               </button>
             )}
           </TooltipTrigger>
