@@ -76,7 +76,7 @@ class Admin::Reviews::DesignReviewsController < Admin::Reviews::BaseController
             review_type: "design_review",
             review_status: @review.status,
             cover_image_url: cover_image_for_project(@review.ship.project),
-            project_url: bulletin_board_url(anchor: "project-#{@review.ship.project_id}"),
+            project_url: project_url(@review.ship.project),
             repo_url: @review.ship.project.repo_link
           )
         end

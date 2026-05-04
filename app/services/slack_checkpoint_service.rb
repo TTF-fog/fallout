@@ -211,7 +211,9 @@ class SlackCheckpointService
         type: "rich_text",
         elements: [ {
           type: "rich_text_section",
-          elements: [ { type: "text", text: detail } ]
+          elements: [
+            { type: "text", text: "\n#{detail}" }
+          ]
         } ]
       }
     }
