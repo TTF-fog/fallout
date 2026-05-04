@@ -86,9 +86,14 @@ class SlackCheckpointService
 
     card_block = {
       type: "card",
+      icon: {
+        type: "image",
+        image_url: project.user.avatar,
+        alt_text: project.user.display_name
+      },
       title: { type: "mrkdwn", text: project.name, verbatim: false },
-      subtitle: { type: "mrkdwn", text: project.description.to_s.truncate(120), verbatim: false },
-      body: { type: "mrkdwn", text: "Review submitted: *#{review_label}*", verbatim: false },
+      subtitle: { type: "mrkdwn", text: project.user.display_name, verbatim: false },
+      body: { type: "mrkdwn", text: project.description.to_s.truncate(280), verbatim: false },
       actions: card_actions
     }
 
@@ -100,11 +105,14 @@ class SlackCheckpointService
       }
     end
 
+    plan_status = tasks.any? { |t| t[:status] == "error" } ? "error" : "complete"
+
     blocks = [
       {
         type: "plan",
         plan_id: "plan_#{ship.id}_#{review_type}",
         title: review_label,
+        status: plan_status,
         tasks: tasks
       },
       card_block

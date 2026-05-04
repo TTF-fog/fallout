@@ -1,7 +1,7 @@
 import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react'
 import { createPortal } from 'react-dom'
 import { Link } from '@inertiajs/react'
-import { Modal } from '@inertiaui/modal-react'
+import { Modal, useModalStack } from '@inertiaui/modal-react'
 import { ArrowLeftIcon, MagnifyingGlassIcon } from '@heroicons/react/20/solid'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import clsx from 'clsx'
@@ -114,6 +114,7 @@ type PageProps = {
   explore: ExploreInitialPayload
   explore_stats: ExploreStats
   is_modal: boolean
+  initial_modal_url?: string | null
 }
 
 function exploreBucketKey(category: CategoryOption, sort: SortOption, query: string): string {
@@ -1398,10 +1399,24 @@ const ExploreSection = memo(function ExploreSection({ explore, exploreStats, inn
   )
 })
 
-export default function BulletinBoardIndex({ events, featured, explore, explore_stats, is_modal }: PageProps) {
+export default function BulletinBoardIndex({
+  events,
+  featured,
+  explore,
+  explore_stats,
+  is_modal,
+  initial_modal_url,
+}: PageProps) {
+  const { visitModal } = useModalStack()
   const modalRef = useRef<{ close: () => void }>(null)
   const innerRef = useRef<HTMLDivElement | null>(null)
   const [lightbox, setLightbox] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (initial_modal_url) {
+      void visitModal(initial_modal_url)
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!lightbox) return
