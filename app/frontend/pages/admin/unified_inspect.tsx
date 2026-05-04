@@ -308,7 +308,12 @@ function Html5RecordingViewer({ recording }: { recording: UnifiedInspectRecordin
           className="w-full aspect-video"
         />
       </div>
-      <TimelineBar segments={recording.segments} duration={videoDuration} currentTime={currentTime} onSeek={handleSeek} />
+      <TimelineBar
+        segments={recording.segments}
+        duration={videoDuration}
+        currentTime={currentTime}
+        onSeek={handleSeek}
+      />
     </div>
   )
 }
@@ -337,7 +342,8 @@ function YouTubeRecordingViewer({ recording }: { recording: UnifiedInspectRecord
 
     window.addEventListener('message', onMessage)
     const interval = setInterval(
-      () => iframe.contentWindow?.postMessage(JSON.stringify({ event: 'command', func: 'getVideoData', args: [] }), '*'),
+      () =>
+        iframe.contentWindow?.postMessage(JSON.stringify({ event: 'command', func: 'getVideoData', args: [] }), '*'),
       250,
     )
 
@@ -370,7 +376,12 @@ function YouTubeRecordingViewer({ recording }: { recording: UnifiedInspectRecord
           allowFullScreen
         />
       </div>
-      <TimelineBar segments={recording.segments} duration={videoDuration} currentTime={currentTime} onSeek={handleSeek} />
+      <TimelineBar
+        segments={recording.segments}
+        duration={videoDuration}
+        currentTime={currentTime}
+        onSeek={handleSeek}
+      />
     </div>
   )
 }
