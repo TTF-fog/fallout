@@ -1060,9 +1060,7 @@ export default function RequirementsChecksShow({
           <AlertDialogHeader>
             <AlertDialogTitle>Checkpoint message required</AlertDialogTitle>
             <AlertDialogDescription>
-              No message mentioning <strong>@{project.user_display_name}</strong> was found in{' '}
-              <strong>#fallout-checkpoint</strong> in the past 24 hours. Please post a review message there first, then
-              paste the message link below.
+              {errors?.checkpoint_message_url?.[0] ?? 'No checkpoint message found.'}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <Input

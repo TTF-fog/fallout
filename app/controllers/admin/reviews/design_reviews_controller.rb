@@ -55,10 +55,13 @@ class Admin::Reviews::DesignReviewsController < Admin::Reviews::BaseController
     checkpoint_just_stored = false
     if submitting_terminal && @review.checkpoint_message_url.blank?
       slack_id = @review.ship.project.user.slack_id
-      url = resolve_checkpoint_message(slack_id, params.dig(:design_review, :checkpoint_message_url))
+      url, failure = resolve_checkpoint_message(slack_id, params.dig(:design_review, :checkpoint_message_url))
       if url.nil?
+        msg = failure == :wrong_mention \
+          ? "That message doesn't mention @#{@review.ship.project.user.display_name}. Did you tag the wrong person?" \
+          : "No checkpoint message found in #fallout-checkpoint mentioning this user in the past 24 hours. Please paste the message link."
         return redirect_back fallback_location: admin_reviews_design_review_path(@review),
-                             inertia: { errors: { checkpoint_message_url: ["No checkpoint message found in #fallout-checkpoint mentioning this user in the past 24 hours. Please paste the message link."] } }
+                             inertia: { errors: { checkpoint_message_url: [ msg ] } }
       end
       @review.update_columns(checkpoint_message_url: url)
       checkpoint_just_stored = true

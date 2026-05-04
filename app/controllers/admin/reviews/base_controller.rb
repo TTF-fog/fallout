@@ -265,12 +265,16 @@ class Admin::Reviews::BaseController < Admin::ApplicationController
 
   # Resolves a verified checkpoint message URL for the project owner.
   # If a permalink is provided, it verifies it mentions the user. Otherwise,
-  # it searches the channel history automatically. Returns the URL or nil.
+  # it searches the channel history automatically.
+  # Returns [url_or_nil, failure_reason_or_nil] where failure_reason is
+  # :not_found or :wrong_mention so callers can surface the right error.
   def resolve_checkpoint_message(slack_id, provided_permalink)
     if provided_permalink.present?
-      SlackCheckpointService.verify_permalink(provided_permalink, slack_id) ? provided_permalink : nil
+      result = SlackCheckpointService.verify_permalink(provided_permalink, slack_id)
+      result == :ok ? [ provided_permalink, nil ] : [ nil, result ]
     else
-      SlackCheckpointService.find_checkpoint_message(slack_id)
+      url = SlackCheckpointService.find_checkpoint_message(slack_id)
+      [ url, url ? nil : :not_found ]
     end
   end
 

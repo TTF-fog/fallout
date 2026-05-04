@@ -39,12 +39,12 @@ class SlackCheckpointService
   end
 
   # Verifies a provided permalink actually exists in the channel and mentions
-  # the expected slack_id. Returns true/false.
+  # the expected slack_id. Returns :ok, :not_found, or :wrong_mention.
   def self.verify_permalink(permalink, slack_id)
-    return false if permalink.blank? || slack_id.blank?
+    return :not_found if permalink.blank? || slack_id.blank?
 
     ts = extract_ts(permalink)
-    return false unless ts
+    return :not_found unless ts
 
     client = Slack::Web::Client.new(token: ENV.fetch("SLACK_BOT_TOKEN", nil))
     response = client.conversations_history(
@@ -56,15 +56,15 @@ class SlackCheckpointService
     )
 
     message = response.messages.first
-    return false unless message
+    return :not_found unless message
 
-    message.text.to_s.include?("<@#{slack_id}>")
+    message.text.to_s.include?("<@#{slack_id}>") ? :ok : :wrong_mention
   rescue Slack::Web::Api::Errors::SlackError, Faraday::Error
-    false
+    :not_found
   end
 
   # Posts a thread reply on the checkpoint message summarising the review outcome.
-  # Only two blocks are sent: a plan block (timeline) and a card block (project info).
+  # Only two blocks are sent: a task_card block (timeline) and a card block (project info).
   #
   # message_ts      - Slack ts of the checkpoint message to reply to
   # ship            - Ship record (with reviews and their versions preloaded)
@@ -80,7 +80,7 @@ class SlackCheckpointService
     project = ship.project
     review_label = REVIEW_LABELS.fetch(review_type, review_type)
 
-    tasks = build_plan_tasks(ship, review_type)
+    output_elements = build_task_card_output_elements(ship, review_type)
 
     card_actions = build_card_actions(project_url, repo_url)
 
@@ -105,18 +105,23 @@ class SlackCheckpointService
       }
     end
 
-    plan_status = tasks.any? { |t| t[:status] == "error" } ? "error" : "complete"
+    overall_status = output_elements.any? { |el| el[:text]&.start_with?("❌") } ? "error" : "complete"
 
-    blocks = [
-      {
-        type: "plan",
-        plan_id: "plan_#{ship.id}_#{review_type}",
-        title: review_label,
-        status: plan_status,
-        tasks: tasks
-      },
-      card_block
-    ]
+    task_card_block = {
+      type: "task_card",
+      task_id: "review_#{ship.id}_#{review_type}",
+      title: "#{project.name} — #{review_label}",
+      status: overall_status,
+      output: {
+        type: "rich_text",
+        elements: [ {
+          type: "rich_text_section",
+          elements: output_elements
+        } ]
+      }
+    }
+
+    blocks = [ task_card_block, card_block ]
 
     client.chat_postMessage(
       channel: CHANNEL_ID,
@@ -141,15 +146,12 @@ class SlackCheckpointService
     "#{match[1]}.#{match[2]}"
   end
 
-  # Builds the ordered list of plan tasks for the given review_type.
-  #
-  # Past returned/rejected ships for the same project are shown as prior attempts
-  # (error tasks) before the current ship's stages.
-  #
-  # For requirements_check: prior RC attempts + time_audit + requirements_check + design_review (pending stub).
-  # For design_review: prior DR attempts + time_audit + requirements_check + design_review.
-  def self.build_plan_tasks(ship, review_type)
-    tasks = []
+  # Builds an array of rich_text elements for the task_card output field.
+  # Each stage is one text element prefixed with an emoji:
+  #   ✅ approved  ❌ returned/rejected  ⏳ pending/not started
+  # Past returned/rejected ships are listed first as prior attempts.
+  def self.build_task_card_output_elements(ship, review_type)
+    elements = []
     project = ship.project
 
     past_ships = project.ships
@@ -165,81 +167,43 @@ class SlackCheckpointService
       end
       next if past_review.nil?
 
-      feedback = past_review.feedback.to_s.presence || past_review.status.to_s.capitalize
       label = "#{REVIEW_LABELS[review_type]} (attempt #{idx + 1})"
-
-      tasks << build_task(
-        task_id: "#{review_type}_past_#{past_ship.id}",
-        title: label,
-        status: "error",
-        detail: feedback
-      )
+      feedback = past_review.feedback.to_s.presence || past_review.status.to_s.capitalize
+      elements << { type: "text", text: "❌ #{label}: #{feedback}\n" }
     end
 
     attempt_num = past_ships.size + 1
-    current_label = past_ships.any? ? "#{REVIEW_LABELS[review_type]} (attempt #{attempt_num})" : nil
+    current_label_suffix = past_ships.any? ? " (attempt #{attempt_num})" : ""
 
     case review_type
     when "requirements_check"
-      tasks << review_task(ship.time_audit_review, "time_audit")
-      tasks << review_task(ship.requirements_check_review, "requirements_check", label_override: current_label)
-      tasks << pending_stub_task("design_review")
+      elements << stage_element(ship.time_audit_review, "time_audit", "")
+      elements << stage_element(ship.requirements_check_review, "requirements_check", current_label_suffix)
+      elements << { type: "text", text: "⏳ #{REVIEW_LABELS["design_review"]}: Not yet started\n" }
     when "design_review"
-      tasks << review_task(ship.time_audit_review, "time_audit")
-      tasks << review_task(ship.requirements_check_review, "requirements_check")
-      tasks << review_task(ship.design_review, "design_review", label_override: current_label)
+      elements << stage_element(ship.time_audit_review, "time_audit", "")
+      elements << stage_element(ship.requirements_check_review, "requirements_check", "")
+      elements << stage_element(ship.design_review, "design_review", current_label_suffix)
     end
 
-    tasks.compact
+    elements.compact
   end
-  private_class_method :build_plan_tasks
+  private_class_method :build_task_card_output_elements
 
-  def self.review_task(review, key, label_override: nil)
+  def self.stage_element(review, key, label_suffix)
     return nil if review.nil?
 
-    current_status = review.status.to_s
-    plan_status = case current_status
-    when "approved" then "complete"
-    when "returned", "rejected" then "error"
-    else "pending"
+    emoji = case review.status.to_s
+    when "approved" then "✅"
+    when "returned", "rejected" then "❌"
+    else "⏳"
     end
 
-    detail = review.feedback.to_s.presence || current_status.capitalize
-
-    build_task(
-      task_id: "#{key}_#{review.id}",
-      title: label_override || REVIEW_LABELS[key],
-      status: plan_status,
-      detail: detail
-    )
+    detail = review.feedback.to_s.presence || review.status.to_s.capitalize
+    label = "#{REVIEW_LABELS[key]}#{label_suffix}"
+    { type: "text", text: "#{emoji} #{label}: #{detail}\n" }
   end
-  private_class_method :review_task
-
-  def self.pending_stub_task(key)
-    build_task(
-      task_id: "#{key}_pending",
-      title: REVIEW_LABELS[key],
-      status: "pending",
-      detail: "Not yet started"
-    )
-  end
-  private_class_method :pending_stub_task
-
-  def self.build_task(task_id:, title:, status:, detail:)
-    {
-      task_id: task_id,
-      title: title,
-      status: status,
-      details: {
-        type: "rich_text",
-        elements: [ {
-          type: "rich_text_section",
-          elements: [ { type: "text", text: detail } ]
-        } ]
-      }
-    }
-  end
-  private_class_method :build_task
+  private_class_method :stage_element
 
   def self.build_card_actions(project_url, repo_url)
     actions = [ {
