@@ -147,6 +147,31 @@ class Admin::UsersController < Admin::ApplicationController
     redirect_to admin_user_path(@user), notice: "Roles updated."
   end
 
+  def update_ban
+    @user = User.find(params[:id])
+    authorize @user
+
+    banning = ActiveModel::Type::Boolean.new.cast(params[:is_banned])
+
+    if banning
+      ban_type = params[:ban_type].to_s
+      unless ban_type.in?(User::MANUAL_BAN_TYPES)
+        redirect_to admin_user_path(@user), alert: "Invalid ban type. Must be one of: #{User::MANUAL_BAN_TYPES.join(', ')}."
+        return
+      end
+      ban_reason = params[:ban_reason].to_s.strip
+      if ban_reason.blank?
+        redirect_to admin_user_path(@user), alert: "A reason is required when banning a user."
+        return
+      end
+      @user.update!(is_banned: true, ban_type: ban_type, ban_reason: ban_reason)
+      redirect_to admin_user_path(@user), notice: "#{@user.display_name} has been banned (#{ban_type})."
+    else
+      @user.update!(is_banned: false, ban_type: nil, ban_reason: nil)
+      redirect_to admin_user_path(@user), notice: "#{@user.display_name} has been unbanned."
+    end
+  end
+
   def restore_streak_goal
     @user = User.find(params[:id])
     authorize @user
@@ -236,6 +261,7 @@ class Admin::UsersController < Admin::ApplicationController
       timezone: user.timezone,
       is_banned: user.is_banned,
       ban_type: user.ban_type,
+      ban_reason: user.ban_reason,
       is_discarded: user.discarded?,
       discarded_at: user.discarded_at&.strftime("%b %d, %Y"),
       created_at: user.created_at.strftime("%b %d, %Y")

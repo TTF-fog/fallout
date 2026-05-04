@@ -1,0 +1,23 @@
+class PostCheckpointThreadJob < ApplicationJob
+  queue_as :default
+
+  def perform(message_ts:, ship_id:, review_type:, review_status:, cover_image_url:, project_url:, repo_url:)
+    ship = Ship.includes(
+      :time_audit_review,
+      :requirements_check_review,
+      :design_review,
+      :build_review,
+      project: { ships: [ :requirements_check_review, :design_review ] }
+    ).find(ship_id)
+
+    SlackCheckpointService.post_review_thread(
+      message_ts: message_ts,
+      ship: ship,
+      review_type: review_type,
+      review_status: review_status,
+      cover_image_url: cover_image_url,
+      project_url: project_url,
+      repo_url: repo_url
+    )
+  end
+end

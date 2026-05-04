@@ -6,6 +6,9 @@ import AdminLayout from '@/layouts/AdminLayout'
 import { Badge } from '@/components/admin/ui/badge'
 import { Button } from '@/components/admin/ui/button'
 import { Card, CardContent } from '@/components/admin/ui/card'
+import { Input } from '@/components/admin/ui/input'
+import { Textarea } from '@/components/admin/ui/textarea'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/admin/ui/select'
 import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/admin/ui/input-group'
 import {
   DropdownMenu,
@@ -235,6 +238,122 @@ function RolesEditor({ user, validRoles, isSelf }: { user: AdminUserDetail; vali
             </AlertDialog>
           )}
         </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+function BanEditor({ user }: { user: AdminUserDetail }) {
+  const isBanned = user.is_banned
+  const isHackatimeBan = user.ban_type === 'hackatime'
+  const MANUAL_BAN_TYPES = ['fallout', 'hcb', 'hardware', 'age'] as const
+  const [banType, setBanType] = useState<string>(
+    user.ban_type && user.ban_type !== 'hackatime' ? user.ban_type : 'fallout',
+  )
+  const [banReason, setBanReason] = useState('')
+  const [processing, setProcessing] = useState(false)
+
+  function submitBan(banning: boolean) {
+    setProcessing(true)
+    router.patch(
+      `/admin/users/${user.id}/update_ban`,
+      banning ? { is_banned: true, ban_type: banType, ban_reason: banReason } : { is_banned: false },
+      { onFinish: () => setProcessing(false) },
+    )
+  }
+
+  return (
+    <Card>
+      <CardContent>
+        <h3 className="text-sm font-medium mb-3">Ban Status</h3>
+        {isBanned ? (
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 flex-wrap">
+              <Badge variant="destructive">{isHackatimeBan ? 'Hackatime (auto)' : `Banned — ${user.ban_type}`}</Badge>
+              {user.ban_reason && <span className="text-sm text-muted-foreground">{user.ban_reason}</span>}
+            </div>
+            {isHackatimeBan ? (
+              <p className="text-xs text-muted-foreground">
+                This ban was set automatically by the Hackatime trust-factor check. Unban will be re-applied by the next
+                job run if the trust factor remains red.
+              </p>
+            ) : null}
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="outline" size="sm" disabled={processing}>
+                  Unban user
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Unban {user.display_name}?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will clear their ban and allow them to access Fallout again.
+                    {isHackatimeBan && ' The Hackatime job may re-ban them automatically.'}
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={() => submitBan(false)} disabled={processing}>
+                    Unban
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">User is not banned.</p>
+            <div className="flex gap-2 flex-wrap items-start">
+              <Select value={banType} onValueChange={setBanType}>
+                <SelectTrigger className="w-36 h-8 text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {MANUAL_BAN_TYPES.map((t) => (
+                    <SelectItem key={t} value={t}>
+                      {t}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <div className="flex-1 min-w-48">
+                <Textarea
+                  value={banReason}
+                  onChange={(e) => setBanReason(e.target.value)}
+                  placeholder="Reason (required)"
+                  className="h-16 text-sm resize-none"
+                />
+              </div>
+            </div>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" size="sm" disabled={processing || !banReason.trim()}>
+                  Ban user
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Ban {user.display_name}?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    They will be banned with type <strong>{banType}</strong> and will see the ban page on next login.
+                    Reason: <em>{banReason}</em>
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    variant="destructive"
+                    onClick={() => submitBan(true)}
+                    disabled={processing || !banReason.trim()}
+                  >
+                    Ban
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
+        )}
       </CardContent>
     </Card>
   )
@@ -670,6 +789,12 @@ export default function AdminUsersShow({
       {valid_roles.length > 0 && (
         <div className="mb-6">
           <RolesEditor user={user} validRoles={valid_roles} isSelf={is_self} />
+        </div>
+      )}
+
+      {isAdmin && (
+        <div className="mb-6">
+          <BanEditor user={user} />
         </div>
       )}
 

@@ -145,8 +145,32 @@ class Admin::Reviews::RequirementsChecksController < Admin::Reviews::BaseControl
   def update
     authorize @review
 
+    submitting_terminal = %w[approved returned rejected].include?(params.dig(:requirements_check_review, :status))
+    checkpoint_just_stored = false
+    if submitting_terminal && @review.checkpoint_message_url.blank?
+      slack_id = @review.ship.project.user.slack_id
+      url = resolve_checkpoint_message(slack_id, params.dig(:requirements_check_review, :checkpoint_message_url))
+      if url.nil?
+        return redirect_back fallback_location: admin_reviews_requirements_check_path(@review),
+                             inertia: { errors: { checkpoint_message_url: ["No checkpoint message found in #fallout-checkpoint mentioning this user in the past 24 hours. Please paste the message link."] } }
+      end
+      @review.update_columns(checkpoint_message_url: url)
+      checkpoint_just_stored = true
+    end
+
     if @review.update(review_params)
       if @review.approved? || @review.returned? || @review.rejected?
+        if checkpoint_just_stored
+          PostCheckpointThreadJob.perform_later(
+            message_ts: SlackCheckpointService.extract_ts(@review.checkpoint_message_url),
+            ship_id: @review.ship_id,
+            review_type: "requirements_check",
+            review_status: @review.status,
+            cover_image_url: cover_image_for_project(@review.ship.project),
+            project_url: bulletin_board_url(anchor: "project-#{@review.ship.project_id}"),
+            repo_url: @review.ship.project.repo_link
+          )
+        end
         redirect_to_next_or_index(notice: "Requirements check #{@review.status}.")
       else
         redirect_to admin_reviews_requirements_check_path(@review, skip: params[:skip]), notice: "Requirements check updated."
@@ -207,7 +231,8 @@ class Admin::Reviews::RequirementsChecksController < Admin::Reviews::BaseControl
       project_name: ship.project.name,
       user_display_name: ship.project.user.display_name,
       preflight_results: ship.preflight_results,
-      created_at: review.created_at.strftime("%B %d, %Y")
+      created_at: review.created_at.strftime("%B %d, %Y"),
+      checkpoint_message_url: review.checkpoint_message_url
     }
   end
 end
