@@ -85,6 +85,7 @@ class JustificationRenderer
     when "REQUIREMENTS_CHECKER" then reviewer_label(@ship.requirements_check_review&.reviewer)
     when "2ND_PASS_REVIEWER" then reviewer_label(phase_two_review&.reviewer)
     when "SUBMITTED_AT" then @ship.created_at&.iso8601
+    when "FIRST_SUBMITTED_AT" then first_submitted_at_iso8601
     when "APPROVED_AT" then approved_at_iso8601
     when "SHIP_TYPE_MSG" then ship_type_msg
     when "ATTEMPTS_MSG" then attempts_msg
@@ -92,6 +93,7 @@ class JustificationRenderer
     when "INTERNAL_NOTES" then phase_two_review&.internal_reason.presence
     when "REPO_URL" then @ship.frozen_repo_link
     when "DEMO_URL" then @ship.frozen_demo_link
+    when "INSPECT_URL" then UnifiedInspectToken.url_for(@ship.id)
     end
   end
 
@@ -229,14 +231,17 @@ class JustificationRenderer
 
   def attempts_msg
     cutoff = @ship.previous_approved_ship&.created_at || Time.at(0)
+    # Per the cycle glossary, only pending/returned/rejected/approved count as
+    # attempts — awaiting_identity ships are drafts that never entered review.
     attempts = @ship.project.ships
+                    .where.not(status: :awaiting_identity)
                     .where("created_at > ? AND created_at <= ?", cutoff, @ship.created_at)
                     .count
     rounds = attempts - 1
     case rounds
     when 0..0 then "without needing additional feedback"
-    when 1 then "after 1 round of feedback"
-    else "after #{rounds} rounds of feedback"
+    when 1 then "after 1 additional round of feedback"
+    else "after #{rounds} additional rounds of feedback"
     end
   end
 
@@ -246,6 +251,18 @@ class JustificationRenderer
                    .reorder(:created_at)
                    .find { |v| (v.object_changes&.dig("status") || [])[1] == approved_int }
     (version&.created_at || @ship.updated_at)&.iso8601
+  end
+
+  # Earliest ship in this cycle (excluding awaiting_identity drafts). For a
+  # first-try approval there's only the inspected ship, so this equals
+  # @ship.created_at.
+  def first_submitted_at_iso8601
+    cutoff = @ship.previous_approved_ship&.created_at || Time.at(0)
+    earliest = @ship.project.ships
+                    .where.not(status: :awaiting_identity)
+                    .where("created_at > ? AND created_at <= ?", cutoff, @ship.created_at)
+                    .minimum(:created_at)
+    (earliest || @ship.created_at)&.iso8601
   end
 
   def koi_awarded

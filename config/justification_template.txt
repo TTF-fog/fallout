@@ -83,8 +83,14 @@ Variables:
     {2ND_PASS_REVIEWER}     Phase 2 (Design or Build) reviewer, same format
 
   Timestamps (ISO 8601)
-    {SUBMITTED_AT}          When the ship was created (status went to :pending
-                            or :awaiting_identity)
+    {SUBMITTED_AT}          When *this* ship was created (status went to :pending
+                            or :awaiting_identity). For multi-attempt cycles
+                            this is the most recent re-submission; use
+                            FIRST_SUBMITTED_AT for the cycle's earliest entry.
+    {FIRST_SUBMITTED_AT}    When the *first* ship in this cycle was created —
+                            i.e. when the user originally submitted, before any
+                            re-submissions. Equals SUBMITTED_AT for first-try
+                            approvals. Excludes awaiting_identity ships.
     {APPROVED_AT}           When the ship reached :approved — sourced from the
                             PaperTrail version that recorded the transition,
                             so it's stable against later attribute writes
@@ -118,9 +124,9 @@ Variables:
                             Examples:
                               "without needing additional feedback"
                                   (1 attempt — approved on first try)
-                              "after 1 round of feedback"
+                              "after 1 additional round of feedback"
                                   (2 attempts — 1 return then approved)
-                              "after 4 rounds of feedback"
+                              "after 4 additional rounds of feedback"
                                   (5 attempts — 4 returns then approved)
 
   Economy
@@ -133,9 +139,15 @@ Variables:
   Links
     {REPO_URL}              Frozen repo link at ship time
     {DEMO_URL}              Frozen demo link at ship time (may be empty)
+    {INSPECT_URL}           Presigned URL to /admin/unified_inspect/:ship_id with
+                            an HMAC token (signed by EXTERNAL_API_KEY) so YSWS
+                            auditors can see the full review timeline + reviewer
+                            attribution behind this approval. Token is path-scoped
+                            to this ship_id; rotating EXTERNAL_API_KEY invalidates
+                            all previously-issued URLs.
 ---
 
-This is the {SHIP_TYPE_MSG} of "{PROJECT_NAME}" for Fallout. Submitted {SUBMITTED_AT}. 
+This is the {SHIP_TYPE_MSG} of "{PROJECT_NAME}" for Fallout. Submitted {FIRST_SUBMITTED_AT}. 
 
 Time was logged via screen/camera recording using {TIMETRACKING_METHODS} ({RECORDING_COUNT} recordings) in combination with journaling ({JOURNAL_COUNT} entries).
 
@@ -153,4 +165,6 @@ The final reviewer was asked to justify why this ship meets the standards of the
 
 {INTERNAL_NOTES|"(no notes)"}
 
-For any questions, please reach out to the Fallout organizers: samliu (samliu@hackclub.com) or Renran (renran@hackclub.com).
+!! To inspect the full review for this ship, including timelapses & journals, see: {INSPECT_URL}
+
+For any questions, please reach out to samliu@hackclub.com.

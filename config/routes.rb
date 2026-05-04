@@ -334,6 +334,16 @@ Rails.application.routes.draw do
     end
   end
 
+  # Read-only inspector linked from YSWS Unified DB rows so external 3rd-party
+  # auditors can see the review timeline + reviewer attribution behind a ship's
+  # approval. Intentionally OUTSIDE the StaffConstraint block — auditors aren't
+  # Fallout staff. Access is gated by an HMAC token in the path (signed by
+  # EXTERNAL_API_KEY via UnifiedInspectToken) to prevent ship_id enumeration.
+  namespace :admin do
+    get "unified_inspect/:ship_id/:token" => "unified_inspect#show",
+        constraints: { token: /[a-f0-9]{64}/ }, as: :unified_inspect
+  end
+
   get "up" => "rails/health#show", as: :rails_health_check
 
   root "landing#index"

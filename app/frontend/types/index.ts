@@ -473,6 +473,79 @@ export interface RequirementsCheckProjectContext extends ReviewProjectContext {
   first_submitted_at: string | null
 }
 
+export interface UnifiedInspectStage {
+  key: string
+  label: string
+  status: string
+  actor: string | null
+  at: string | null
+  feedback?: string | null
+  internal_notes?: string | null
+}
+
+export interface UnifiedInspectShip {
+  id: number
+  ship_type: string
+  status: string
+  project_name: string
+  project_description: string | null
+  owner_display_name: string
+  owner_email: string | null
+  owner_slack_id: string | null
+  public_hours: number | null
+  internal_hours: number | null
+  koi_awarded: number
+  frozen_repo_link: string | null
+  frozen_demo_link: string | null
+  submitted_at: string | null
+  approved_at: string | null
+}
+
+export interface UnifiedInspectSegment {
+  type: 'removed' | 'deflated'
+  start_seconds: number
+  end_seconds: number
+  deflated_percent?: number | null
+  reason?: string | null
+}
+
+export interface UnifiedInspectRecording {
+  id: number
+  type: 'LookoutTimelapse' | 'LapseTimelapse' | 'YouTubeVideo'
+  name: string
+  original_seconds: number
+  approved_seconds: number
+  segments: UnifiedInspectSegment[]
+  description: string | null
+  stretch_multiplier: number
+  playback_url?: string | null
+  thumbnail_url?: string | null
+  video_id?: string
+  yt_duration_seconds?: number
+}
+
+export interface UnifiedInspectJournalEntry {
+  id: number
+  position: number
+  created_at: string | null
+  content_html: string
+  recordings: UnifiedInspectRecording[]
+}
+
+export interface UnifiedInspectTimeAudit {
+  original_seconds: number
+  approved_seconds: number
+  reviewer: string | null
+  feedback: string | null
+  entries: UnifiedInspectJournalEntry[]
+}
+
+export interface UnifiedInspectData {
+  ship: UnifiedInspectShip
+  timeline: UnifiedInspectStage[]
+  time_audit: UnifiedInspectTimeAudit | null
+}
+
 export interface SiblingStatuses {
   time_audit: string | null
   requirements_check: string | null
