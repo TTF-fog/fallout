@@ -36,6 +36,7 @@ import {
 } from 'lucide-react'
 import ProjectNotesWindow from '@/components/admin/ProjectNotesWindow'
 import RepoTree from '@/components/admin/RepoTree'
+import { notify } from '@/lib/notifications'
 import type {
   DesignReviewDetail,
   RequirementsCheckJournalEntry,
@@ -591,7 +592,29 @@ export default function DesignReviewsShow({
             ...(checkpointMessageUrl ? { checkpoint_message_url: checkpointMessageUrl } : {}),
           } as any,
         },
-        { onFinish: () => setSubmitting(false) },
+        {
+          onSuccess: () => {
+            setFeedback('')
+            setInternalReason('')
+            setPendingStatus(null)
+          },
+          onError: (errs) => {
+            // The checkpoint_message_url error is handled by the AlertDialog below — don't double-notify.
+            const entries = Object.entries(errs as Record<string, string | string[]>).filter(
+              ([k]) => k !== 'checkpoint_message_url',
+            )
+            if (entries.length === 0) return
+            const message = entries
+              .map(([field, val]) => {
+                const msg = Array.isArray(val) ? val.join(', ') : val
+                const label = field.replace(/_/g, ' ')
+                return `${label}: ${msg}`
+              })
+              .join('; ')
+            notify('alert', `Could not submit review — ${message}`)
+          },
+          onFinish: () => setSubmitting(false),
+        },
       )
     },
     [review.id, feedback, internalReason, hoursAdjInput, koiAdjInput, skip],
@@ -919,11 +942,7 @@ export default function DesignReviewsShow({
                     className="w-full"
                     variant="default"
                     disabled={submitting || !internalReason.trim()}
-                    onClick={() => {
-                      handleSubmit('approved')
-                      setFeedback('')
-                      setInternalReason('')
-                    }}
+                    onClick={() => handleSubmit('approved')}
                     title={!internalReason.trim() ? 'Internal reason is required when approving' : undefined}
                   >
                     {submitting ? (
@@ -938,11 +957,7 @@ export default function DesignReviewsShow({
                     className="w-full"
                     variant="outline"
                     disabled={submitting || !feedback.trim()}
-                    onClick={() => {
-                      handleSubmit('returned')
-                      setFeedback('')
-                      setInternalReason('')
-                    }}
+                    onClick={() => handleSubmit('returned')}
                     title={!feedback.trim() ? 'Feedback is required when returning' : undefined}
                   >
                     Return (Needs Changes)

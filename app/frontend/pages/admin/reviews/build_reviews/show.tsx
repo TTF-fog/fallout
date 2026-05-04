@@ -36,6 +36,7 @@ import {
 } from 'lucide-react'
 import ProjectNotesWindow from '@/components/admin/ProjectNotesWindow'
 import RepoTree from '@/components/admin/RepoTree'
+import { notify } from '@/lib/notifications'
 import type {
   BuildReviewDetail,
   RequirementsCheckJournalEntry,
@@ -585,7 +586,28 @@ export default function BuildReviewsShow({
             koi_adjustment: koiAdjValue,
           } as any,
         },
-        { onFinish: () => setSubmitting(false) },
+        {
+          onSuccess: () => {
+            setFeedback('')
+            setInternalReason('')
+          },
+          onError: (errs) => {
+            const entries = Object.entries(errs as Record<string, string | string[]>)
+            if (entries.length === 0) {
+              notify('alert', 'Could not submit review. Please try again.')
+              return
+            }
+            const message = entries
+              .map(([field, val]) => {
+                const msg = Array.isArray(val) ? val.join(', ') : val
+                const label = field.replace(/_/g, ' ')
+                return `${label}: ${msg}`
+              })
+              .join('; ')
+            notify('alert', `Could not submit review — ${message}`)
+          },
+          onFinish: () => setSubmitting(false),
+        },
       )
     },
     [review.id, feedback, internalReason, hoursAdjInput, koiAdjInput, skip],
@@ -909,10 +931,7 @@ export default function BuildReviewsShow({
                   className="w-full"
                   variant="default"
                   disabled={submitting || !internalReason.trim()}
-                  onClick={() => {
-                    handleSubmit('approved')
-                    setFeedback(""); setInternalReason("")
-                  }}
+                  onClick={() => handleSubmit('approved')}
                   title={!internalReason.trim() ? 'Internal reason is required when approving' : undefined}
                 >
                   {submitting ? (
@@ -927,10 +946,7 @@ export default function BuildReviewsShow({
                   className="w-full"
                   variant="outline"
                   disabled={submitting || !feedback.trim()}
-                  onClick={() => {
-                    handleSubmit("returned")
-                    setFeedback(""); setInternalReason("")
-                  }}
+                  onClick={() => handleSubmit('returned')}
                   title={!feedback.trim() ? 'Feedback is required when returning' : undefined}
                 >
                   Return (Needs Changes)
