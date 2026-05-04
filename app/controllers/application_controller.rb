@@ -77,36 +77,13 @@ class ApplicationController < ActionController::Base
       address_url: HcaService.address_portal_url(return_to: request.url)
     }
   }
-  # Powers the global AnnouncementsBar feedback Post-it. Cached per-email for 1h, promoted permanent on fill.
+  # Powers the global AnnouncementsBar feedback Post-it. Shown to full-account users; dismissed per-browser
+  # via localStorage in app/frontend/components/announcements/storage.ts (no server state).
   inertia_share show_feedback_banner: -> {
-    next false unless current_user && !current_user.trial? && current_user.email.present?
-    !feedback_form_filled?(current_user.email)
+    current_user.present? && !current_user.trial? && current_user.email.present?
   }
 
   private
-
-  def feedback_form_filled?(email)
-    api_key = ENV["AIRTABLE_API_KEY"]
-    base_id = ENV["AIRTABLE_BASE_ID"]
-    return false unless api_key && base_id
-
-    filled = Rails.cache.fetch("feedback_form_filled:#{email}", expires_in: 1.hour) do
-      safe_email = email.gsub("'", "\\\\'")
-      encoded_formula = CGI.escape("{email}='#{safe_email}'")
-      uri = URI("https://api.airtable.com/v0/#{base_id}/tblVadboSQpgeJpTL?filterByFormula=#{encoded_formula}&fields[]=email&maxRecords=1")
-      response = Net::HTTP.get_response(uri, "Authorization" => "Bearer #{api_key}")
-      if response.is_a?(Net::HTTPSuccess)
-        records = JSON.parse(response.body)["records"]
-        records.is_a?(Array) && records.any?
-      else
-        Rails.logger.error("Airtable feedback_form check error: #{response.code}")
-        false
-      end
-    end
-
-    Rails.cache.write("feedback_form_filled:#{email}", true) if filled # Permanent once filled — never reverts
-    filled
-  end
 
   def track_page_view
     return if response.redirect?

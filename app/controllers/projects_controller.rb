@@ -56,7 +56,7 @@ class ProjectsController < ApplicationController
     highlighted_journal_entry_id = highlighted_journal_entry_id(journal_entries)
 
     render inertia: {
-      project: serialize_project_detail(@project),
+      project: serialize_project_detail(@project, journal_entries.size),
       journal_entries: journal_entries.map { |je| serialize_journal_entry_card(je) },
       switchable_projects_for_journal: switchable_projects_for_journal,
       collaborators: @project.collaborators.includes(:user).map { |c| serialize_project_collaborator(c) },
@@ -203,7 +203,7 @@ class ProjectsController < ApplicationController
     }
   end
 
-  def serialize_project_detail(project)
+  def serialize_project_detail(project, journal_entries_count)
     {
       id: project.id,
       name: project.name,
@@ -217,7 +217,7 @@ class ProjectsController < ApplicationController
       created_at: project.created_at.strftime("%B %d, %Y"),
       created_at_iso: project.created_at.iso8601,
       time_logged: project.time_logged,
-      journal_entries_count: project.kept_journal_entries.count
+      journal_entries_count: journal_entries_count
     }
   end
 
@@ -225,9 +225,16 @@ class ProjectsController < ApplicationController
     content = journal_entry.content.to_s
     is_blueprint_transfer = content.start_with?("Project transferred from Blueprint!")
     hours_match = content.match(/Duration Transferred: ([\d.]+)h/)
+    # Cache the markdown render — pure function of (content, base_url). Invalidated by updated_at via
+    # cache_key_with_version; base_url is in the key so links don't get the wrong same-origin treatment if
+    # APPLICATION_HOST is unset and request.base_url varies.
+    base_url = MarkdownHelper.canonical_base_url || (request.base_url rescue nil)
+    content_html = Rails.cache.fetch([ "journal_entry_html_v1", journal_entry.cache_key_with_version, base_url ]) do
+      helpers.render_user_markdown(content)
+    end
     {
       id: journal_entry.id,
-      content_html: helpers.render_user_markdown(content),
+      content_html: content_html,
       is_blueprint_transfer: is_blueprint_transfer,
       blueprint_hours: hours_match ? hours_match[1].to_f : nil,
       images: journal_entry.images.map { |img| url_for(img) },

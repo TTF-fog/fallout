@@ -64,7 +64,9 @@ class Admin::DashboardController < Admin::ApplicationController
 
     # Preload all recordables in bulk (3 queries total) to avoid N+1 from
     # polymorphic :recordable eager loading, which fires per-type-per-batch.
-    all_recordings = reviews.flat_map { |ta| ta.ship.journal_entries.flat_map(&:recordings) }
+    # Filter kept entries in Ruby against the already-eager-loaded collection — calling
+    # `.kept` on the association would re-issue queries and bypass `includes` above.
+    all_recordings = reviews.flat_map { |ta| ta.ship.journal_entries.reject(&:discarded?).flat_map(&:recordings) }
     recordables_by_type_id = preload_recordables(all_recordings)
 
     seconds_by_reviewer = Hash.new(0)
@@ -73,7 +75,7 @@ class Admin::DashboardController < Admin::ApplicationController
       rec_annotations = ta.annotations&.dig("recordings") || {}
       fallback_reviewer_id = ta.reviewer_id
 
-      ta.ship.journal_entries.kept.each do |entry|
+      ta.ship.journal_entries.reject(&:discarded?).each do |entry|
         entry.recordings.each do |rec|
           recordable = recordables_by_type_id.dig(rec.recordable_type, rec.recordable_id)
           next unless recordable

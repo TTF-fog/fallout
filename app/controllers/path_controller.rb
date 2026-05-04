@@ -15,7 +15,7 @@ class PathController < ApplicationController
       owned.or(JournalEntry.kept.where(id: collaborated_ids))
     else
       owned
-    end.includes(:critters).order(:created_at)
+    end.includes(:critters).order(:created_at).to_a # Materialize once — `.size` + `.map` + `pending_dialog_key.size` would otherwise re-query.
 
     render inertia: {
       user: {

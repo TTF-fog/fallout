@@ -123,6 +123,11 @@ class JournalEntriesController < ApplicationController
     award_critters_to_collaborators(@journal_entry)
     StreakService.record_activity(current_user)
 
+    # Invalidate the streak-warning cache for today (see streak_data_for_warning) so the next /journal_entries/new
+    # reflects the just-added recordings rather than a stale 30s-cached value.
+    today = Time.current.in_time_zone(current_user.timezone).to_date
+    Rails.cache.delete("streak_seconds:#{current_user.id}:#{today}")
+
     if current_user.journal_entries.kept.count == 1
       current_user.dialog_campaigns.find_or_create_by!(key: "first_journal") { |c| c.seen_at = nil }
     end
@@ -230,7 +235,13 @@ class JournalEntriesController < ApplicationController
       if streak_day&.status_active?
         { seconds_logged: nil, threshold: nil } # Already hit the threshold — no warning needed
       else
-        { seconds_logged: StreakService.daily_seconds_logged(user, today), threshold: StreakService::STREAK_THRESHOLD_SECONDS }
+        # Short-cache the 3-SUM aggregation — drives a UI warning, so a few seconds of staleness is fine.
+        # Explicitly invalidated by JournalEntriesController#create after recordings are attached;
+        # the 30s TTL is a safety net for any path that adds recordings without going through #create.
+        seconds_logged = Rails.cache.fetch("streak_seconds:#{user.id}:#{today}", expires_in: 30.seconds) do
+          StreakService.daily_seconds_logged(user, today)
+        end
+        { seconds_logged: seconds_logged, threshold: StreakService::STREAK_THRESHOLD_SECONDS }
       end
     end
   end
