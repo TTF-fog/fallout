@@ -205,6 +205,7 @@ export interface AdminUserDetail {
   timezone: string
   is_banned: boolean
   ban_type: BanType | null
+  ban_reason: string | null
   is_discarded: boolean
   discarded_at: string | null
   created_at: string
@@ -455,6 +456,7 @@ export interface ReviewProjectContext {
   user_id: number
   user_display_name: string
   user_avatar: string
+  user_slack_id: string | null
 }
 
 export interface RequirementsCheckProjectContext extends ReviewProjectContext {
@@ -510,6 +512,7 @@ export interface RequirementsCheckReviewDetail {
   user_display_name: string
   preflight_results: PreflightCheck[] | null
   created_at: string
+  checkpoint_message_url: string | null
 }
 
 export interface DesignReviewDetail {
@@ -526,6 +529,7 @@ export interface DesignReviewDetail {
   user_display_name: string
   preflight_results: PreflightCheck[] | null
   created_at: string
+  checkpoint_message_url: string | null
 }
 
 export interface BuildReviewDetail {

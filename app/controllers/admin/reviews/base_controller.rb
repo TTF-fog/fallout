@@ -176,6 +176,7 @@ class Admin::Reviews::BaseController < Admin::ApplicationController
       user_id: project.user_id,
       user_display_name: project.user.display_name,
       user_avatar: project.user.avatar,
+      user_slack_id: project.user.slack_id, # Admin-only context; review pages are staff-only
       logged_hours: logged,
       approved_public_hours: public_hrs,
       approved_internal_hours: internal_hrs,
@@ -260,5 +261,27 @@ class Admin::Reviews::BaseController < Admin::ApplicationController
     total = base + dr_adj + br_adj
     return nil if base.zero? && dr_adj.zero? && br_adj.zero?
     (total / 3600.0).round(1)
+  end
+
+  # Resolves a verified checkpoint message URL for the project owner.
+  # If a permalink is provided, it verifies it mentions the user. Otherwise,
+  # it searches the channel history automatically. Returns the URL or nil.
+  def resolve_checkpoint_message(slack_id, provided_permalink)
+    if provided_permalink.present?
+      SlackCheckpointService.verify_permalink(provided_permalink, slack_id) ? provided_permalink : nil
+    else
+      SlackCheckpointService.find_checkpoint_message(slack_id)
+    end
+  end
+
+  # Returns an absolute URL for the project's cover image (first image from the
+  # most recent public journal entry with an attachment), or nil if none exists.
+  def cover_image_for_project(project)
+    entry = JournalEntry.public_for_explore
+      .where(project_id: project.id)
+      .joins(:images_attachments)
+      .order(created_at: :desc)
+      .first
+    entry ? url_for(entry.images.first) : nil
   end
 end

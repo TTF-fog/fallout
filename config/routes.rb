@@ -295,6 +295,7 @@ Rails.application.routes.draw do
           patch :update_roles
           patch :update_streak_day # Admin streak day status override
           patch :restore_streak_goal # Admin streak goal restore (fills blank/missed days with frozen)
+          patch :update_ban # Admin ban/unban — admin-only
         end
       end
       resources :activity_checks, only: [ :new, :create ]

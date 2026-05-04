@@ -19,6 +19,10 @@ class UserPolicy < ApplicationPolicy
     admin?
   end
 
+  def update_ban?
+    admin?
+  end
+
   def restore_streak_goal?
     admin?
   end
