@@ -39,7 +39,8 @@ class BulletinBoardController < ApplicationController
         journals: explore_payload(category: "journals", sort: "newest", query: nil, cursor: nil)
       },
       explore_stats: explore_stats,
-      is_modal: request.headers["X-InertiaUI-Modal"].present?
+      is_modal: request.headers["X-InertiaUI-Modal"].present?,
+      initial_modal_url: params[:project].present? ? project_path(params[:project]) : nil
     }
   end
 

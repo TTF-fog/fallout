@@ -7,7 +7,7 @@ class PostCheckpointThreadJob < ApplicationJob
       :requirements_check_review,
       :design_review,
       :build_review,
-      project: { ships: [ :requirements_check_review, :design_review ] }
+      project: { user: {}, ships: [ :requirements_check_review, :design_review ] }
     ).find(ship_id)
 
     SlackCheckpointService.post_review_thread(

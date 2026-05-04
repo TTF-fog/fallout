@@ -40,6 +40,12 @@ class ProjectsController < ApplicationController
   def show
     authorize @project
 
+    # Direct browser visits get the bulletin board with the project opened as a modal.
+    # Inertia navigations and modal requests render the page normally.
+    unless request.headers["X-Inertia"].present? || request.headers["X-InertiaUI-Modal"].present?
+      return redirect_to bulletin_board_path(project: @project.id), allow_other_host: false
+    end
+
     journal_entries = @project.journal_entries.kept
       .includes(:user, :collaborator_users, { recordings: :recordable }, images_attachments: :blob)
       .order(created_at: :desc)
