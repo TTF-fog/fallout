@@ -105,19 +105,16 @@ class SlackCheckpointService
       }
     end
 
-    overall_status = output_elements.any? { |el| el[:text]&.start_with?("❌") } ? "error" : "complete"
+    overall_status = output_elements.any? { |el| el[:elements]&.first&.dig(:text)&.start_with?("❌") } ? "error" : "complete"
 
     task_card_block = {
       type: "task_card",
       task_id: "review_#{ship.id}_#{review_type}",
-      title: "#{project.name} — #{review_label}",
+      title: review_label,
       status: overall_status,
       output: {
         type: "rich_text",
-        elements: [ {
-          type: "rich_text_section",
-          elements: output_elements
-        } ]
+        elements: output_elements
       }
     }
 
@@ -146,12 +143,12 @@ class SlackCheckpointService
     "#{match[1]}.#{match[2]}"
   end
 
-  # Builds an array of rich_text elements for the task_card output field.
-  # Each stage is one text element prefixed with an emoji:
+  # Builds an array of rich_text_section elements for the task_card output field.
+  # Each stage is its own section with a single text element prefixed with an emoji:
   #   ✅ approved  ❌ returned/rejected  ⏳ pending/not started
   # Past returned/rejected ships are listed first as prior attempts.
   def self.build_task_card_output_elements(ship, review_type)
-    elements = []
+    sections = []
     project = ship.project
 
     past_ships = project.ships
@@ -169,7 +166,7 @@ class SlackCheckpointService
 
       label = "#{REVIEW_LABELS[review_type]} (attempt #{idx + 1})"
       feedback = past_review.feedback.to_s.presence || past_review.status.to_s.capitalize
-      elements << { type: "text", text: "❌ #{label}: #{feedback}\n" }
+      sections << text_section("❌ #{label}: #{feedback}")
     end
 
     attempt_num = past_ships.size + 1
@@ -177,20 +174,20 @@ class SlackCheckpointService
 
     case review_type
     when "requirements_check"
-      elements << stage_element(ship.time_audit_review, "time_audit", "")
-      elements << stage_element(ship.requirements_check_review, "requirements_check", current_label_suffix)
-      elements << { type: "text", text: "⏳ #{REVIEW_LABELS["design_review"]}: Not yet started\n" }
+      sections << stage_section(ship.time_audit_review, "time_audit", "")
+      sections << stage_section(ship.requirements_check_review, "requirements_check", current_label_suffix)
+      sections << text_section("⏳ #{REVIEW_LABELS["design_review"]}: Not yet started")
     when "design_review"
-      elements << stage_element(ship.time_audit_review, "time_audit", "")
-      elements << stage_element(ship.requirements_check_review, "requirements_check", "")
-      elements << stage_element(ship.design_review, "design_review", current_label_suffix)
+      sections << stage_section(ship.time_audit_review, "time_audit", "")
+      sections << stage_section(ship.requirements_check_review, "requirements_check", "")
+      sections << stage_section(ship.design_review, "design_review", current_label_suffix)
     end
 
-    elements.compact
+    sections.compact
   end
   private_class_method :build_task_card_output_elements
 
-  def self.stage_element(review, key, label_suffix)
+  def self.stage_section(review, key, label_suffix)
     return nil if review.nil?
 
     emoji = case review.status.to_s
@@ -201,9 +198,17 @@ class SlackCheckpointService
 
     detail = review.feedback.to_s.presence || review.status.to_s.capitalize
     label = "#{REVIEW_LABELS[key]}#{label_suffix}"
-    { type: "text", text: "#{emoji} #{label}: #{detail}\n" }
+    text_section("#{emoji} #{label}: #{detail}")
   end
-  private_class_method :stage_element
+  private_class_method :stage_section
+
+  def self.text_section(text)
+    {
+      type: "rich_text_section",
+      elements: [ { type: "text", text: text } ]
+    }
+  end
+  private_class_method :text_section
 
   def self.build_card_actions(project_url, repo_url)
     actions = [ {
