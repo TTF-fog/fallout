@@ -64,7 +64,8 @@ class SlackCheckpointService
   end
 
   # Posts a thread reply on the checkpoint message summarising the review outcome.
-  # Only two blocks are sent: a task_card block (timeline) and a card block (project info).
+  # Only two blocks are sent: a plan block (timeline) and a card block (project info).
+  # Tasks with pending/in_progress status are omitted — only complete and error are shown.
   #
   # message_ts      - Slack ts of the checkpoint message to reply to
   # ship            - Ship record (with reviews and their versions preloaded)
@@ -80,7 +81,7 @@ class SlackCheckpointService
     project = ship.project
     review_label = REVIEW_LABELS.fetch(review_type, review_type)
 
-    output_elements = build_task_card_output_elements(ship, review_type)
+    tasks = build_plan_tasks(ship, review_type)
 
     card_actions = build_card_actions(project_url, repo_url)
 
@@ -105,20 +106,18 @@ class SlackCheckpointService
       }
     end
 
-    overall_status = output_elements.any? { |el| el[:elements]&.first&.dig(:text)&.start_with?("❌") } ? "error" : "complete"
+    plan_status = tasks.any? { |t| t[:status] == "error" } ? "error" : "complete"
 
-    task_card_block = {
-      type: "task_card",
-      task_id: "review_#{ship.id}_#{review_type}",
-      title: review_label,
-      status: overall_status,
-      output: {
-        type: "rich_text",
-        elements: output_elements
-      }
-    }
-
-    blocks = [ task_card_block, card_block ]
+    blocks = [
+      {
+        type: "plan",
+        plan_id: "plan_#{ship.id}_#{review_type}",
+        title: review_label,
+        status: plan_status,
+        tasks: tasks
+      },
+      card_block
+    ]
 
     client.chat_postMessage(
       channel: CHANNEL_ID,
@@ -143,12 +142,10 @@ class SlackCheckpointService
     "#{match[1]}.#{match[2]}"
   end
 
-  # Builds an array of rich_text_section elements for the task_card output field.
-  # Each stage is its own section with a single text element prefixed with an emoji:
-  #   ✅ approved  ❌ returned/rejected  ⏳ pending/not started
-  # Past returned/rejected ships are listed first as prior attempts.
-  def self.build_task_card_output_elements(ship, review_type)
-    sections = []
+  # Builds the ordered list of plan tasks. Only complete and error statuses are
+  # included — pending/in_progress tasks are omitted entirely.
+  def self.build_plan_tasks(ship, review_type)
+    tasks = []
     project = ship.project
 
     past_ships = project.ships
@@ -164,51 +161,62 @@ class SlackCheckpointService
       end
       next if past_review.nil?
 
-      label = "#{REVIEW_LABELS[review_type]} (attempt #{idx + 1})"
       feedback = past_review.feedback.to_s.presence || past_review.status.to_s.capitalize
-      sections << text_section("❌ #{label}: #{feedback}")
+      label = "#{REVIEW_LABELS[review_type]} (attempt #{idx + 1})"
+      tasks << build_task(task_id: "#{review_type}_past_#{past_ship.id}", title: label, status: "error", detail: feedback)
     end
 
     attempt_num = past_ships.size + 1
-    current_label_suffix = past_ships.any? ? " (attempt #{attempt_num})" : ""
+    current_label = past_ships.any? ? "#{REVIEW_LABELS[review_type]} (attempt #{attempt_num})" : nil
 
     case review_type
     when "requirements_check"
-      sections << stage_section(ship.time_audit_review, "time_audit", "")
-      sections << stage_section(ship.requirements_check_review, "requirements_check", current_label_suffix)
-      sections << text_section("⏳ #{REVIEW_LABELS["design_review"]}: Not yet started")
+      tasks << review_task(ship.time_audit_review, "time_audit")
+      tasks << review_task(ship.requirements_check_review, "requirements_check", label_override: current_label)
     when "design_review"
-      sections << stage_section(ship.time_audit_review, "time_audit", "")
-      sections << stage_section(ship.requirements_check_review, "requirements_check", "")
-      sections << stage_section(ship.design_review, "design_review", current_label_suffix)
+      tasks << review_task(ship.time_audit_review, "time_audit")
+      tasks << review_task(ship.requirements_check_review, "requirements_check")
+      tasks << review_task(ship.design_review, "design_review", label_override: current_label)
     end
 
-    sections.compact
+    tasks.compact
   end
-  private_class_method :build_task_card_output_elements
+  private_class_method :build_plan_tasks
 
-  def self.stage_section(review, key, label_suffix)
+  def self.review_task(review, key, label_override: nil)
     return nil if review.nil?
 
-    emoji = case review.status.to_s
-    when "approved" then "✅"
-    when "returned", "rejected" then "❌"
-    else "⏳"
+    plan_status = case review.status.to_s
+    when "approved" then "complete"
+    when "returned", "rejected" then "error"
+    else return nil # omit pending/unstarted stages
     end
 
     detail = review.feedback.to_s.presence || review.status.to_s.capitalize
-    label = "#{REVIEW_LABELS[key]}#{label_suffix}"
-    text_section("#{emoji} #{label}: #{detail}")
+    build_task(
+      task_id: "#{key}_#{review.id}",
+      title: label_override || REVIEW_LABELS[key],
+      status: plan_status,
+      detail: detail
+    )
   end
-  private_class_method :stage_section
+  private_class_method :review_task
 
-  def self.text_section(text)
+  def self.build_task(task_id:, title:, status:, detail:)
     {
-      type: "rich_text_section",
-      elements: [ { type: "text", text: text } ]
+      task_id: task_id,
+      title: title,
+      status: status,
+      details: {
+        type: "rich_text",
+        elements: [ {
+          type: "rich_text_section",
+          elements: [ { type: "text", text: detail } ]
+        } ]
+      }
     }
   end
-  private_class_method :text_section
+  private_class_method :build_task
 
   def self.build_card_actions(project_url, repo_url)
     actions = [ {
