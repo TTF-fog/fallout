@@ -2,17 +2,18 @@
 #
 # Table name: requirements_check_reviews
 #
-#  id               :bigint           not null, primary key
-#  claim_expires_at :datetime
-#  feedback         :text
-#  internal_reason  :text
-#  lock_version     :integer          default(0), not null
-#  repo_tree        :jsonb
-#  status           :integer          default("pending"), not null
-#  created_at       :datetime         not null
-#  updated_at       :datetime         not null
-#  reviewer_id      :bigint
-#  ship_id          :bigint           not null
+#  id                     :bigint           not null, primary key
+#  checkpoint_message_url :string
+#  claim_expires_at       :datetime
+#  feedback               :text
+#  internal_reason        :text
+#  lock_version           :integer          default(0), not null
+#  repo_tree              :jsonb
+#  status                 :integer          default("pending"), not null
+#  created_at             :datetime         not null
+#  updated_at             :datetime         not null
+#  reviewer_id            :bigint
+#  ship_id                :bigint           not null
 #
 # Indexes
 #

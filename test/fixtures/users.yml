@@ -6,6 +6,7 @@
 #
 #  id                          :bigint           not null, primary key
 #  avatar                      :string           not null
+#  ban_reason                  :text
 #  ban_type                    :string
 #  bio                         :text
 #  device_token                :text
