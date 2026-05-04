@@ -197,7 +197,7 @@ function NewJournal({
       .reduce((sum, r) => sum + (r.duration || 0), 0)
     const totalAfterSubmit =
       streak_seconds_logged + selectedLapseDuration + selectedYoutubeDuration + selectedLookoutDuration
-    if (totalAfterSubmit >= streak_threshold) return null
+    if (totalAfterSubmit >= streak_threshold - 480) return null
     const remainingMinutes = Math.ceil((streak_threshold - totalAfterSubmit) / 60)
     return `This journal alone won't count toward your daily streak! you need ${remainingMinutes} more minute${remainingMinutes !== 1 ? 's' : ''} of recordings today to reach 1 hour. You can journal more later today to reach 1 hour.`
   }, [
