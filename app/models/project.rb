@@ -85,6 +85,7 @@ class Project < ApplicationRecord
   has_many :pending_collaboration_invites, -> { kept }, dependent: :destroy
   has_many :reviewer_notes, dependent: :destroy
   has_many :project_flags, dependent: :destroy
+  has_many :project_kudos, dependent: :destroy
 
   def discard
     transaction do

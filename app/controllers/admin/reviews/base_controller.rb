@@ -43,6 +43,7 @@ class Admin::Reviews::BaseController < Admin::ApplicationController
 
   def set_review
     @review = review_model.find(params[:id])
+    flash.now[:notice] = :id
   end
 
   # -- Claim lifecycle --
@@ -52,6 +53,7 @@ class Admin::Reviews::BaseController < Admin::ApplicationController
     Reviewable::REVIEW_MODELS.each { |name| name.constantize.release_all_claims!(current_user) }
     flash.now[:notice] = "Review session ended." if had_claim
   end
+
 
   def claim_review!
     had_claim = any_active_claim?

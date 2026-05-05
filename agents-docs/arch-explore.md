@@ -166,7 +166,7 @@ The public `/api/v1/explore/...` API is unaffected by ActionCable — clients po
 ## Serialization
 
 ### In-app feed (rich)
-`serialize_project_for_explore`, `serialize_journal_for_explore` — render markdown excerpts via Nokogiri, resolve cover images via uploaded images or markdown images, build relative `href`s for client navigation. Recording media is NOT exposed on the public explore feed — recordings are restricted to the journal author, project owner, and project collaborators.
+`serialize_project_for_explore`, `serialize_journal_for_explore` — render markdown excerpts via Nokogiri, resolve cover images via uploaded images or markdown images, build relative `href`s for client navigation. Project entries also include `can_kudo` and `kudos_path`; `can_kudo` is false unless the viewer is a full user looking at another person's listed project. Recording media is NOT exposed on the public explore feed — recordings are restricted to the journal author, project owner, and project collaborators.
 
 ### Public API (lean)
 `serialize_project`, `serialize_journal` — plain text excerpts, single `cover_image_url` field, absolute URLs (`#{request.base_url}/...`).
@@ -187,6 +187,7 @@ The public `/api/v1/explore/...` API is unaffected by ActionCable — clients po
 | Hostile markdown image in public excerpt | URL allowlist (http(s) + same-origin only) before passing to `<img src>` |
 | Cascade deletes flooding the cable | Frontend debounces `bulletin_explore` at 500ms |
 | Pundit accidentally enabled on these controllers | Explicit `skip_after_action :verify_authorized, only: %i[index search event]` (and same for `:verify_policy_scoped`); the `public_for_explore` scopes are the trust boundary |
+| Kudos controls on public project cards | `can_kudo` is derived server-side with `ProjectKudoPolicy`; the POST endpoint still re-authorizes before creating a pending kudo |
 | Drift between in-app and public API | The two controllers don't share helpers — when changing pagination/sort/search, audit both |
 
 ---

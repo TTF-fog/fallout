@@ -54,20 +54,40 @@ class ProjectsController < ApplicationController
     collab_enabled = collaborators_enabled?
     project_policy = policy(@project)
     highlighted_journal_entry_id = highlighted_journal_entry_id(journal_entries)
+    ships = @project.ships
+      .includes(:time_audit_review, :requirements_check_review, :design_review, :build_review)
+      .order(created_at: :desc)
+      .to_a
+    returning_reviewer_names = User.where(id: ships.filter_map { |ship| returned_review_for(ship)&.reviewer_id }.uniq)
+      .pluck(:id, :display_name)
+      .to_h
 
     render inertia: {
       project: serialize_project_detail(@project, journal_entries.size),
       journal_entries: journal_entries.map { |je| serialize_journal_entry_card(je) },
       switchable_projects_for_journal: switchable_projects_for_journal,
       collaborators: @project.collaborators.includes(:user).map { |c| serialize_project_collaborator(c) },
-      ships: @project.ships.includes(time_audit_review: :reviewer, requirements_check_review: :reviewer, design_review: :reviewer, build_review: :reviewer).order(created_at: :desc).map { |s|
-        { id: s.id, status: s.status, feedback: s.feedback, created_at_iso: s.created_at.iso8601, updated_at_iso: s.updated_at.iso8601, reviewer_display_name: s.returning_reviewer&.display_name, time_audit_status: s.time_audit_review&.status, requirements_check_status: s.requirements_check_review&.status, design_review_status: s.design_review&.status }
+      kudos: @project.project_kudos.approved.includes(:sender).order(approved_at: :desc, created_at: :desc).map { |kudo| serialize_project_kudo(kudo) },
+      ships: ships.map { |s|
+        returned_review = returned_review_for(s)
+        {
+          id: s.id,
+          status: s.status,
+          feedback: s.feedback,
+          created_at_iso: s.created_at.iso8601,
+          updated_at_iso: s.updated_at.iso8601,
+          reviewer_display_name: returning_reviewer_names[returned_review&.reviewer_id],
+          time_audit_status: s.time_audit_review&.status,
+          requirements_check_status: s.requirements_check_review&.status,
+          design_review_status: s.design_review&.status
+        }
       },
       can: {
         update: project_policy.update?,
         destroy: project_policy.destroy?,
         ship: project_policy.ship?,
         manage_collaborators: collab_enabled && project_policy.manage_collaborators?,
+        create_kudo: ProjectKudoPolicy.new(current_user, ProjectKudo.new(project: @project)).create?,
         create_journal_entry: JournalEntryPolicy.new(current_user, @project.journal_entries.build(user: current_user)).create?,
         # Trial collaborator who would gain create access on verifying — drives the "locked" feather button.
         # Owners are already allowed to create regardless of trial state, so they fall under create_journal_entry.
@@ -284,12 +304,27 @@ class ProjectsController < ApplicationController
     data
   end
 
+  def serialize_project_kudo(kudo)
+    {
+      id: kudo.id,
+      text: kudo.text,
+      sender_display_name: kudo.sender.display_name,
+      sender_avatar: kudo.sender.avatar,
+      approved_at_iso: kudo.approved_at&.iso8601 || kudo.created_at.iso8601
+    }
+  end
+
   def highlighted_journal_entry_id(journal_entries)
     requested_id = params[:journal_entry_id].presence&.to_i
     return nil unless requested_id
     return requested_id if journal_entries.any? { |entry| entry.id == requested_id }
 
     nil
+  end
+
+  def returned_review_for(ship)
+    [ ship.time_audit_review, ship.requirements_check_review, ship.design_review, ship.build_review ]
+      .compact.find(&:returned?)
   end
 
   def switchable_projects_for_journal

@@ -364,6 +364,7 @@ Rails.application.routes.draw do
 
   post "trial_session" => "trial_sessions#create", as: :trial_session
   post "rsvp" => "rsvps#create", as: :rsvp
+  post "slack/interactions" => "slack_interactions#create", as: :slack_interactions
 
   get "sorry" => "bans#show", as: :sorry
 
@@ -395,6 +396,7 @@ Rails.application.routes.draw do
 
   resources :projects do
     get "onboarding", on: :collection # Project onboarding modal accessed from path page
+    resources :kudos, only: [ :create ], module: :projects
     resources :journal_entries, only: [ :new, :create ]
     resources :collaboration_invites, only: [ :create, :destroy ], module: :projects # Send and revoke project collaboration invites
     get :ship, controller: "projects/ships", action: :preflight # /projects/:id/ship — multi-step submission page

@@ -162,6 +162,14 @@ export interface JournalSwitchableProject {
   name: string
 }
 
+export interface ProjectKudoCard {
+  id: number
+  text: string
+  sender_display_name: string
+  sender_avatar: string
+  approved_at_iso: string
+}
+
 export interface ShipEvent {
   id: number
   status: string

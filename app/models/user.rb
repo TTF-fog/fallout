@@ -81,6 +81,8 @@ class User < ApplicationRecord
   has_many :mail_messages, dependent: :destroy
   has_many :authored_mail_messages, class_name: "MailMessage", foreign_key: :author_id, dependent: :nullify, inverse_of: :author
   has_many :mail_interactions, dependent: :destroy
+  has_many :sent_project_kudos, class_name: "ProjectKudo", foreign_key: :sender_id, dependent: :destroy, inverse_of: :sender
+  has_many :received_project_kudos, class_name: "ProjectKudo", foreign_key: :recipient_id, dependent: :destroy, inverse_of: :recipient
   has_many :critters, dependent: :destroy
   has_many :koi_transactions, dependent: :destroy
   has_many :acting_koi_transactions, class_name: "KoiTransaction", foreign_key: :actor_id, dependent: :nullify, inverse_of: :actor

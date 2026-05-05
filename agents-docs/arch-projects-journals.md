@@ -19,10 +19,11 @@ User
  └── has_many Critters (rewards)
 
 Project (soft-deletable)
- ├── belongs_to User (owner)
- ├── has_many JournalEntries
- ├── has_many Ships (submissions)
- ├── has_many Collaborators (polymorphic, soft-deletable)
+  ├── belongs_to User (owner)
+  ├── has_many JournalEntries
+  ├── has_many Ships (submissions)
+  ├── has_many ProjectKudos (community messages pending/approved by Slack moderation)
+  ├── has_many Collaborators (polymorphic, soft-deletable)
  ├── has_many CollaborationInvites (soft-deletable)
  └── has_many collaborator_users (through Collaborators)
 
@@ -61,6 +62,11 @@ Ship (audit-trailed)
 - `create?`: trial users limited to 1 project
 - `update?`/`destroy?`: admin OR owner
 - `manage_collaborators?`: admin OR owner, flag-gated, verified-only
+
+**Kudos:**
+- `ProjectKudo` stores kudos text from a verified sender to a project owner, with `pending`/`approved` status and `approved_at`.
+- Creation is through `Projects::KudosController#create` (`POST /projects/:project_id/kudos`) and is limited by `ProjectKudoPolicy#create?` to full users sending kudos to listed projects they do not own.
+- Approval happens from Slack interactive callbacks only; approved kudos are shown on the project detail Kudos tab and notify the project owner in Slack when they have a Slack ID.
 
 ## Journal Entries — `app/models/journal_entry.rb`
 

@@ -7,13 +7,16 @@ class SlackMsgJob < ApplicationJob
   retry_on Slack::Web::Api::Errors::TooManyRequestsError, wait: :polynomially_longer, attempts: 5
   retry_on Slack::Web::Api::Errors::TimeoutError, wait: :polynomially_longer, attempts: 3 # Transient upstream timeout — retry with backoff
 
-  def perform(slack_id, message)
+  def perform(slack_id, message, blocks: nil)
     client = Slack::Web::Client.new(token: ENV.fetch("SLACK_BOT_TOKEN", nil))
 
-    client.chat_postMessage(
+    payload = {
       channel: slack_id,
       text: message
-    )
+    }
+    payload[:blocks] = blocks if blocks.present?
+
+    client.chat_postMessage(**payload)
 
     sleep 1.1 # Stay under Slack's ~1 msg/sec workspace rate limit
   rescue StandardError => e

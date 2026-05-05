@@ -18,7 +18,14 @@ import TimeAgo from '@/components/shared/TimeAgo'
 import Timeline from '@/components/shared/Timeline'
 import { SlidingNumber } from '@/components/shared/SlidingNumber'
 import TextMorph from '@/components/shared/TextMorph'
-import type { ProjectDetail, JournalEntryCard, CollaboratorInfo, ShipEvent, JournalSwitchableProject } from '@/types'
+import type {
+  ProjectDetail,
+  JournalEntryCard,
+  CollaboratorInfo,
+  ShipEvent,
+  JournalSwitchableProject,
+  ProjectKudoCard,
+} from '@/types'
 
 function formatTime(seconds: number): string {
   if (seconds === 0) return '0min'
@@ -190,6 +197,7 @@ export default function ProjectsShow({
   journal_entries,
   switchable_projects_for_journal,
   collaborators,
+  kudos,
   ships,
   can,
   initial_tab,
@@ -201,16 +209,18 @@ export default function ProjectsShow({
   journal_entries: JournalEntryCard[]
   switchable_projects_for_journal: JournalSwitchableProject[]
   collaborators: CollaboratorInfo[]
+  kudos: ProjectKudoCard[]
   ships: ShipEvent[]
   can: {
     update: boolean
     destroy: boolean
     ship: boolean
     manage_collaborators: boolean
+    create_kudo: boolean
     create_journal_entry: boolean
     create_journal_entry_locked_for_trial: boolean
   }
-  initial_tab?: 'timeline' | 'journal'
+  initial_tab?: 'timeline' | 'journal' | 'kudos'
   highlight_journal_entry_id?: number | null
   is_modal?: boolean
   onModalEvent?: (event: string, ...args: any[]) => void
@@ -218,10 +228,12 @@ export default function ProjectsShow({
   const modalRef = useRef<{ close: () => void }>(null)
   const highlightedJournalRef = useRef<HTMLDivElement | null>(null)
   const modal = useModal()
-  const [rightTab, setRightTab] = useState<'timeline' | 'journal'>(initial_tab ?? 'timeline')
+  const [rightTab, setRightTab] = useState<'timeline' | 'journal' | 'kudos'>(initial_tab ?? 'timeline')
   const [inviteEmail, setInviteEmail] = useState('')
   const [inviting, setInviting] = useState(false)
   const [inviteError, setInviteError] = useState<string | null>(null)
+  const [kudoText, setKudoText] = useState('')
+  const [kudoSending, setKudoSending] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [journalMenuEntryId, setJournalMenuEntryId] = useState<number | null>(null)
 
@@ -230,7 +242,15 @@ export default function ProjectsShow({
   const [switchingProject, setSwitchingProject] = useState(false)
   const [deleteEntry, setDeleteEntry] = useState<JournalEntryCard | null>(null)
   const [deletingEntry, setDeletingEntry] = useState(false)
-  const detailProps = ['project', 'journal_entries', 'switchable_projects_for_journal', 'collaborators', 'ships', 'can']
+  const detailProps = [
+    'project',
+    'journal_entries',
+    'switchable_projects_for_journal',
+    'collaborators',
+    'kudos',
+    'ships',
+    'can',
+  ]
 
   const switchTargets = useMemo(
     () => switchable_projects_for_journal.filter((switchableProject) => switchableProject.id !== project.id),
@@ -326,6 +346,27 @@ export default function ProjectsShow({
           setInviteError(errors.email?.[0] || 'Failed to send invite.')
         },
         onFinish: () => setInviting(false),
+      },
+    )
+  }
+
+  function sendKudo(e: React.FormEvent) {
+    e.preventDefault()
+    const text = kudoText.trim()
+    if (!text || kudoSending) return
+
+    setKudoSending(true)
+    router.post(
+      `/projects/${project.id}/kudos`,
+      { project_kudo: { text } },
+      {
+        preserveScroll: true,
+        onSuccess: () => {
+          setKudoText('')
+          notify('notice', 'Kudos sent for review.')
+        },
+        onError: () => notify('alert', 'Failed to send kudos.'),
+        onFinish: () => setKudoSending(false),
       },
     )
   }
@@ -468,9 +509,10 @@ export default function ProjectsShow({
     return groups
   }, [journal_entries])
 
-  const ribbonTabs: { label: string; tab: 'timeline' | 'journal' }[] = [
+  const ribbonTabs: { label: string; tab: 'timeline' | 'journal' | 'kudos' }[] = [
     { label: 'Timeline', tab: 'timeline' },
     { label: 'Journal', tab: 'journal' },
+    { label: 'Kudos', tab: 'kudos' },
   ]
 
   function renderNewJournalEntryButton() {
@@ -577,6 +619,39 @@ export default function ProjectsShow({
               {formatTime(project.time_logged)}
             </span>
           </div>
+
+          {can.create_kudo && (
+            <form onSubmit={sendKudo} className="mt-6 border-2 border-dark-brown bg-beige p-3 sm:p-4">
+              <div className="flex flex-col gap-3">
+                <div>
+                  <label htmlFor={`project-kudo-${project.id}`} className="text-sm font-bold text-dark-brown">
+                    Send kudos
+                  </label>
+                  <p className="mt-1 text-xs text-brown"></p>
+                </div>
+                <textarea
+                  id={`project-kudo-${project.id}`}
+                  value={kudoText}
+                  onChange={(event) => setKudoText(event.target.value)}
+                  maxLength={500}
+                  rows={3}
+                  placeholder="What did you like?"
+                  disabled={kudoSending}
+                  className="min-h-24 w-full resize-y border-2 border-brown bg-light-brown px-3 py-2 text-sm text-dark-brown placeholder:text-brown focus:outline-2 focus:outline-dark-brown disabled:cursor-not-allowed"
+                />
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <span className="text-xs text-brown">{kudoText.length}/500</span>
+                  <Button
+                    type="submit"
+                    disabled={kudoSending || kudoText.trim().length === 0}
+                    className="w-full px-4 py-2 text-sm sm:w-auto"
+                  >
+                    {kudoSending ? 'Sending...' : 'Send kudos'}
+                  </Button>
+                </div>
+              </div>
+            </form>
+          )}
 
           {can.manage_collaborators && (
             <div className="mt-6">
@@ -938,6 +1013,35 @@ export default function ProjectsShow({
                 </div>
               ) : (
                 <p className="text-dark-brown text-sm">No journal entries yet.</p>
+              )}
+            </div>
+          </div>
+
+          <div className={rightTab === 'kudos' ? 'flex flex-col min-h-[300px] xl:min-h-0 flex-1' : 'hidden'}>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-bold text-2xl text-dark-brown">Kudos</h2>
+            </div>
+            <div className="flex-1 min-h-0 overflow-y-auto">
+              {kudos.length > 0 ? (
+                <Timeline>
+                  {kudos.map((kudo, index) => (
+                    <Timeline.DetailItem
+                      key={kudo.id}
+                      isLast={index === kudos.length - 1}
+                      header={
+                        <>
+                          <InlineUser avatar={kudo.sender_avatar} display_name={kudo.sender_display_name} /> has given a
+                          kudos! (<TimeAgo datetime={kudo.approved_at_iso} />
+                          ).
+                        </>
+                      }
+                    >
+                      <p className="text-sm text-dark-brown whitespace-pre-wrap">{kudo.text}</p>
+                    </Timeline.DetailItem>
+                  ))}
+                </Timeline>
+              ) : (
+                <p className="text-dark-brown text-sm">No kudos yet.</p>
               )}
             </div>
           </div>

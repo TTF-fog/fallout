@@ -73,11 +73,12 @@ Time tracking verification.
 
 User messaging and channel management via bot token.
 
-- **Jobs**: `SlackMsgJob` (sends DMs/channel posts), `SlackChannelInviteJob` (invites to channels)
+- **Jobs**: `SlackMsgJob` (sends DMs/channel posts), `SlackResponseUrlJob` (posts to Slack interaction `response_url`s), `SlackChannelInviteJob` (invites to channels)
+- **Interactive callbacks**: `SlackInteractionsController#create` verifies `SLACK_SIGNING_SECRET` HMAC signatures for Slack button callbacks, with `SLACK_VERIFICATION_TOKEN` as a fallback for payload-token callbacks. The project kudos approve button marks `ProjectKudo` records approved, immediately returns `200 OK`, enqueues a threaded `response_url` post saying who approved it, posts to the main channel, and DMs the recipient project owner when they have a Slack ID.
 - **Welcome channels**: `User::SLACK_WELCOME_CHANNELS` constant (invited on trial→full promotion)
 - **Error handling**: gracefully ignores `AlreadyInChannel`, warns on `UserIsRestricted`
 - **Used by**: `AuthController#create` (post-HCA verification welcome), `User#refresh_profile_from_slack`
-- **Env**: `SLACK_BOT_TOKEN`
+- **Env**: `SLACK_BOT_TOKEN`, `SLACK_SIGNING_SECRET`, `SLACK_VERIFICATION_TOKEN`
 
 ### MailDeliveryService — `app/services/mail_delivery_service.rb`
 

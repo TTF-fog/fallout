@@ -18,7 +18,7 @@ module Fallout
 
     # Enable Rack::Attack middleware
     config.middleware.use Rack::Attack
-
+    config.hosts << "corymbose-marin-unstooping.ngrok-free.dev"
     # Serve Active Storage under /user-attachments instead of /rails/active_storage
     config.active_storage.routes_prefix = "/user-attachments"
 
