@@ -131,25 +131,9 @@ class ReviewCardImageService
 
   def self.composite(source_path, overlay_path)
     Tempfile.create([ "review_card", ".jpg" ]) do |tmp|
-      MiniMagick.convert do |cmd|
-        if source_path.downcase.end_with?(".pdf")
-          cmd.density("150")
-          cmd << "#{source_path}[0]"
-          cmd.background("white")
-          cmd.flatten
-        else
-          cmd << source_path
-        end
-
-        cmd.resize("800x600^")
-        cmd.gravity("center")
-        cmd.extent("800x600")
-        cmd << overlay_path.to_s
-        cmd.compose("Over")
-        cmd.composite
-        cmd.quality("85")
-        cmd << tmp.path
-      end
+      cover = Vips::Image.thumbnail(source_path, 800, height: 600, crop: :centre)
+      overlay = Vips::Image.new_from_file(overlay_path.to_s)
+      cover.composite2(overlay, :over).jpegsave(tmp.path, Q: 85)
 
       ActiveStorage::Blob.create_and_upload!(
         io: File.open(tmp.path),
