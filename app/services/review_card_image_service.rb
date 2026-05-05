@@ -130,7 +130,18 @@ class ReviewCardImageService
   private_class_method :journal_source_file
 
   def self.composite(source_path, overlay_path)
-    source_input = source_path.downcase.end_with?(".pdf") ? "#{source_path}[0]" : source_path
+    source_input = source_path
+    if source_path.downcase.end_with?(".pdf")
+      pdf_page = Tempfile.new([ "pdf_page", ".png" ])
+      MiniMagick::Tool::Convert.new do |cmd|
+        cmd << "#{source_path}[0]"
+        cmd.density("150")
+        cmd.background("white")
+        cmd.flatten
+        cmd << pdf_page.path
+      end
+      source_input = pdf_page.path
+    end
 
     Tempfile.create([ "review_card", ".jpg" ]) do |tmp|
       cover = MiniMagick::Image.open(source_input)
@@ -158,6 +169,8 @@ class ReviewCardImageService
   rescue StandardError => e
     Rails.logger.warn("ReviewCardImageService.composite failed: #{e.class}: #{e.message}")
     nil
+  ensure
+    pdf_page&.close!
   end
   private_class_method :composite
 end
