@@ -85,11 +85,13 @@ class SlackCheckpointService
 
     card_actions = build_card_actions(project_url, repo_url)
 
+    icon_url = resize_avatar_url(project.user.avatar, base_url: ENV.fetch("APP_BASE_URL", "https://fallout.hackclub.com"))
+
     card_block = {
       type: "card",
       icon: {
         type: "image",
-        image_url: project.user.avatar,
+        image_url: icon_url || project.user.avatar,
         alt_text: project.user.display_name
       },
       title: { type: "mrkdwn", text: project.name, verbatim: false },
@@ -252,4 +254,32 @@ class SlackCheckpointService
     actions
   end
   private_class_method :build_card_actions
+
+  def self.resize_avatar_url(avatar_url, base_url:)
+    return nil if avatar_url.blank?
+
+    require "open-uri"
+    tmp_in  = Tempfile.new([ "avatar_in",  ".png" ])
+    tmp_out = Tempfile.new([ "avatar_out", ".jpg" ])
+    tmp_in.binmode
+
+    URI.open(avatar_url, read_timeout: 10) { |io| tmp_in.write(io.read) } # rubocop:disable Security/Open
+    tmp_in.flush
+
+    img = Vips::Image.thumbnail(tmp_in.path, 36, height: 36, crop: :centre)
+    img.jpegsave(tmp_out.path, Q: 90)
+
+    blob = ActiveStorage::Blob.create_and_upload!(
+      io: File.open(tmp_out.path),
+      filename: "avatar_#{SecureRandom.hex(6)}.jpg",
+      content_type: "image/jpeg"
+    )
+    Rails.application.routes.url_helpers.rails_blob_url(blob, host: base_url)
+  rescue StandardError
+    nil
+  ensure
+    tmp_in&.close!
+    tmp_out&.close!
+  end
+  private_class_method :resize_avatar_url
 end
