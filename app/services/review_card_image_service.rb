@@ -34,7 +34,7 @@ class ReviewCardImageService
       composited_blob = composite(source_path, overlay_path)
     return nil unless composited_blob
 
-    composited_blob.reload.url(expires_in: 1.hour)
+    ActiveStorage::Blob.service.url(composited_blob.key, expires_in: 1.hour, filename: composited_blob.filename, content_type: composited_blob.content_type, disposition: :inline)
   rescue StandardError => e
     Rails.logger.warn("ReviewCardImageService failed for project ##{project.id}: #{e.message}")
     nil
