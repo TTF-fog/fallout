@@ -150,9 +150,21 @@ class ReviewCardImageService
     return nil unless image_path
 
     Tempfile.create([ "review_card", ".jpg" ]) do |tmp|
-      cover = Vips::Image.thumbnail(image_path, 800, height: 600, crop: :centre)
-      overlay = Vips::Image.new_from_file(overlay_path.to_s)
-      cover.composite2(overlay, :over).jpegsave(tmp.path, Q: 85)
+      cover = MiniMagick::Image.open(image_path)
+      cover.combine_options do |cmd|
+        cmd.resize("800x600^")
+        cmd.gravity("center")
+        cmd.extent("800x600")
+      end
+
+      overlay = MiniMagick::Image.open(overlay_path.to_s)
+      composited = cover.composite(overlay) do |cmd|
+        cmd.compose("Over")
+        cmd.gravity("NorthWest")
+      end
+      composited.format("jpg")
+      composited.quality("85")
+      composited.write(tmp.path)
 
       ActiveStorage::Blob.create_and_upload!(
         io: File.open(tmp.path),
@@ -160,6 +172,9 @@ class ReviewCardImageService
         content_type: "image/jpeg"
       )
     end
+  rescue StandardError => e
+    Rails.logger.warn("ReviewCardImageService.composite failed: #{e.class}: #{e.message}")
+    nil
   end
   private_class_method :composite
 end
