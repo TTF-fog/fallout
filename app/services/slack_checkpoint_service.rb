@@ -154,36 +154,37 @@ class SlackCheckpointService
       .order(:created_at)
       .includes(:requirements_check_review, :design_review)
 
-    past_ships.each_with_index do |past_ship, idx|
+    # Collect prior feedback for the current review type to attach as output
+    # on the current attempt's task rather than as separate standalone tasks.
+    prior_feedbacks = past_ships.filter_map do |past_ship|
       past_review = case review_type
       when "requirements_check" then past_ship.requirements_check_review
       when "design_review"      then past_ship.design_review
       end
       next if past_review.nil?
 
-      feedback = past_review.feedback.to_s.presence || past_review.status.to_s.capitalize
-      label = "#{REVIEW_LABELS[review_type]} (attempt #{idx + 1})"
-      tasks << build_task(task_id: "#{review_type}_past_#{past_ship.id}", title: label, status: "error", detail: feedback)
+      past_review.feedback.to_s.presence || past_review.status.to_s.capitalize
     end
 
     attempt_num = past_ships.size + 1
     current_label = past_ships.any? ? "#{REVIEW_LABELS[review_type]} (attempt #{attempt_num})" : nil
+    prior_output = prior_feedbacks.present? ? prior_feedbacks.map { |f| ":no-no: #{f}" }.join("\n") : nil
 
     case review_type
     when "requirements_check"
       tasks << review_task(ship.time_audit_review, "time_audit")
-      tasks << review_task(ship.requirements_check_review, "requirements_check", label_override: current_label)
+      tasks << review_task(ship.requirements_check_review, "requirements_check", label_override: current_label, prior_output: prior_output)
     when "design_review"
       tasks << review_task(ship.time_audit_review, "time_audit")
       tasks << review_task(ship.requirements_check_review, "requirements_check")
-      tasks << review_task(ship.design_review, "design_review", label_override: current_label)
+      tasks << review_task(ship.design_review, "design_review", label_override: current_label, prior_output: prior_output)
     end
 
     tasks.compact
   end
   private_class_method :build_plan_tasks
 
-  def self.review_task(review, key, label_override: nil)
+  def self.review_task(review, key, label_override: nil, prior_output: nil)
     return nil if review.nil?
 
     plan_status = case review.status.to_s
@@ -197,13 +198,14 @@ class SlackCheckpointService
       task_id: "#{key}_#{review.id}",
       title: label_override || REVIEW_LABELS[key],
       status: plan_status,
-      detail: detail
+      detail: detail,
+      prior_output: prior_output
     )
   end
   private_class_method :review_task
 
-  def self.build_task(task_id:, title:, status:, detail:)
-    {
+  def self.build_task(task_id:, title:, status:, detail:, prior_output: nil)
+    task = {
       task_id: task_id,
       title: title,
       status: status,
@@ -211,12 +213,22 @@ class SlackCheckpointService
         type: "rich_text",
         elements: [ {
           type: "rich_text_section",
-          elements: [
-            { type: "text", text: "\n#{detail}" }
-          ]
+          elements: [ { type: "text", text: "\n#{detail}" } ]
         } ]
       }
     }
+
+    if prior_output.present?
+      task[:output] = {
+        type: "rich_text",
+        elements: [ {
+          type: "rich_text_section",
+          elements: [ { type: "text", text: prior_output } ]
+        } ]
+      }
+    end
+
+    task
   end
   private_class_method :build_task
 
