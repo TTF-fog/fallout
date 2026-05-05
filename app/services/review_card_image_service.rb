@@ -2,7 +2,10 @@
 # resized to 800x600 (cover/fill), and returns an absolute URL to the
 # resulting image stored as an anonymous ActiveStorage blob.
 #
-# Returns nil if no cover image is available or compositing fails.
+# Source priority: zine from repo (via UnifiedScreenshotFinder) > journal entry image.
+# PDFs are rasterised to a PNG of their first page before compositing.
+#
+# Returns nil if no source image is available or compositing fails.
 class ReviewCardImageService
   OVERLAY_DIR = Rails.root.join("public", "review_overlays")
 
@@ -16,6 +19,45 @@ class ReviewCardImageService
   }.freeze
 
   def self.call(project:, review_type:, review_status:, base_url:)
+    overlay_filename = OVERLAYS[[ review_type, review_status ]]
+    return nil unless overlay_filename
+
+    overlay_path = OVERLAY_DIR.join(overlay_filename)
+    return nil unless overlay_path.exist?
+
+    source_path = zine_source_path(project) || journal_source_path(project)
+    return nil unless source_path
+
+    composited_blob = composite(source_path, overlay_path)
+    return nil unless composited_blob
+
+    Rails.application.routes.url_helpers.rails_blob_url(composited_blob, host: base_url)
+  rescue StandardError => e
+    Rails.logger.warn("ReviewCardImageService failed for project ##{project.id}: #{e.message}")
+    nil
+  end
+
+  # Downloads the zine URL from UnifiedScreenshotFinder and writes it to a
+  # tempfile. Returns the tempfile path, or nil if not found/downloadable.
+  def self.zine_source_path(project)
+    url = ShipChecks::UnifiedScreenshotFinder.find_url(project)
+    return nil if url.blank?
+
+    ext = File.extname(URI.parse(url).path).downcase.presence || ".png"
+    tmp = Tempfile.new([ "zine_source", ext ])
+    tmp.binmode
+
+    require "open-uri"
+    URI.open(url, read_timeout: 10) { |io| tmp.write(io.read) } # rubocop:disable Security/Open
+    tmp.flush
+    tmp.path
+  rescue StandardError
+    nil
+  end
+  private_class_method :zine_source_path
+
+  # Writes the most recent journal entry image blob to a tempfile.
+  def self.journal_source_path(project)
     entry = JournalEntry.public_for_explore
       .where(project_id: project.id)
       .joins(:images_attachments)
@@ -23,29 +65,43 @@ class ReviewCardImageService
       .first
     return nil unless entry
 
-    overlay_filename = OVERLAYS[[ review_type, review_status ]]
-    return nil unless overlay_filename
-
-    overlay_path = OVERLAY_DIR.join(overlay_filename)
-    return nil unless overlay_path.exist?
-
     blob = entry.images.first.blob
-    composited_blob = composite(blob, overlay_path)
-    return nil unless composited_blob
-
-    Rails.application.routes.url_helpers.rails_blob_url(composited_blob, host: base_url)
+    tmp = Tempfile.new([ "journal_source", File.extname(blob.filename.to_s).presence || ".jpg" ])
+    tmp.binmode
+    blob.open { |io| tmp.write(io.read) }
+    tmp.flush
+    tmp.path
   rescue StandardError
     nil
   end
+  private_class_method :journal_source_path
 
-  def self.composite(blob, overlay_path)
+  # If the source is a PDF, rasterise page 0 to a PNG tempfile first.
+  def self.normalise_to_image(source_path)
+    return source_path unless source_path.downcase.end_with?(".pdf")
+
+    tmp = Tempfile.new([ "pdf_page", ".png" ])
+    MiniMagick::Tool::Convert.new do |cmd|
+      cmd << "#{source_path}[0]" # first page only
+      cmd.density(150)
+      cmd.background("white")
+      cmd.flatten
+      cmd << tmp.path
+    end
+    tmp.path
+  rescue StandardError
+    nil
+  end
+  private_class_method :normalise_to_image
+
+  def self.composite(source_path, overlay_path)
+    image_path = normalise_to_image(source_path)
+    return nil unless image_path
+
     Tempfile.create([ "review_card", ".jpg" ]) do |tmp|
-      blob.open do |source|
-        cover = Vips::Image.thumbnail(source.path, 800, height: 600, crop: :centre)
-        overlay = Vips::Image.new_from_file(overlay_path.to_s)
-        composited = cover.composite2(overlay, :over)
-        composited.jpegsave(tmp.path, Q: 85)
-      end
+      cover = Vips::Image.thumbnail(image_path, 800, height: 600, crop: :centre)
+      overlay = Vips::Image.new_from_file(overlay_path.to_s)
+      cover.composite2(overlay, :over).jpegsave(tmp.path, Q: 85)
 
       ActiveStorage::Blob.create_and_upload!(
         io: File.open(tmp.path),
