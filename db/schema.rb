@@ -157,6 +157,23 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_04_000002) do
     t.index ["user_id"], name: "index_collaborators_on_user_id"
   end
 
+  create_table "collapse_timelapses", force: :cascade do |t|
+    t.string "collapse_session_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "last_refreshed_at"
+    t.string "name"
+    t.integer "screenshot_count"
+    t.text "session_token", null: false
+    t.string "status"
+    t.string "thumbnail_url"
+    t.integer "tracked_seconds"
+    t.datetime "updated_at", null: false
+    t.bigint "user_id", null: false
+    t.string "video_url"
+    t.index ["collapse_session_id"], name: "index_collapse_timelapses_on_collapse_session_id", unique: true
+    t.index ["user_id"], name: "index_collapse_timelapses_on_user_id"
+  end
+
   create_table "critters", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.bigint "journal_entry_id", null: false
@@ -526,6 +543,21 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_04_000002) do
     t.index ["resolved_at"], name: "index_project_grant_warnings_on_resolved_at"
     t.index ["resolved_by_id"], name: "index_project_grant_warnings_on_resolved_by_id"
     t.index ["user_id"], name: "index_project_grant_warnings_on_user_id"
+  end
+
+  create_table "project_kudos", force: :cascade do |t|
+    t.datetime "approved_at"
+    t.datetime "created_at", null: false
+    t.bigint "project_id", null: false
+    t.bigint "recipient_id", null: false
+    t.bigint "sender_id", null: false
+    t.integer "status", default: 0, null: false
+    t.text "text", null: false
+    t.datetime "updated_at", null: false
+    t.index ["project_id"], name: "index_project_kudos_on_project_id"
+    t.index ["recipient_id"], name: "index_project_kudos_on_recipient_id"
+    t.index ["sender_id"], name: "index_project_kudos_on_sender_id"
+    t.index ["status"], name: "index_project_kudos_on_status"
   end
 
   create_table "projects", force: :cascade do |t|
@@ -950,11 +982,12 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_04_000002) do
   add_foreign_key "collaboration_invites", "users", column: "invitee_id"
   add_foreign_key "collaboration_invites", "users", column: "inviter_id"
   add_foreign_key "collaborators", "users"
+  add_foreign_key "collapse_timelapses", "users"
   add_foreign_key "critters", "journal_entries"
   add_foreign_key "critters", "users"
   add_foreign_key "design_reviews", "ships"
   add_foreign_key "design_reviews", "users", column: "reviewer_id"
-  add_foreign_key "dialog_campaigns", "users"
+  add_foreign_key "dialog_campaigns", "users", name: "dialog_campaigns_user_id_fkey"
   add_foreign_key "gold_transactions", "users"
   add_foreign_key "gold_transactions", "users", column: "actor_id"
   add_foreign_key "hcb_connections", "users", column: "connected_by_id"
@@ -989,6 +1022,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_04_000002) do
   add_foreign_key "project_grant_warnings", "project_grant_orders"
   add_foreign_key "project_grant_warnings", "users"
   add_foreign_key "project_grant_warnings", "users", column: "resolved_by_id"
+  add_foreign_key "project_kudos", "projects"
+  add_foreign_key "project_kudos", "users", column: "recipient_id"
+  add_foreign_key "project_kudos", "users", column: "sender_id"
   add_foreign_key "projects", "users"
   add_foreign_key "recordings", "journal_entries"
   add_foreign_key "recordings", "users"
