@@ -172,12 +172,12 @@ class SlackCheckpointService
 
     case review_type
     when "requirements_check"
-      tasks << review_task(ship.time_audit_review, "time_audit")
-      tasks << review_task(ship.requirements_check_review, "requirements_check", label_override: current_label, prior_output: prior_output)
+      tasks << review_task(ship.time_audit_review, "time_audit", prior_output: prior_output)
+      tasks << review_task(ship.requirements_check_review, "requirements_check", label_override: current_label)
     when "design_review"
       tasks << review_task(ship.time_audit_review, "time_audit")
-      tasks << review_task(ship.requirements_check_review, "requirements_check")
-      tasks << review_task(ship.design_review, "design_review", label_override: current_label, prior_output: prior_output)
+      tasks << review_task(ship.requirements_check_review, "requirements_check", prior_output: prior_output)
+      tasks << review_task(ship.design_review, "design_review", label_override: current_label)
     end
 
     tasks.compact
