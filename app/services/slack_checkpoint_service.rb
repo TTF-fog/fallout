@@ -274,7 +274,7 @@ class SlackCheckpointService
       filename: "avatar_#{SecureRandom.hex(6)}.jpg",
       content_type: "image/jpeg"
     )
-    blob.url(expires_in: 1.hour)
+    blob.reload.url(expires_in: 1.hour)
   rescue StandardError => e
     Rails.logger.warn("SlackCheckpointService.resize_avatar_url failed: #{e.message}")
     nil

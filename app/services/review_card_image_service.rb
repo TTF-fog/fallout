@@ -26,12 +26,15 @@ class ReviewCardImageService
     return nil unless overlay_path.exist?
 
     source_path = zine_source_path(project) || journal_source_path(project)
-    return nil unless source_path
+    unless source_path
+      Rails.logger.warn("ReviewCardImageService: no source image for project ##{project.id}")
+      return nil
+    end
 
       composited_blob = composite(source_path, overlay_path)
     return nil unless composited_blob
 
-    composited_blob.url(expires_in: 1.hour)
+    composited_blob.reload.url(expires_in: 1.hour)
   rescue StandardError => e
     Rails.logger.warn("ReviewCardImageService failed for project ##{project.id}: #{e.message}")
     nil
@@ -41,7 +44,10 @@ class ReviewCardImageService
   # tempfile. Returns the tempfile path, or nil if not found/downloadable.
   def self.zine_source_path(project)
     url = ShipChecks::UnifiedScreenshotFinder.find_url(project)
-    return nil if url.blank?
+    unless url.present?
+      Rails.logger.warn("ReviewCardImageService: no zine URL for project ##{project.id}")
+      return nil
+    end
 
     ext = File.extname(URI.parse(url).path).downcase.presence || ".png"
     tmp = Tempfile.new([ "zine_source", ext ])
@@ -51,10 +57,10 @@ class ReviewCardImageService
     URI.open(url, read_timeout: 10) { |io| tmp.write(io.read) } # rubocop:disable Security/Open
     tmp.flush
     tmp.path
-  rescue StandardError
+  rescue StandardError => e
+    Rails.logger.warn("ReviewCardImageService.zine_source_path failed for project ##{project.id}: #{e.message}")
     nil
   end
-  private_class_method :zine_source_path
 
   # Writes the most recent journal entry image blob to a tempfile.
   def self.journal_source_path(project)
