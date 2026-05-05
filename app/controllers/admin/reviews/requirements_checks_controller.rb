@@ -169,7 +169,7 @@ class Admin::Reviews::RequirementsChecksController < Admin::Reviews::BaseControl
             ship_id: @review.ship_id,
             review_type: "requirements_check",
             review_status: @review.status,
-            cover_image_url: ReviewCardImageService.call(project: @review.ship.project, review_type: "requirements_check", review_status: @review.status, base_url: request.base_url),
+            base_url: request.base_url,
             project_url: project_url(@review.ship.project),
             repo_url: @review.ship.project.repo_link
           )

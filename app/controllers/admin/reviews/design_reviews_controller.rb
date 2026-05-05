@@ -75,7 +75,7 @@ class Admin::Reviews::DesignReviewsController < Admin::Reviews::BaseController
             ship_id: @review.ship_id,
             review_type: "design_review",
             review_status: @review.status,
-            cover_image_url: ReviewCardImageService.call(project: @review.ship.project, review_type: "design_review", review_status: @review.status, base_url: request.base_url),
+            base_url: request.base_url,
             project_url: project_url(@review.ship.project),
             repo_url: @review.ship.project.repo_link
           )
