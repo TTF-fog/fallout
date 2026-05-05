@@ -74,7 +74,8 @@ class SlackCheckpointService
   # cover_image_url - absolute URL for the project cover image, or nil
   # project_url     - absolute URL to the project page
   # repo_url        - project repo link, or nil
-  def self.post_review_thread(message_ts:, ship:, review_type:, review_status:, cover_image_url:, project_url:, repo_url:) # rubocop:disable Metrics/ParameterLists
+  # base_url        - app host for blob URLs
+  def self.post_review_thread(message_ts:, ship:, review_type:, review_status:, cover_image_url:, project_url:, repo_url:, base_url:) # rubocop:disable Metrics/ParameterLists
     return if message_ts.blank?
 
     client = Slack::Web::Client.new(token: ENV.fetch("SLACK_BOT_TOKEN", nil))
@@ -85,7 +86,7 @@ class SlackCheckpointService
 
     card_actions = build_card_actions(project_url, repo_url)
 
-    icon_url = avatar_36_url(project.user.avatar)
+    icon_url = resize_avatar_url(project.user.avatar, base_url: base_url)
 
     card_block = {
       type: "card",
@@ -255,10 +256,32 @@ class SlackCheckpointService
   end
   private_class_method :build_card_actions
 
-  def self.avatar_36_url(avatar_url)
+  def self.resize_avatar_url(avatar_url, base_url:)
     return nil if avatar_url.blank?
 
-    avatar_url.sub(/_(?:24|32|48|72|96|192|512)\.(png|jpe?g)\z/i, "_36.\\1")
+    require "open-uri"
+
+    source = Tempfile.new([ "review_avatar_source", ".img" ])
+    source.binmode
+    URI.open(avatar_url, read_timeout: 10) { |io| source.write(io.read) } # rubocop:disable Security/Open
+    source.flush
+
+    output = Tempfile.new([ "review_avatar", ".jpg" ])
+    Vips::Image.thumbnail(source.path, 30, height: 30, crop: :centre).jpegsave(output.path, Q: 85)
+
+    blob = ActiveStorage::Blob.create_and_upload!(
+      io: File.open(output.path),
+      filename: "review_avatar_#{SecureRandom.hex(6)}.jpg",
+      content_type: "image/jpeg"
+    )
+
+    Rails.application.routes.url_helpers.rails_blob_url(blob, host: base_url)
+  rescue StandardError => e
+    Rails.logger.warn("SlackCheckpointService.resize_avatar_url failed: #{e.class}: #{e.message}")
+    nil
+  ensure
+    source&.close!
+    output&.close!
   end
-  private_class_method :avatar_36_url
+  private_class_method :resize_avatar_url
 end

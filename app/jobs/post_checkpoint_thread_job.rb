@@ -24,7 +24,8 @@ class PostCheckpointThreadJob < ApplicationJob
       review_status: review_status,
       cover_image_url: cover_image_url,
       project_url: project_url,
-      repo_url: repo_url
+      repo_url: repo_url,
+      base_url: base_url
     )
   end
 end
