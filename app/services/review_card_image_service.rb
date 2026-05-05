@@ -18,23 +18,23 @@ class ReviewCardImageService
     [ "design_review",      "rejected"  ] => "designreviewreject.png"
   }.freeze
 
-  def self.call(project:, review_type:, review_status:, base_url: nil)
+  def self.call(project:, review_type:, review_status:, base_url:)
     overlay_filename = OVERLAYS[[ review_type, review_status ]]
     return nil unless overlay_filename
 
     overlay_path = OVERLAY_DIR.join(overlay_filename)
     return nil unless overlay_path.exist?
 
-    source_path = zine_source_path(project) || journal_source_path(project)
+    source_path = direct_zine_source_path(project) || zine_source_path(project) || journal_source_path(project)
     unless source_path
       Rails.logger.warn("ReviewCardImageService: no source image for project ##{project.id}")
       return nil
     end
 
-      composited_blob = composite(source_path, overlay_path)
+    composited_blob = composite(source_path, overlay_path)
     return nil unless composited_blob
 
-    ActiveStorage::Blob.service.url(composited_blob.key, expires_in: 1.hour, filename: composited_blob.filename, content_type: composited_blob.content_type, disposition: :inline, checksum_algorithm: nil)
+    Rails.application.routes.url_helpers.rails_blob_url(composited_blob, host: base_url)
   rescue StandardError => e
     Rails.logger.warn("ReviewCardImageService failed for project ##{project.id}: #{e.message}")
     nil
@@ -42,6 +42,37 @@ class ReviewCardImageService
 
   # Downloads the zine URL from UnifiedScreenshotFinder and writes it to a
   # tempfile. Returns the tempfile path, or nil if not found/downloadable.
+  def self.direct_zine_source_path(project)
+    nwo = github_nwo(project.repo_link)
+    return nil unless nwo
+
+    urls = [
+      "https://raw.githubusercontent.com/#{nwo}/main/zine.png",
+      "https://raw.githubusercontent.com/#{nwo}/main/zine.pdf",
+      "https://raw.githubusercontent.com/#{nwo}/master/zine.png",
+      "https://raw.githubusercontent.com/#{nwo}/master/zine.pdf"
+    ]
+
+    urls.each do |url|
+      ext = File.extname(URI.parse(url).path).downcase.presence || ".png"
+      tmp = Tempfile.new([ "zine_source", ext ])
+      tmp.binmode
+
+      require "open-uri"
+      URI.open(url, read_timeout: 8) { |io| tmp.write(io.read) } # rubocop:disable Security/Open
+      tmp.flush
+      return tmp.path
+    rescue OpenURI::HTTPError
+      next
+    end
+
+    nil
+  rescue StandardError => e
+    Rails.logger.warn("ReviewCardImageService.direct_zine_source_path failed for project ##{project.id}: #{e.message}")
+    nil
+  end
+  private_class_method :direct_zine_source_path
+
   def self.zine_source_path(project)
     url = ShipChecks::UnifiedScreenshotFinder.find_url(project)
     unless url.present?
@@ -61,6 +92,20 @@ class ReviewCardImageService
     Rails.logger.warn("ReviewCardImageService.zine_source_path failed for project ##{project.id}: #{e.message}")
     nil
   end
+  private_class_method :zine_source_path
+
+  def self.github_nwo(repo_link)
+    return nil if repo_link.blank?
+
+    path = URI.parse(repo_link).path.to_s.sub(%r{\A/}, "").sub(/\.git\z/, "")
+    parts = path.split("/")
+    return nil if parts.size < 2
+
+    "#{parts[0]}/#{parts[1]}"
+  rescue URI::InvalidURIError
+    nil
+  end
+  private_class_method :github_nwo
 
   # Writes the most recent journal entry image blob to a tempfile.
   def self.journal_source_path(project)

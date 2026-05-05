@@ -85,7 +85,7 @@ class SlackCheckpointService
 
     card_actions = build_card_actions(project_url, repo_url)
 
-    icon_url = resize_avatar_url(project.user.avatar)
+    icon_url = avatar_36_url(project.user.avatar)
 
     card_block = {
       type: "card",
@@ -255,32 +255,10 @@ class SlackCheckpointService
   end
   private_class_method :build_card_actions
 
-  def self.resize_avatar_url(avatar_url)
+  def self.avatar_36_url(avatar_url)
     return nil if avatar_url.blank?
 
-    require "open-uri"
-    tmp_in  = Tempfile.new([ "avatar_in",  ".png" ])
-    tmp_out = Tempfile.new([ "avatar_out", ".jpg" ])
-    tmp_in.binmode
-
-    URI.open(avatar_url, read_timeout: 10) { |io| tmp_in.write(io.read) } # rubocop:disable Security/Open
-    tmp_in.flush
-
-    img = Vips::Image.thumbnail(tmp_in.path, 36, height: 36, crop: :centre)
-    img.jpegsave(tmp_out.path, Q: 90)
-
-    blob = ActiveStorage::Blob.create_and_upload!(
-      io: File.open(tmp_out.path),
-      filename: "avatar_#{SecureRandom.hex(6)}.jpg",
-      content_type: "image/jpeg"
-    )
-    ActiveStorage::Blob.service.url(blob.key, expires_in: 1.hour, filename: blob.filename, content_type: blob.content_type, disposition: :inline, checksum_algorithm: nil)
-  rescue StandardError => e
-    Rails.logger.warn("SlackCheckpointService.resize_avatar_url failed: #{e.message}")
-    nil
-  ensure
-    tmp_in&.close!
-    tmp_out&.close!
+    avatar_url.sub(/_(?:24|32|48|72|96|192|512)\.(png|jpe?g)\z/i, "_36.\\1")
   end
-  private_class_method :resize_avatar_url
+  private_class_method :avatar_36_url
 end
