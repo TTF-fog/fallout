@@ -18,7 +18,7 @@ class ReviewCardImageService
     [ "design_review",      "rejected"  ] => "designreviewreject.png"
   }.freeze
 
-  def self.call(project:, review_type:, review_status:, base_url:)
+  def self.call(project:, review_type:, review_status:, base_url: nil)
     overlay_filename = OVERLAYS[[ review_type, review_status ]]
     return nil unless overlay_filename
 
@@ -28,10 +28,10 @@ class ReviewCardImageService
     source_path = zine_source_path(project) || journal_source_path(project)
     return nil unless source_path
 
-    composited_blob = composite(source_path, overlay_path)
+      composited_blob = composite(source_path, overlay_path)
     return nil unless composited_blob
 
-    Rails.application.routes.url_helpers.rails_blob_url(composited_blob, host: base_url)
+    composited_blob.url(expires_in: 1.hour)
   rescue StandardError => e
     Rails.logger.warn("ReviewCardImageService failed for project ##{project.id}: #{e.message}")
     nil

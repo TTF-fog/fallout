@@ -85,7 +85,7 @@ class SlackCheckpointService
 
     card_actions = build_card_actions(project_url, repo_url)
 
-    icon_url = resize_avatar_url(project.user.avatar, base_url: ENV.fetch("APP_BASE_URL", "https://fallout.hackclub.com"))
+    icon_url = resize_avatar_url(project.user.avatar)
 
     card_block = {
       type: "card",
@@ -255,7 +255,7 @@ class SlackCheckpointService
   end
   private_class_method :build_card_actions
 
-  def self.resize_avatar_url(avatar_url, base_url:)
+  def self.resize_avatar_url(avatar_url)
     return nil if avatar_url.blank?
 
     require "open-uri"
@@ -274,8 +274,9 @@ class SlackCheckpointService
       filename: "avatar_#{SecureRandom.hex(6)}.jpg",
       content_type: "image/jpeg"
     )
-    Rails.application.routes.url_helpers.rails_blob_url(blob, host: base_url)
-  rescue StandardError
+    blob.url(expires_in: 1.hour)
+  rescue StandardError => e
+    Rails.logger.warn("SlackCheckpointService.resize_avatar_url failed: #{e.message}")
     nil
   ensure
     tmp_in&.close!
