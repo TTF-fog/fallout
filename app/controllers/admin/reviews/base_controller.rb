@@ -278,14 +278,4 @@ class Admin::Reviews::BaseController < Admin::ApplicationController
     end
   end
 
-  # Returns an absolute URL for the project's cover image (first image from the
-  # most recent public journal entry with an attachment), or nil if none exists.
-  def cover_image_for_project(project)
-    entry = JournalEntry.public_for_explore
-      .where(project_id: project.id)
-      .joins(:images_attachments)
-      .order(created_at: :desc)
-      .first
-    entry ? url_for(entry.images.first) : nil
-  end
 end
