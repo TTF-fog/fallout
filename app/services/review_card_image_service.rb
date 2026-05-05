@@ -131,7 +131,7 @@ class ReviewCardImageService
 
   def self.composite(source_path, overlay_path)
     Tempfile.create([ "review_card", ".jpg" ]) do |tmp|
-      MiniMagick::Tool::Convert.new do |cmd|
+      MiniMagick.convert do |cmd|
         if source_path.downcase.end_with?(".pdf")
           cmd.density("150")
           cmd << "#{source_path}[0]"
