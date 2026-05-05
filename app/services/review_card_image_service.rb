@@ -25,24 +25,26 @@ class ReviewCardImageService
     overlay_path = OVERLAY_DIR.join(overlay_filename)
     return nil unless overlay_path.exist?
 
-    source_path = direct_zine_source_path(project) || zine_source_path(project) || journal_source_path(project)
-    unless source_path
+    source_file = direct_zine_source_file(project) || zine_source_file(project) || journal_source_file(project)
+    unless source_file
       Rails.logger.warn("ReviewCardImageService: no source image for project ##{project.id}")
       return nil
     end
 
-    composited_blob = composite(source_path, overlay_path)
+    composited_blob = composite(source_file.path, overlay_path)
     return nil unless composited_blob
 
     Rails.application.routes.url_helpers.rails_blob_url(composited_blob, host: base_url)
   rescue StandardError => e
     Rails.logger.warn("ReviewCardImageService failed for project ##{project.id}: #{e.message}")
     nil
+  ensure
+    source_file&.close!
   end
 
   # Downloads the zine URL from UnifiedScreenshotFinder and writes it to a
   # tempfile. Returns the tempfile path, or nil if not found/downloadable.
-  def self.direct_zine_source_path(project)
+  def self.direct_zine_source_file(project)
     nwo = github_nwo(project.repo_link)
     return nil unless nwo
 
@@ -61,19 +63,19 @@ class ReviewCardImageService
       require "open-uri"
       URI.open(url, read_timeout: 8) { |io| tmp.write(io.read) } # rubocop:disable Security/Open
       tmp.flush
-      return tmp.path
+      return tmp
     rescue OpenURI::HTTPError
       next
     end
 
     nil
   rescue StandardError => e
-    Rails.logger.warn("ReviewCardImageService.direct_zine_source_path failed for project ##{project.id}: #{e.message}")
+    Rails.logger.warn("ReviewCardImageService.direct_zine_source_file failed for project ##{project.id}: #{e.message}")
     nil
   end
-  private_class_method :direct_zine_source_path
+  private_class_method :direct_zine_source_file
 
-  def self.zine_source_path(project)
+  def self.zine_source_file(project)
     url = ShipChecks::UnifiedScreenshotFinder.find_url(project)
     unless url.present?
       Rails.logger.warn("ReviewCardImageService: no zine URL for project ##{project.id}")
@@ -87,12 +89,12 @@ class ReviewCardImageService
     require "open-uri"
     URI.open(url, read_timeout: 10) { |io| tmp.write(io.read) } # rubocop:disable Security/Open
     tmp.flush
-    tmp.path
+    tmp
   rescue StandardError => e
-    Rails.logger.warn("ReviewCardImageService.zine_source_path failed for project ##{project.id}: #{e.message}")
+    Rails.logger.warn("ReviewCardImageService.zine_source_file failed for project ##{project.id}: #{e.message}")
     nil
   end
-  private_class_method :zine_source_path
+  private_class_method :zine_source_file
 
   def self.github_nwo(repo_link)
     return nil if repo_link.blank?
@@ -108,7 +110,7 @@ class ReviewCardImageService
   private_class_method :github_nwo
 
   # Writes the most recent journal entry image blob to a tempfile.
-  def self.journal_source_path(project)
+  def self.journal_source_file(project)
     entry = JournalEntry.public_for_explore
       .where(project_id: project.id)
       .joins(:images_attachments)
@@ -121,36 +123,17 @@ class ReviewCardImageService
     tmp.binmode
     blob.open { |io| tmp.write(io.read) }
     tmp.flush
-    tmp.path
+    tmp
   rescue StandardError
     nil
   end
-  private_class_method :journal_source_path
-
-  # If the source is a PDF, rasterise page 0 to a PNG tempfile first.
-  def self.normalise_to_image(source_path)
-    return source_path unless source_path.downcase.end_with?(".pdf")
-
-    tmp = Tempfile.new([ "pdf_page", ".png" ])
-    MiniMagick::Tool::Convert.new do |cmd|
-      cmd << "#{source_path}[0]" # first page only
-      cmd.density(150)
-      cmd.background("white")
-      cmd.flatten
-      cmd << tmp.path
-    end
-    tmp.path
-  rescue StandardError
-    nil
-  end
-  private_class_method :normalise_to_image
+  private_class_method :journal_source_file
 
   def self.composite(source_path, overlay_path)
-    image_path = normalise_to_image(source_path)
-    return nil unless image_path
+    source_input = source_path.downcase.end_with?(".pdf") ? "#{source_path}[0]" : source_path
 
     Tempfile.create([ "review_card", ".jpg" ]) do |tmp|
-      cover = MiniMagick::Image.open(image_path)
+      cover = MiniMagick::Image.open(source_input)
       cover.combine_options do |cmd|
         cmd.resize("800x600^")
         cmd.gravity("center")
