@@ -130,35 +130,26 @@ class ReviewCardImageService
   private_class_method :journal_source_file
 
   def self.composite(source_path, overlay_path)
-    source_input = source_path
-    if source_path.downcase.end_with?(".pdf")
-      pdf_page = Tempfile.new([ "pdf_page", ".png" ])
-      MiniMagick::Tool::Convert.new do |cmd|
-        cmd << "#{source_path}[0]"
-        cmd.density("150")
-        cmd.background("white")
-        cmd.flatten
-        cmd << pdf_page.path
-      end
-      source_input = pdf_page.path
-    end
-
     Tempfile.create([ "review_card", ".jpg" ]) do |tmp|
-      cover = MiniMagick::Image.open(source_input)
-      cover.combine_options do |cmd|
+      MiniMagick::Tool::Convert.new do |cmd|
+        if source_path.downcase.end_with?(".pdf")
+          cmd.density("150")
+          cmd << "#{source_path}[0]"
+          cmd.background("white")
+          cmd.flatten
+        else
+          cmd << source_path
+        end
+
         cmd.resize("800x600^")
         cmd.gravity("center")
         cmd.extent("800x600")
-      end
-
-      overlay = MiniMagick::Image.open(overlay_path.to_s)
-      composited = cover.composite(overlay) do |cmd|
+        cmd << overlay_path.to_s
         cmd.compose("Over")
-        cmd.gravity("NorthWest")
+        cmd.composite
+        cmd.quality("85")
+        cmd << tmp.path
       end
-      composited.format("jpg")
-      composited.quality("85")
-      composited.write(tmp.path)
 
       ActiveStorage::Blob.create_and_upload!(
         io: File.open(tmp.path),
@@ -167,10 +158,8 @@ class ReviewCardImageService
       )
     end
   rescue StandardError => e
-    Rails.logger.warn("ReviewCardImageService.composite failed: #{e.class}: #{e.message}")
+    Rails.logger.warn("ReviewCardImageService.composite failed: #{e.class}: #{e.message} -- #{e.backtrace&.first}")
     nil
-  ensure
-    pdf_page&.close!
   end
   private_class_method :composite
 end
